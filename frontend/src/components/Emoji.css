@@ -1,0 +1,14 @@
+/* Hide scrollbar for WebKit browsers (Chrome, Safari) */
+.emoji-picker-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for Firefox */
+.emoji-picker-container {
+  scrollbar-width: none;
+}
+
+/* Hide scrollbar for Edge and IE */
+.emoji-picker-container {
+  -ms-overflow-style: none;
+}
