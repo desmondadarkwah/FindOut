@@ -24,43 +24,40 @@ const Dashboard = () => {
   const { openManageUser } = useContext(SettingsContext);
   const { myGroups, fetchAllGroups } = useContext(FetchAllGroupsContext)
   const { handleDeleteGroup } = useDelete();
-  const { setChats ,setSelectedChat} = useContext(ChatContext); 
+  const { chats,setChats ,setSelectedChat} = useContext(ChatContext); 
 
   useEffect(() => {
     fetchAllGroups()
   }, []);
 
-// In Dashboard.jsx, replace the handleConnectPrivateChat function with this:
+  const groupsCreated = myGroups.filter(group => 
+    group.groupAdmin === userData._id 
+  ).length;
 
 const handleOpenGroupChat = async (groupId) => {
   try {
     console.log('Opening group chat for groupId:', groupId);
     
-    // Fetch all chats (which includes all your group chats with populated data)
     const allChatsResponse = await axiosInstance.get("/api/chats");
     const allChats = allChatsResponse.data.chats;
     
     console.log('All chats fetched:', allChats);
     
-    // Find the group chat by matching the groupId
     const groupChat = allChats.find(chat => chat._id === groupId);
     
     if (groupChat) {
       console.log('Found group chat:', groupChat);
       
-      // Set this group as the selected chat
       setSelectedChat(groupChat);
       
-      // Add to chats array if not already there
       setChats((prevChats) => {
         const chatExists = prevChats.some(chat => chat._id === groupChat._id);
         if (chatExists) {
-          return prevChats; // Already in the list
+          return prevChats; 
         }
-        return [...prevChats, groupChat]; // Add to the list
+        return [...prevChats, groupChat]; 
       });
       
-      // Navigate to inbox
       navigate("/inbox");
     } else {
       console.error('Could not find the group chat with id:', groupId);
@@ -69,6 +66,9 @@ const handleOpenGroupChat = async (groupId) => {
     console.error("Error opening group chat:", error);
   }
 };
+
+
+
 
   return (
     <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 min-h-screen">
@@ -106,12 +106,12 @@ const handleOpenGroupChat = async (groupId) => {
                   <p className="text-sm text-gray-300">Groups Joined</p>
                 </div>
                 <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 text-center">
-                  <p className="text-2xl font-bold text-green-400">Y</p>
-                  <p className="text-sm text-gray-300">Total Members</p>
+                  <p className="text-2xl font-bold text-green-400">{groupsCreated}</p>
+                  <p className="text-sm text-gray-300">Groups Created</p>
                 </div>
                 <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 text-center">
-                  <p className="text-2xl font-bold text-purple-400">Z</p>
-                  <p className="text-sm text-gray-300">Active Chats</p>
+                  <p className="text-2xl font-bold text-purple-400">{chats.length}</p>
+                  <p className="text-sm text-gray-300">Total Chats</p>
                 </div>
               </div>
             </section>

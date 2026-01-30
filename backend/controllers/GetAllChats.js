@@ -19,7 +19,31 @@ const GetAllChats = async (req, res) => {
       return res.status(404).json({ message: 'No chats found for this user' });
     }
 
-    const allChats = [...groups, ...privateChats];
+    const groupsWithUnread = groups.map(group => {
+      const groupObj = group.toObject();
+      const unreadEntry = groupObj.unreadCount?.find(
+        u => u.userId?.toString() === userId.toString()
+      );
+      return {
+        ...groupObj,
+        unreadCount: unreadEntry ? unreadEntry.count : 0
+      };
+    });
+
+    // ✅ Extract unread count for private chats
+    const chatsWithUnread = privateChats.map(chat => {
+      const chatObj = chat.toObject();
+      const unreadEntry = chatObj.unreadCount?.find(
+        u => u.userId?.toString() === userId.toString()
+      );
+      return {
+        ...chatObj,
+        unreadCount: unreadEntry ? unreadEntry.count : 0
+      };
+    });
+
+    // const allChats = [...groups, ...privateChats];
+    const allChats = [...groupsWithUnread, ...chatsWithUnread];
 
     allChats.sort((a, b) => {
       const aTime = a.lastMessage?.createdAt || a.createdAt;

@@ -8,9 +8,11 @@ import { RxDashboard } from "react-icons/rx";
 import { BeatLoader } from 'react-spinners';
 import { MdOutlineKeyboardVoice } from "react-icons/md";
 import moment from 'moment';
+import socket from '../socket/socket';
 
 const ChatSidebar = () => {
   const [loading, setLoading] = useState(true);
+  const [onlineUsers, setOnlineUsers] = useState({}); // ✅ ADDED
   const { chats, setChats, setSelectedChat, userId, setUserId, barsToHidden, setBarsToHidden, showChatOptions, setShowChatOptions } = useContext(ChatContext);
 
   useEffect(() => {
@@ -19,8 +21,9 @@ const ChatSidebar = () => {
         const response = await axiosInstance.get("/api/chats");
         const { chats, userId } = response.data;
         setChats(chats);
-        console.log('sidebar selected-chats:', response.data);
         console.log('userId : ', userId);
+        console.log('chats : ', chats);
+
         setUserId(userId);
         setLoading(false);
       } catch (error) {
@@ -32,9 +35,87 @@ const ChatSidebar = () => {
     fetchChats();
   }, []);
 
+  // ✅ ADDED: Listen for chat-updated events in sidebar
+  useEffect(() => {
+    if (!socket || !userId) return;
+
+    const handleChatUpdated = (updatedChat) => {
+      console.log('📨 Chat updated in sidebar:', updatedChat._id);
+
+      setChats(prevChats =>
+        prevChats.map(chat => {
+          if (chat._id === updatedChat._id) {
+            // Find current user's unread count
+            const userUnread = updatedChat.unreadCount?.find(
+              u => u.userId?.toString() === userId?.toString()
+            );
+
+            return {
+              ...updatedChat,
+              unreadCount: userUnread ? userUnread.count : 0
+            };
+          }
+          return chat;
+        })
+      );
+    };
+
+    socket.on('chat-updated', handleChatUpdated);
+
+    return () => {
+      socket.off('chat-updated', handleChatUpdated);
+    };
+  }, [socket, userId, setChats]);
+
+  // ✅ ADDED: Listen for online status changes
+  useEffect(() => {
+    if (!socket || !userId) return;
+
+    // Emit that current user is online
+    socket.emit('user-online', userId);
+
+    // Listen for other users' status changes
+    const handleUserStatusChanged = ({ userId: changedUserId, isOnline, lastSeen }) => {
+      console.log(`👤 User ${changedUserId} status: ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
+      
+      setOnlineUsers(prev => ({
+        ...prev,
+        [changedUserId]: { isOnline, lastSeen }
+      }));
+    };
+
+    socket.on('user-status-changed', handleUserStatusChanged);
+
+    return () => {
+      socket.off('user-status-changed', handleUserStatusChanged);
+    };
+  }, [socket, userId]);
+
+
+  const handleChatClick = (chat) => {
+    // Emit to server to mark as read
+    if (socket && chat.unreadCount > 0) {
+      socket.emit('mark-chat-read', {
+        chatId: chat._id,
+        userId: userId
+      });
+
+      // Optimistically update UI immediately
+      setChats(prevChats =>
+        prevChats.map(c =>
+          c._id === chat._id ? { ...c, unreadCount: 0 } : c
+        )
+      );
+    }
+
+    setSelectedChat(chat);
+    setBarsToHidden(false);
+  };
+
+
   if (loading) {
     return (
-      <div className="min-w-[100%] flex items-center justify-center text-gray-300 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 h-screen p-4 lg:min-w-[33%] gap-3">
+      <div className="w-full md:w-auto lg:min-w-[33%] flex items-center justify-center text-gray-300 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 h-screen p-4 gap-3">
         <div className="flex flex-col items-center gap-3">
           <BeatLoader color="#6366f1" size={8} />
           <span className="text-sm font-medium">Loading chats...</span>
@@ -47,8 +128,13 @@ const ChatSidebar = () => {
 
   return (
     <div
-      className={`bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 backdrop-blur-xl text-white h-screen overflow-hidden flex flex-col border-r border-gray-800/50 lg:min-w-[33%] shadow-2xl
-    ${barsToHidden ? 'block absolute z-50' : 'hidden'} md:block md:static md:z-auto`}
+      className={`
+        bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 
+        backdrop-blur-xl text-white h-screen overflow-hidden 
+        flex flex-col border-r border-gray-800/50 shadow-2xl
+        ${barsToHidden ? 'w-full fixed inset-0 z-50' : 'hidden'} 
+        md:block md:relative md:w-auto lg:min-w-[33%]
+      `}
       onClick={() => setShowChatOptions(false)}
     >
 
@@ -93,131 +179,138 @@ const ChatSidebar = () => {
 
         {chats.length > 0 ? (
           <div className="space-y-1 p-2">
-            {chats.map((chat) => (
-              <div
-                key={chat._id}
-                className="group flex items-center px-4 py-4 cursor-pointer rounded-2xl transition-all duration-300 hover:bg-gray-800/50 hover:backdrop-blur-sm hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] mx-2"
-                onClick={() => {
-                  setSelectedChat(chat);
-                  setBarsToHidden(false);
-                }}>
+            {chats.map((chat) => {
+              // ✅ ADDED: Get online status for this chat
+              const otherUser = !chat.isGroup && chat.participants.find(p => p._id !== userId);
+              const isUserOnline = otherUser && onlineUsers[otherUser._id]?.isOnline;
 
-                {/* Enhanced avatar with online status indicator */}
-                <div className="relative flex-shrink-0">
-                  <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-700 text-white rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300">
-                    {chat.isGroup ? (
-                      chat.groupProfile ? (
-                        <img
-                          src={
-                            chat.groupProfile.startsWith('/uploads/')
-                              ? `${import.meta.env.VITE_BACKEND_URL}${chat.groupProfile}`
-                              : `${import.meta.env.VITE_BACKEND_URL}/uploads/${chat.groupProfile}`
-                          }
-                          alt={chat.groupName || 'Group'}
-                          className="w-12 h-12 rounded-2xl object-cover ring-2 ring-gray-600 group-hover:ring-indigo-500/30 transition-all duration-300"
-                        />
+              return (
+                <div
+                  key={chat._id}
+                  className="group flex items-center px-4 py-4 cursor-pointer rounded-2xl transition-all duration-300 hover:bg-gray-800/50 hover:backdrop-blur-sm hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] mx-2"
+                  onClick={() => {
+                    setSelectedChat(chat);
+                    setBarsToHidden(false);
+                    handleChatClick(chat);
+                  }}>
+
+                  {/* Enhanced avatar with online status indicator */}
+                  <div className="relative flex-shrink-0">
+                    <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-700 text-white rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300">
+                      {chat.isGroup ? (
+                        chat.groupProfile ? (
+                          <img
+                            src={
+                              chat.groupProfile.startsWith('/uploads/')
+                                ? `${import.meta.env.VITE_BACKEND_URL}${chat.groupProfile}`
+                                : `${import.meta.env.VITE_BACKEND_URL}/uploads/${chat.groupProfile}`
+                            }
+                            alt={chat.groupName || 'Group'}
+                            className="w-12 h-12 rounded-2xl object-cover ring-2 ring-gray-600 group-hover:ring-indigo-500/30 transition-all duration-300"
+                          />
+                        ) : (
+                          <RxAvatar className="text-gray-300 text-xl" />
+                        )
                       ) : (
-                        <RxAvatar className="text-gray-300 text-xl" />
-                      )
-                    ) : (
-                      chat.participants.length > 0 && chat.participants[0].profilePicture ? (
-                        <img
-                          src={
-                            chat.participants[0].profilePicture.startsWith('/uploads/')
-                              ? `${import.meta.env.VITE_BACKEND_URL}${chat.participants[0].profilePicture}`
-                              : `${import.meta.env.VITE_BACKEND_URL}/uploads/${chat.participants[0].profilePicture}`
-                          }
-                          alt={chat.participants[0]?.name || 'User'}
-                          className="w-12 h-12 rounded-2xl object-cover ring-2 ring-gray-600 group-hover:ring-indigo-500/30 transition-all duration-300"
-                        />
-                      ) : (
-                        <RxAvatar className="w-6 h-6 text-gray-300" />
-                      )
+                        chat.participants.length > 0 && chat.participants[0].profilePicture ? (
+                          <img
+                            src={
+                              chat.participants[0].profilePicture.startsWith('/uploads/')
+                                ? `${import.meta.env.VITE_BACKEND_URL}${chat.participants[0].profilePicture}`
+                                : `${import.meta.env.VITE_BACKEND_URL}/uploads/${chat.participants[0].profilePicture}`
+                            }
+                            alt={chat.participants[0]?.name || 'User'}
+                            className="w-12 h-12 rounded-2xl object-cover ring-2 ring-gray-600 group-hover:ring-indigo-500/30 transition-all duration-300"
+                          />
+                        ) : (
+                          <RxAvatar className="w-6 h-6 text-gray-300" />
+                        )
+                      )}
+                    </div>
+                    
+                    {/* ✅ UPDATED: Online status dot only shows if user is actually online */}
+                    {!chat.isGroup && isUserOnline && (
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900 shadow-sm"></div>
                     )}
                   </div>
-                  {/* Online status dot for individual chats */}
-                  {!chat.isGroup && (
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900 shadow-sm"></div>
-                  )}
-                </div>
 
-                {/* Chat info with better typography */}
-                <div className="flex-1 ml-4 min-w-0">
-                  <div className="flex items-center gap-16 mb-1">
-                    <span className="text-sm font-semibold text-white truncate group-hover:text-indigo-200 transition-colors">
-                      {chat.isGroup
-                        ? chat.groupName
-                        : chat.participants.find(p => p._id !== userId)?.name || "Unknown User"}
-                    </span>
-                    {/* <span className="text-xs text-gray-400 font-medium">12:30</span> */}
-                    <span className="text-xxs text-gray-400 font-medium">
-                      {chat.lastMessage?.createdAt
-                        ? moment(chat.lastMessage.createdAt).fromNow()
-                        : ''}
-                    </span>
-                  </div>
-
-
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs truncate flex-1 group-hover:text-gray-300 transition-colors">
-                      {
-                        chat.lastMessage?.senderId?._id === userId ? (
-                          // When YOU sent the last message - lighter/dimmer color
-                          <>
-                            {chat.lastMessage.type === 'audio' ? (
-                              <span className="flex items-center gap-1 text-gray-400">
-                                <MdOutlineKeyboardVoice size={14} />
-                                You: Voice message
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-gray-400">
-                                You: {chat.lastMessage.content}
-                              </span>
-                            )}
-                          </>
-                        ) : chat.lastMessage?.content ? (
-                          // When SOMEONE ELSE sent the last message - brighter color
-                          <>
-                            {chat.lastMessage.type === 'audio' ? (
-                              <span className="flex items-center gap-1 text-gray-200">
-                                <MdOutlineKeyboardVoice size={14} />
-                                {chat.isGroup && chat.lastMessage?.senderId?.name
-                                  ? `${chat.lastMessage.senderId.name}: ` : ''}
-                                Voice message
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-white font-bold">
-                                {/* Show sender name in groups */}
-                                {chat.isGroup && chat.lastMessage?.senderId?.name && (
-                                  <span className="text-gray-300 font-normal">
-                                    {chat.lastMessage.senderId.name}:
-                                  </span>
-                                )}
-                                {chat.lastMessage.content.length > 30
-                                  ? `${chat.lastMessage.content.substring(0, 30)}...`
-                                  : chat.lastMessage.content}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-gray-500">No recent messages</span>
-                        )
-                      }
+                  {/* Chat info with better typography */}
+                  <div className="flex-1 ml-4 min-w-0">
+                    <div className="flex justify-between  mb-1">
+                      <span className="text-sm font-semibold text-white truncate group-hover:text-indigo-200 transition-colors">
+                        {chat.isGroup
+                          ? chat.groupName
+                          : chat.participants.find(p => p._id !== userId)?.name || "Unknown User"}
+                      </span>
+                      <span className="text-xxs text-gray-400 font-medium">
+                        {chat.lastMessage?.createdAt
+                          ? moment(chat.lastMessage.createdAt).fromNow()
+                          : ''}
+                      </span>
                     </div>
 
-                    {/* Unread message count badge */}
-                    {chat.lastMessage?.senderId?._id !== userId && chat.unreadCount > 0 && (
-                      <div className="ml-2 flex-shrink-0 bg-red-200">
-                        <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-indigo-500 text-white text-xs font-bold rounded-full">
-                          {chat.unreadCount}
-                        </span>
-                      </div>
-                    )}
-                  </div>
 
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs truncate flex-1 group-hover:text-gray-300 transition-colors">
+                        {
+                          chat.lastMessage?.senderId?._id === userId ? (
+                            // When YOU sent the last message - lighter/dimmer color
+                            <>
+                              {chat.lastMessage.type === 'audio' ? (
+                                <span className="flex items-center gap-1 text-gray-400">
+                                  <MdOutlineKeyboardVoice size={14} />
+                                  You: Voice message
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-gray-400">
+                                  You: {chat.lastMessage.content}
+                                </span>
+                              )}
+                            </>
+                          ) : chat.lastMessage?.content ? (
+                            // When SOMEONE ELSE sent the last message - brighter color
+                            <>
+                              {chat.lastMessage.type === 'audio' ? (
+                                <span className="flex items-center gap-1 text-gray-200">
+                                  <MdOutlineKeyboardVoice size={14} />
+                                  {chat.isGroup && chat.lastMessage?.senderId?.name
+                                    ? `${chat.lastMessage.senderId.name}: ` : ''}
+                                  Voice message
+                                </span>
+                              ) : (
+                                <span className="flex  gap-1 text-white font-bold ">
+                                  {/* Show sender name in groups */}
+                                  {chat.isGroup && chat.lastMessage?.senderId?.name && (
+                                    <span className="text-gray-300 font-normal ">
+                                      {chat.lastMessage.senderId.name}:
+                                    </span>
+                                  )}
+                                  {chat.lastMessage.content.length > 30
+                                    ? `${chat.lastMessage.content.substring(0, 30)}...`
+                                    : chat.lastMessage.content}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-gray-500">No recent messages</span>
+                          )
+                        }
+                      </div>
+
+                      {/* Unread message count badge */}
+                      {chat.lastMessage?.senderId?._id !== userId && chat.unreadCount > 0 && (
+                        <div className="ml-2 flex-shrink-0">
+                          <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-white text-gray-800 text-xs font-bold rounded-full">
+                            {chat.unreadCount}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-64 text-center px-4">

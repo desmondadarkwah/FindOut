@@ -14,8 +14,8 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  profilePicture:{
-    type:String
+  profilePicture: {
+    type: String
   },
   subjects: {
     type: [String],
@@ -26,13 +26,25 @@ const userSchema = new mongoose.Schema({
     enum: ["Ready To Teach", "Ready To Learn", "Later"],
     default: "Later",
   },
-  
+
   freetime: {
     type: String
   },
   isVerified: {
     type: Boolean,
-    default: false, 
+    default: false,
+  },
+  isOnline: {
+    type: Boolean,
+    default: false
+  },
+  lastSeen: {
+    type: Date,
+    default: Date.now
+  },
+  socketId: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true

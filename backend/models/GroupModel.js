@@ -41,12 +41,44 @@ const groupSchema = new mongoose.Schema({
     type: { type: String, default: 'text' }, // 'text', 'audio', 'image', etc.
     createdAt: { type: Date, default: null }
   },
-  unreadCount: {
-    type: Number,
-    default: 0
-  }
+  unreadCount: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    count: {
+      type: Number,
+      default: 0
+    }
+  }]
 }, { timestamps: true });
 
 const GroupModel = mongoose.model('Group', groupSchema);
 
 module.exports = GroupModel;
+
+
+
+
+
+//new fileds addede
+// - `joinType`: Determines if users can join instantly or need approval
+// - `inviteCode`: Unique code for the invite link (easier than using full groupId)
+// - `createdBy`: Track the original creator (even if admins change later)
+
+
+  // joinType: {
+  //   type: String,
+  //   enum: ['open', 'approval_required'],
+  //   default: 'open'
+  // },
+  // inviteCode: {
+  //   type: String,
+  //   unique: true,
+  //   required: true
+  // },
+  // CreatedBy: {
+  //   type: mongoose.Schema.Types.ObjectId,
+  //   ref: 'User',
+  //   required: true
+  // },

@@ -17,13 +17,19 @@ const chatSchema = new mongoose.Schema({
   lastMessage: {
     content: { type: String, default: null },
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    type: { type: String, default: 'text' }, // 'text', 'audio', 'image', etc.
+    type: { type: String, default: 'text' },
     createdAt: { type: Date, default: null }
   },
-  unreadCount: {
-    type: Number,
-    default: 0
-  }
+  unreadCount: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    count: {
+      type: Number,
+      default: 0
+    }
+  }]
 }, { timestamps: true });
 
 const ChatModel = mongoose.model('Chat', chatSchema);
@@ -47,6 +53,28 @@ const messageSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
+  },
+  // ✅ ADDED: Message status tracking
+  status: {
+    type: String,
+    enum: ['sending', 'sent', 'delivered', 'read'],
+    default: 'sent'
+  },
+  // ✅ ADDED: Track who has read the message (for group chats)
+  readBy: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    readAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  // ✅ ADDED: Track when message was delivered
+  deliveredAt: {
+    type: Date,
+    default: null
   }
 }, { timestamps: true });
 

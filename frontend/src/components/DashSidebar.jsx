@@ -5,7 +5,6 @@ import { MdOutlineExploreOff } from "react-icons/md";
 import { BsChatDots } from "react-icons/bs";
 import { MdOutlineAddBox } from "react-icons/md";
 import { IoMdNotificationsOutline } from "react-icons/io";
-// import { IoSettingsOutline } from "react-icons/io5";
 import { IoIosMore } from "react-icons/io";
 
 import UserProfile from "./UserProfile";
@@ -13,11 +12,21 @@ import { SettingsContext } from '../Context/SettingsContext';
 
 const DashSidebar = () => {
   const { setOpenSettings } = useContext(SettingsContext);
-//  const {}
   
   return (
     <div className="flex">
-      <aside className="w-60 border border-gray-900 hidden md:block fixed left-0 top-0 h-full bg-black z-10 overflow-y-auto">
+      <aside className="w-60 border border-gray-900 hidden md:block fixed left-0 top-0 h-full bg-black z-10 overflow-y-auto custom-scrollbar">
+        {/* ✅ Add this style block to hide scrollbar */}
+        <style jsx>{`
+          .custom-scrollbar {
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+          }
+          .custom-scrollbar::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+          }
+        `}</style>
+
         <div className="text-white w-52 ml-4 font-bold flex items-center justify-center mb-10 mt-5 text-4xl">
           FindOut
         </div>
@@ -43,7 +52,7 @@ const DashSidebar = () => {
           <BsChatDots size={25} color="white" />
           <a href="inbox" className="block px-4 py-2 font-medium text-white">
             Chats
-          </a>````
+          </a>
         </span>
         <span className="flex items-center hover:bg-[#1c1e21] p-2">
           <MdOutlineAddBox size={25} color="white" />
@@ -64,12 +73,11 @@ const DashSidebar = () => {
           </span>
         </span>
         <span
-          onClick={()=>setOpenSettings(true)}
+          onClick={() => setOpenSettings(true)}
           className="flex items-center hover:bg-[#1c1e21] p-2 cursor-pointer"
         >
-          {/* <IoSettingsOutline size={25} color="white" /> */}
           <IoIosMore size={25} color="white" />
-          <span  className="block px-4 py-2 font-medium text-white">
+          <span className="block px-4 py-2 font-medium text-white">
             More
           </span>
         </span>

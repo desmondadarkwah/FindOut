@@ -75,6 +75,14 @@ const SuggestionsProvider = ({ children }) => {
     }
   }, []);
 
+// const handleJoinGroup = async(){
+
+// }
+
+// const handleConnectGroupChat = async(){
+
+// }
+
   return (
     <SuggestionsContext.Provider value={{ suggestedUsers, suggestedGroups, loading, error, fetchSuggestions, handleConnectPrivateChat }}>
       {children}

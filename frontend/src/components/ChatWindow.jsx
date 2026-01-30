@@ -26,6 +26,7 @@ const ChatWindow = () => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [hoveredMessageId, setHoveredMessageId] = useState(null);
   const [openMessageMenuId, setOpenMessageMenuId] = useState(null);
+  const [onlineUsers, setOnlineUsers] = useState({});
   const emojiPickerRef = useRef(null);
   const messageEndRef = useRef(null);
   const { selectedChat, userId, setBarsToHidden, showChatOptions, setShowChatOptions, setChats } = useContext(ChatContext);
@@ -70,74 +71,203 @@ const ChatWindow = () => {
     };
   }, [openMessageMenuId]);
 
+  // Listen for chat-updated events
   useEffect(() => {
-    if (selectedChat) {
-      const fetchMessages = async () => {
-        try {
-          const response = await axiosInstance.get(`/api/messages/${selectedChat._id}`);
-          setMessages(response.data);
-          // console.log('selectChat: ', selectedChat);
-          console.log('messsages: ', response.data);
-          console.log('userId: ', userId);
-        } catch (error) {
-          console.error('Error fetching messages:', error);
-        }
-      };
-      fetchMessages();
-      socket.emit('join-chat', selectedChat._id);
+    if (!socket || !userId) return;
 
-      const handleMessageReceived = (newMessage) => {
-        if (newMessage.chatId === selectedChat._id) {
-          // Check if message already exists and sender is not current user
-          const messageExists = messages.some(msg => msg._id === newMessage._id);
-          if (!messageExists && newMessage.senderId._id !== userId) {
-            setMessages((prevMessages) => [...prevMessages, newMessage]);
+    const handleChatUpdated = (updatedChat) => {
+      console.log('📨 Chat updated received:', updatedChat._id);
+
+      setChats(prevChats =>
+        prevChats.map(chat => {
+          if (chat._id === updatedChat._id) {
+            // Find current user's unread count
+            const userUnread = updatedChat.unreadCount?.find(
+              u => u.userId?.toString() === userId?.toString()
+            );
+
+            return {
+              ...updatedChat,
+              unreadCount: userUnread ? userUnread.count : 0
+            };
           }
-        }
+          return chat;
+        })
+      );
+    };
 
+    socket.on('chat-updated', handleChatUpdated);
 
-        setChats((prevChats) =>
-          prevChats.map((chat) =>
-            chat._id === newMessage.chatId
-              ? {
-                ...chat,
-                lastMessage: {
-                  content: newMessage.type === 'audio' ? 'Voice message' : newMessage.content,
-                  senderId: newMessage.senderId,
-                  type: newMessage.type,
-                  createdAt: newMessage.createdAt
-                }
-              }
-              : chat
-          ).sort((a, b) => {
-            const aTime = a.lastMessage?.createdAt || a.createdAt;
-            const bTime = b.lastMessage?.createdAt || b.createdAt;
-            return new Date(bTime) - new Date(aTime);
+    return () => {
+      socket.off('chat-updated', handleChatUpdated);
+    };
+  }, [socket, userId, setChats]);
+
+  // Listen for online status changes
+  useEffect(() => {
+    if (!socket || !userId) return;
+
+    const handleUserStatusChanged = ({ userId: changedUserId, isOnline, lastSeen }) => {
+      console.log(`👤 User status changed: ${changedUserId} - ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
+      
+      setOnlineUsers(prev => ({
+        ...prev,
+        [changedUserId]: { isOnline, lastSeen }
+      }));
+    };
+
+    socket.on('user-status-changed', handleUserStatusChanged);
+
+    return () => {
+      socket.off('user-status-changed', handleUserStatusChanged);
+    };
+  }, [socket, userId]);
+
+  // ✅ NEW: Listen for messages being read
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleMessagesRead = ({ chatId, userId: readByUserId, readAt }) => {
+      if (chatId === selectedChat?._id) {
+        console.log('✅ Messages marked as read by:', readByUserId);
+        
+        // Update all messages sent by current user to 'read' status
+        setMessages(prevMessages =>
+          prevMessages.map(msg => {
+            const msgSenderId = msg.senderId._id || msg.senderId;
+            // If current user sent the message, mark it as read
+            if (msgSenderId === userId) {
+              return { ...msg, status: 'read' };
+            }
+            return msg;
           })
         );
-      };
+      }
+    };
 
+    socket.on('messages-read', handleMessagesRead);
 
+    return () => {
+      socket.off('messages-read', handleMessagesRead);
+    };
+  }, [socket, selectedChat, userId]);
 
+  useEffect(() => {
+    if (!selectedChat) return;
 
-      socket.on('message-received', handleMessageReceived);
-      return () => {
-        socket.off('message-received', handleMessageReceived);
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current);
-        }
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-        }
-        Object.values(audioRefs.current).forEach(url => {
-          if (url) URL.revokeObjectURL(url);
+    const fetchMessages = async () => {
+      try {
+        const response = await axiosInstance.get(`/api/messages/${selectedChat._id}`);
+        setMessages(response.data);
+        console.log('Messages loaded:', response.data.length);
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+      }
+    };
+
+    fetchMessages();
+    socket.emit('join-chat', selectedChat._id);
+
+    const handleMessageReceived = (newMessage) => {
+      console.log('📩 Message received:', newMessage._id);
+    
+      if (newMessage.chatId === selectedChat._id) {
+        setMessages((prevMessages) => {
+          const messageExists = prevMessages.some(msg => msg._id === newMessage._id);
+    
+          if (!messageExists && newMessage.senderId._id !== userId) {
+            console.log('✅ Adding message from other user');
+            return [...prevMessages, newMessage];
+          }
+          
+          console.log('⏭️ Skipping - duplicate or own message');
+          return prevMessages;
         });
-        Object.values(progressIntervals.current).forEach(interval => {
-          clearInterval(interval);
-        });
-      };
-    }
-  }, [selectedChat, userId]);
+      }
+    
+      setChats((prevChats) =>
+        prevChats.map((chat) => {
+          if (chat._id === newMessage.chatId) {
+            return {
+              ...chat,
+              lastMessage: {
+                content: newMessage.type === 'audio' ? 'Voice message' : newMessage.content,
+                senderId: newMessage.senderId,
+                type: newMessage.type,
+                createdAt: newMessage.createdAt
+              }
+            };
+          }
+          return chat;
+        }).sort((a, b) => {
+          const aTime = a.lastMessage?.createdAt || a.createdAt;
+          const bTime = b.lastMessage?.createdAt || b.createdAt;
+          return new Date(bTime) - new Date(aTime);
+        })
+      );
+    };
+
+    // Handle message confirmation
+    const handleMessageConfirmed = ({ tempId, message }) => {
+      console.log('✅ Message confirmed:', tempId, '→', message._id);
+      
+      setMessages((prevMessages) =>
+        prevMessages.map(msg =>
+          msg._id === tempId ? message : msg
+        )
+      );
+    };
+
+    // Handle message errors
+    const handleMessageError = ({ tempId, error }) => {
+      console.error('❌ Message failed:', tempId, error);
+      
+      setMessages((prevMessages) =>
+        prevMessages.map(msg =>
+          msg._id === tempId 
+            ? { ...msg, error: true, errorMessage: error }
+            : msg
+        )
+      );
+    };
+
+    socket.on('message-received', handleMessageReceived);
+    socket.on('message-confirmed', handleMessageConfirmed);
+    socket.on('message-error', handleMessageError);
+
+    return () => {
+      socket.off('message-received', handleMessageReceived);
+      socket.off('message-confirmed', handleMessageConfirmed);
+      socket.off('message-error', handleMessageError);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      Object.values(audioRefs.current).forEach(url => {
+        if (url) URL.revokeObjectURL(url);
+      });
+      Object.values(progressIntervals.current).forEach(interval => {
+        clearInterval(interval);
+      });
+    };
+  }, [selectedChat, userId, setChats]);
+
+  // ✅ NEW: Mark messages as read when opening chat
+  useEffect(() => {
+    if (!socket || !userId || !selectedChat) return;
+
+    // Small delay to ensure messages are loaded
+    const timer = setTimeout(() => {
+      socket.emit('mark-messages-read', {
+        chatId: selectedChat._id,
+        userId: userId
+      });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [socket, userId, selectedChat]);
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -145,41 +275,59 @@ const ChatWindow = () => {
 
 
 
-
-
   const handleSendMessage = (e) => {
     e?.preventDefault();
     if (!input.trim()) return;
+    
+    const messageContent = input;
     const newMessage = {
       chatId: selectedChat._id,
       senderId: userId,
-      content: input,
+      content: messageContent,
       type: "text",
     };
-    setInput('');
+    
+    setInput(''); // Clear input immediately
+    
     socket.emit('send-message', newMessage, (response) => {
       if (response.status === 'success') {
+        // Show optimistic message immediately
         setMessages((prevMessages) => [...prevMessages, response.message]);
+
+        // Update chat list immediately
+        setChats((prevChats) =>
+          prevChats.map((chat) => {
+            if (chat._id === selectedChat._id) {
+              return {
+                ...chat,
+                lastMessage: {
+                  content: messageContent,
+                  senderId: { _id: userId },
+                  type: 'text',
+                  createdAt: new Date().toISOString()
+                }
+              };
+            }
+            return chat;
+          }).sort((a, b) => {
+            const aTime = a.lastMessage?.createdAt || a.createdAt;
+            const bTime = b.lastMessage?.createdAt || b.createdAt;
+            return new Date(bTime) - new Date(aTime);
+          })
+        );
       } else {
         console.error('Error sending message:', response.error);
       }
     });
+    
     setShowEmojiPicker(false);
   };
+ 
 
   const handleEmojiClick = (emojiObject) => {
     setInput(prevInput => prevInput + emojiObject.emoji);
   };
 
-  // const handleMessageClick = (e, messageId) => {
-  //   // If we're clicking on buttons or menus, don't do anything
-  //   if (e.target.closest('button') || e.target.closest('.message-menu')) {
-  //     return;
-  //   }
-
-  //   // Otherwise, toggle the message menu
-  //   setOpenMessageMenuId(openMessageMenuId === messageId ? null : messageId);
-  // };
 
   const toggleAudioPlayback = (audioId, audioSrc) => {
     const audioElement = customAudioPlayerRefs.current[audioId];
@@ -448,38 +596,27 @@ const ChatWindow = () => {
     return bars;
   };
 
-  // Create a function to format timestamps like professional messaging apps
-  // const formatMessageTime = (timestamp) => {
-  //   const messageDate = moment(timestamp);
-  //   return messageDate.format('h:mm A');
-  // };
 
-  // Updated function to format date headers with Today/Yesterday logic
   const formatDateHeader = (timestamp) => {
     const messageDate = moment(timestamp);
     const today = moment().startOf('day');
     const yesterday = moment().subtract(1, 'day').startOf('day');
 
-    // If the message is from today, return "Today"
     if (messageDate.isSame(today, 'day')) {
       return "Today";
     }
 
-    // If the message is from yesterday, return "Yesterday"
     if (messageDate.isSame(yesterday, 'day')) {
       return "Yesterday";
     }
 
-    // If the message is from this week, use day name (e.g., "Thursday")
     if (messageDate.isAfter(moment().subtract(7, 'days'))) {
       return messageDate.format('dddd');
     }
 
-    // Otherwise use full date format (e.g., "6 April 2025")
     return messageDate.format('D MMMM YYYY');
   };
 
-  // Function to group messages by date for date separators
   const groupMessagesByDate = () => {
     const groupedMessages = [];
     let currentDate = null;
@@ -506,6 +643,57 @@ const ChatWindow = () => {
     return groupedMessages;
   };
 
+  // ✅ NEW: Render message status ticks
+  const renderMessageStatus = (msg) => {
+    // Only show status for messages sent by current user
+    const msgSenderId = msg.senderId._id || msg.senderId;
+    if (msgSenderId !== userId) {
+      return null;
+    }
+
+    const status = msg.status || 'sent';
+
+    switch (status) {
+      case 'sending':
+        // Clock icon
+        return (
+          <svg className="w-3 h-3 text-gray-400" viewBox="0 0 16 16" fill="currentColor">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="2" fill="none" />
+            <path d="M8 4v4l3 3" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+          </svg>
+        );
+      
+      case 'sent':
+        // Single gray tick
+        return (
+          <svg className="w-4 h-4 text-gray-400" viewBox="0 0 16 16" fill="none">
+            <path d="M13.5 4.5L6 12l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        );
+      
+      case 'delivered':
+        // Double gray ticks
+        return (
+          <svg className="w-4 h-4 text-gray-400" viewBox="0 0 16 16" fill="none">
+            <path d="M14.5 4.5L7 12l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M11.5 4.5L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        );
+      
+      case 'read':
+        // Double blue ticks
+        return (
+          <svg className="w-4 h-4 text-blue-500" viewBox="0 0 16 16" fill="none">
+            <path d="M14.5 4.5L7 12l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M11.5 4.5L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        );
+      
+      default:
+        return null;
+    }
+  };
+
   if (!selectedChat) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-900 text-gray-400 h-screen">
@@ -518,48 +706,82 @@ const ChatWindow = () => {
 
   return (
     <div className="flex flex-col w-full h-screen bg-gray-950 text-white">
-      <header
-        className="flex justify-between items-center bg-gray-950  p-1.5 border-b  border-gray-900">
+      <header className="flex justify-between items-center bg-gray-950 p-1.5 border-b border-gray-900">
         <IoMdArrowBack size={20} className='block lg:hidden' onClick={(e) => {
           e.stopPropagation();
           setBarsToHidden(true);
         }} />
+        
         <div className="flex items-center gap-2">
-
           <div
             onClick={() => setOpenGroupManager(true)}
             className="flex items-center gap-2 cursor-pointer">
-            {selectedChat.isGroup ? (
-              <GroupProfile />
-            ) : (
-              (() => {
+            
+            {/* Profile picture with online indicator */}
+            <div className="relative">
+              {selectedChat.isGroup ? (
+                <GroupProfile />
+              ) : (
+                (() => {
+                  const otherParticipant = selectedChat.participants.find(p => p._id !== userId);
+                  const isUserOnline = otherParticipant && onlineUsers[otherParticipant._id]?.isOnline;
+                  
+                  return (
+                    <>
+                      {otherParticipant?.profilePicture ? (
+                        <img
+                          src={
+                            otherParticipant.profilePicture.startsWith('/uploads/')
+                              ? `${import.meta.env.VITE_BACKEND_URL}${otherParticipant.profilePicture}`
+                              : `${import.meta.env.VITE_BACKEND_URL}/uploads/${otherParticipant.profilePicture}`
+                          }
+                          alt={otherParticipant.name}
+                          className="w-12 h-12 rounded-full object-cover border border-gray-700"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
+                          <RxAvatar size={24} className="text-gray-400" />
+                        </div>
+                      )}
+                      
+                      {/* Online indicator dot */}
+                      {isUserOnline && (
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-950"></div>
+                      )}
+                    </>
+                  );
+                })()
+              )}
+            </div>
+
+            {/* Name with online status text */}
+            <div className="flex flex-col">
+              <h2 className="text-lg font-semibold">
+                {selectedChat.isGroup
+                  ? selectedChat.groupName
+                  : selectedChat.participants.find(p => p._id !== userId)?.name || "Unknown User"}
+              </h2>
+              
+              {/* Online status text */}
+              {!selectedChat.isGroup && (() => {
                 const otherParticipant = selectedChat.participants.find(p => p._id !== userId);
-                return otherParticipant?.profilePicture ? (
-                  <img
-                    src={
-                      otherParticipant.profilePicture.startsWith('/uploads/')
-                        ? `${import.meta.env.VITE_BACKEND_URL}${otherParticipant.profilePicture}`
-                        : `${import.meta.env.VITE_BACKEND_URL}/uploads/${otherParticipant.profilePicture}`
-                    }
-                    alt={otherParticipant.name}
-                    className="w-12 h-12 rounded-full object-cover border border-gray-700"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-                    <RxAvatar size={24} className="text-gray-400" />
-                  </div>
-                );
-              })()
-            )}
-
-            <h2 className="text-lg font-semibold">
-              {selectedChat.isGroup
-                ? selectedChat.groupName
-                : selectedChat.participants.find(p => p._id !== userId)?.name || "Unknown User"}
-            </h2>
+                const userStatus = otherParticipant && onlineUsers[otherParticipant._id];
+                
+                if (userStatus?.isOnline) {
+                  return <span className="text-xs text-green-400">Online</span>;
+                } else if (userStatus?.lastSeen) {
+                  return (
+                    <span className="text-xs text-gray-400">
+                      Last seen {moment(userStatus.lastSeen).fromNow()}
+                    </span>
+                  );
+                }
+                return null;
+              })()}
+            </div>
           </div>
-
         </div>
+        
         <div className="flex gap-2">
           <FiPhone size={20} className="cursor-pointer" />
           <HiOutlineVideoCamera size={20} className="cursor-pointer" />
@@ -571,11 +793,9 @@ const ChatWindow = () => {
             selectedChat.isGroup ? <GroupOptions /> : <IndividualChatOptions />
           )}
         </div>
-        {/* {openGroupManager && <ManageGroup />} */}
         {openGroupManager && (
           selectedChat.isGroup ? <ManageGroup /> : <ManageIndividual />
         )}
-
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-1">
@@ -626,18 +846,7 @@ const ChatWindow = () => {
                     <div
                       onClick={() => handleConnectPrivateChat(msg.senderId._id)}
                       className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
-
-                      {/* <img
-                        src={
-                          msg.senderId.profilePicture.startsWith('/uploads/')
-                            ? `${import.meta.env.VITE_BACKEND_URL}${msg.senderId.profilePicture}`
-                            : `${import.meta.env.VITE_BACKEND_URL}/uploads/${msg.senderId.profilePicture}`
-                        }
-                        className="w-8 h-8 rounded-full object-cover border border-gray-700"
-                        alt={msg.senderId.name}
-                      /> */}
                       <RxAvatar size={24} className="text-gray-400" />
-
                     </div>
                   )}
                 </div>
@@ -700,8 +909,10 @@ const ChatWindow = () => {
                       msg.content
                     )}
                   </div>
-                  <div className="text-[10px] text-gray-400 self-end ml-1">
-                    {msg.createdAt ? moment(msg.createdAt).format('h:mm A') : ''}
+                  {/* ✅ UPDATED: Timestamp with status ticks */}
+                  <div className="flex items-center gap-1 text-[10px] text-gray-400 self-end ml-1">
+                    <span>{msg.createdAt ? moment(msg.createdAt).format('h:mm A') : ''}</span>
+                    {renderMessageStatus(msg)}
                   </div>
                 </div>
               </div>
