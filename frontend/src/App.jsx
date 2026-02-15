@@ -10,6 +10,7 @@ import ChatSidebar from './components/ChatSidebar';
 import Inbox from './Pages/Inbox';
 import AddPost from './Feed/AddPost';
 import AllPost from './Feed/AllPost';
+import JoinGroup from './Pages/JoinGroup';
 
 function App() {
   return (
@@ -27,6 +28,8 @@ function App() {
           <Route path="/inbox" element={<Inbox />} />
           <Route path="/add-post" element={<AddPost />} />
           <Route path="/feed" element={<AllPost />} />
+          <Route path="/join/:inviteCode" element={<JoinGroup />} />
+
         </Routes>
       {/* </Router> */}
     </>

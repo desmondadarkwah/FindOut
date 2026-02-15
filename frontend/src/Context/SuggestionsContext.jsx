@@ -10,7 +10,7 @@ const SuggestionsProvider = ({ children }) => {
   const [suggestedGroups, setSuggestedGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { setChats,setSelectedChat } = useContext(ChatContext); // Store chat list
+  const { setChats, setSelectedChat } = useContext(ChatContext); // Store chat list
 
   const navigate = useNavigate();
 
@@ -21,6 +21,8 @@ const SuggestionsProvider = ({ children }) => {
       const response = await axiosInstance.get('/api/suggestions');
       setSuggestedUsers(response.data.suggestedUsers);
       setSuggestedGroups(response.data.suggestedGroups);
+
+      console.log('suggestion: ', response.data);
 
     } catch (error) {
       console.error('Error fetching suggestions:', error);
@@ -35,20 +37,20 @@ const SuggestionsProvider = ({ children }) => {
       // Step 1: Create the chat
       const response = await axiosInstance.post("/api/start-new-chat", { userIdToChat });
       const newChatId = response.data.chat._id;
-      
-      
+
+
       // Step 2: Fetch all chats (which includes the newly created one with populated data)
       const allChatsResponse = await axiosInstance.get(`/api/chats`);
       const allChats = allChatsResponse.data.chats; // Access .chats property
-      
+
       // Find the newly created chat
       const fullChat = allChats.find(chat => chat._id === newChatId);
-      
+
       if (fullChat) {
         console.log('Full chat with populated participants:', fullChat);
-        
+
         setSelectedChat(fullChat);
-        
+
         setChats((prevChats) => {
           const chatExists = prevChats.some(chat => chat._id === fullChat._id);
           if (chatExists) {
@@ -56,7 +58,7 @@ const SuggestionsProvider = ({ children }) => {
           }
           return [...prevChats, fullChat];
         });
-        
+
         navigate("/inbox");
       } else {
         console.error('Could not find the newly created chat');
@@ -75,13 +77,13 @@ const SuggestionsProvider = ({ children }) => {
     }
   }, []);
 
-// const handleJoinGroup = async(){
+  // const handleJoinGroup = async(){
 
-// }
+  // }
 
-// const handleConnectGroupChat = async(){
+  // const handleConnectGroupChat = async(){
 
-// }
+  // }
 
   return (
     <SuggestionsContext.Provider value={{ suggestedUsers, suggestedGroups, loading, error, fetchSuggestions, handleConnectPrivateChat }}>

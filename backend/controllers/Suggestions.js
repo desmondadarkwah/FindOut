@@ -29,7 +29,7 @@ const Suggestions = async (req, res) => {
     const suggestedGroups = await GroupModel.find({
       subjects: { $in: user.subjects }, 
       members: { $ne: id }, 
-    }).select("groupProfile");
+    }).select("groupProfile groupName subjects");
 
     res.status(200).json({ suggestedUsers, suggestedGroups });
   } catch (error) {

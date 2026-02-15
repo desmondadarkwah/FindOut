@@ -12,7 +12,7 @@ import socket from '../socket/socket';
 
 const ChatSidebar = () => {
   const [loading, setLoading] = useState(true);
-  const [onlineUsers, setOnlineUsers] = useState({}); // ✅ ADDED
+  const [onlineUsers, setOnlineUsers] = useState({});
   const { chats, setChats, setSelectedChat, userId, setUserId, barsToHidden, setBarsToHidden, showChatOptions, setShowChatOptions } = useContext(ChatContext);
 
   useEffect(() => {
@@ -35,7 +35,6 @@ const ChatSidebar = () => {
     fetchChats();
   }, []);
 
-  // ✅ ADDED: Listen for chat-updated events in sidebar
   useEffect(() => {
     if (!socket || !userId) return;
 
@@ -45,7 +44,6 @@ const ChatSidebar = () => {
       setChats(prevChats =>
         prevChats.map(chat => {
           if (chat._id === updatedChat._id) {
-            // Find current user's unread count
             const userUnread = updatedChat.unreadCount?.find(
               u => u.userId?.toString() === userId?.toString()
             );
@@ -67,14 +65,11 @@ const ChatSidebar = () => {
     };
   }, [socket, userId, setChats]);
 
-  // ✅ ADDED: Listen for online status changes
   useEffect(() => {
     if (!socket || !userId) return;
 
-    // Emit that current user is online
     socket.emit('user-online', userId);
 
-    // Listen for other users' status changes
     const handleUserStatusChanged = ({ userId: changedUserId, isOnline, lastSeen }) => {
       console.log(`👤 User ${changedUserId} status: ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
       
@@ -91,22 +86,69 @@ const ChatSidebar = () => {
     };
   }, [socket, userId]);
 
+  // ✅ NEW: Listen for group member changes
+  useEffect(() => {
+    if (!socket || !userId) return;
+
+    const handleMembersAdded = ({ groupId, newMembers, group }) => {
+      console.log('👥 Members added to group:', groupId);
+      
+      // Update the group in chat list
+      setChats(prevChats =>
+        prevChats.map(chat =>
+          chat._id === groupId ? { ...chat, members: group.members } : chat
+        )
+      );
+    };
+
+    const handleMemberJoined = ({ groupId, newMember, group }) => {
+      console.log('👤 New member joined group:', groupId);
+      
+      // Update the group in chat list
+      setChats(prevChats =>
+        prevChats.map(chat =>
+          chat._id === groupId ? { ...chat, members: group.members } : chat
+        )
+      );
+    };
+
+    const handleAddedToGroup = ({ groupId, groupName, addedBy }) => {
+      console.log('✅ You were added to group:', groupName);
+      
+      // Fetch updated chat list to include new group
+      axiosInstance.get("/api/chats").then(response => {
+        setChats(response.data.chats);
+      }).catch(error => {
+        console.error('❌ Error fetching updated chats:', error);
+      });
+    };
+
+    socket.on('members-added', handleMembersAdded);
+    socket.on('member-joined', handleMemberJoined);
+    socket.on('added-to-group', handleAddedToGroup);
+
+    return () => {
+      socket.off('members-added', handleMembersAdded);
+      socket.off('member-joined', handleMemberJoined);
+      socket.off('added-to-group', handleAddedToGroup);
+    };
+  }, [socket, userId, setChats]);
 
   const handleChatClick = (chat) => {
-    // Emit to server to mark as read
-    if (socket && chat.unreadCount > 0) {
+    // ✅ UPDATED: Always mark as read when clicking
+    if (socket) {
       socket.emit('mark-chat-read', {
         chatId: chat._id,
         userId: userId
       });
-
-      // Optimistically update UI immediately
-      setChats(prevChats =>
-        prevChats.map(c =>
-          c._id === chat._id ? { ...c, unreadCount: 0 } : c
-        )
-      );
     }
+
+    // ✅ Optimistically reset unread count to 0
+    setChats(prevChats =>
+      prevChats.map(c =>
+        c._id === chat._id ? { ...c, unreadCount: 0 } : c
+      )
+    );
 
     setSelectedChat(chat);
     setBarsToHidden(false);
@@ -138,7 +180,6 @@ const ChatSidebar = () => {
       onClick={() => setShowChatOptions(false)}
     >
 
-      {/* Header with glassmorphism effect */}
       <div className="p-4 flex items-center justify-between md:block border-b border-gray-700/30 text-center bg-gray-900/20 backdrop-blur-sm">
         <RxDashboard className="lg:hidden text-gray-300 hover:text-white transition-colors cursor-pointer" />
         <h4 className="text-lg font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
@@ -147,7 +188,6 @@ const ChatSidebar = () => {
         <HiDotsVertical className="lg:hidden text-gray-300 hover:text-white transition-colors cursor-pointer" />
       </div>
 
-      {/* Enhanced search bar */}
       <div className="flex items-center justify-center relative p-4">
         <div className="relative w-full max-w-sm">
           <IoIosSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg z-10" />
@@ -159,7 +199,6 @@ const ChatSidebar = () => {
         </div>
       </div>
 
-      {/* Chat list with custom scrollbar */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <style jsx>{`
           .custom-scrollbar::-webkit-scrollbar {
@@ -180,7 +219,6 @@ const ChatSidebar = () => {
         {chats.length > 0 ? (
           <div className="space-y-1 p-2">
             {chats.map((chat) => {
-              // ✅ ADDED: Get online status for this chat
               const otherUser = !chat.isGroup && chat.participants.find(p => p._id !== userId);
               const isUserOnline = otherUser && onlineUsers[otherUser._id]?.isOnline;
 
@@ -194,7 +232,6 @@ const ChatSidebar = () => {
                     handleChatClick(chat);
                   }}>
 
-                  {/* Enhanced avatar with online status indicator */}
                   <div className="relative flex-shrink-0">
                     <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-700 text-white rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300">
                       {chat.isGroup ? (
@@ -228,13 +265,11 @@ const ChatSidebar = () => {
                       )}
                     </div>
                     
-                    {/* ✅ UPDATED: Online status dot only shows if user is actually online */}
                     {!chat.isGroup && isUserOnline && (
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900 shadow-sm"></div>
                     )}
                   </div>
 
-                  {/* Chat info with better typography */}
                   <div className="flex-1 ml-4 min-w-0">
                     <div className="flex justify-between  mb-1">
                       <span className="text-sm font-semibold text-white truncate group-hover:text-indigo-200 transition-colors">
@@ -254,7 +289,6 @@ const ChatSidebar = () => {
                       <div className="text-xs truncate flex-1 group-hover:text-gray-300 transition-colors">
                         {
                           chat.lastMessage?.senderId?._id === userId ? (
-                            // When YOU sent the last message - lighter/dimmer color
                             <>
                               {chat.lastMessage.type === 'audio' ? (
                                 <span className="flex items-center gap-1 text-gray-400">
@@ -268,7 +302,6 @@ const ChatSidebar = () => {
                               )}
                             </>
                           ) : chat.lastMessage?.content ? (
-                            // When SOMEONE ELSE sent the last message - brighter color
                             <>
                               {chat.lastMessage.type === 'audio' ? (
                                 <span className="flex items-center gap-1 text-gray-200">
@@ -279,7 +312,6 @@ const ChatSidebar = () => {
                                 </span>
                               ) : (
                                 <span className="flex  gap-1 text-white font-bold ">
-                                  {/* Show sender name in groups */}
                                   {chat.isGroup && chat.lastMessage?.senderId?.name && (
                                     <span className="text-gray-300 font-normal ">
                                       {chat.lastMessage.senderId.name}:
@@ -297,10 +329,10 @@ const ChatSidebar = () => {
                         }
                       </div>
 
-                      {/* Unread message count badge */}
-                      {chat.lastMessage?.senderId?._id !== userId && chat.unreadCount > 0 && (
+                      {/* ✅ UPDATED: Only show unread badge if count > 0 */}
+                      {chat.unreadCount > 0 && (
                         <div className="ml-2 flex-shrink-0">
-                          <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-white text-gray-800 text-xs font-bold rounded-full">
+                          <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-indigo-500 text-white text-xs font-bold rounded-full shadow-lg">
                             {chat.unreadCount}
                           </span>
                         </div>
@@ -323,7 +355,6 @@ const ChatSidebar = () => {
         )}
       </div>
 
-      {/* Add a subtle gradient overlay at the bottom */}
       <div className="h-4 bg-gradient-to-t from-gray-950 to-transparent pointer-events-none"></div>
     </div>
   );

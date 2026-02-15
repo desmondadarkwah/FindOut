@@ -1,6 +1,6 @@
 // cleanup-direct.js
 const mongoose = require('mongoose');
-const PostModel = require('../backend/models/PostModel');
+const PostModel = require('../models/PostModel');
 
 // Direct connection string (temporary for cleanup)
 const MONGODB_URI = 'mongodb+srv://desmondadarkwah48:finder@cluster0.vnndu.mongodb.net/test?retryWrites=true&w=majority&appName=Cluster0';

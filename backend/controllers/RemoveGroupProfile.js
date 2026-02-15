@@ -1,5 +1,0 @@
-
-
-const RemoveGroupProfile = async () => {
-  
-}

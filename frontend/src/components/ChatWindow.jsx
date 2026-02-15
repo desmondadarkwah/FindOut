@@ -13,7 +13,6 @@ import GroupOptions from './GroupOptions';
 import EmojiPicker from 'emoji-picker-react';
 import './Emoji.css';
 import GroupProfile from './GroupProfile';
-import UserProfile from './UserProfile';
 import ManageGroup from './ManageGroup';
 import { SettingsContext } from '../Context/SettingsContext';
 import ManageIndividual from './ManageIndividual';
@@ -21,18 +20,14 @@ import IndividualChatOptions from './IndividualChatOptions';
 import { SuggestionsContext } from '../Context/SuggestionsContext';
 
 const ChatWindow = () => {
+  // ═══════════════════════════════════════════════════════════════
+  // STATE MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════
+  
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [hoveredMessageId, setHoveredMessageId] = useState(null);
-  const [openMessageMenuId, setOpenMessageMenuId] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState({});
-  const emojiPickerRef = useRef(null);
-  const messageEndRef = useRef(null);
-  const { selectedChat, userId, setBarsToHidden, showChatOptions, setShowChatOptions, setChats } = useContext(ChatContext);
-  const { openGroupManager, setOpenGroupManager } = useContext(SettingsContext);
-  const { handleConnectPrivateChat } = useContext(SuggestionsContext)
-  const audioRefs = useRef({});
   const [audioPlayingId, setAudioPlayingId] = useState(null);
   const [audioProgress, setAudioProgress] = useState({});
   const [audioDurations, setAudioDurations] = useState({});
@@ -44,6 +39,11 @@ const ChatWindow = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioURL, setAudioURL] = useState(null);
   const [visualizerData, setVisualizerData] = useState([]);
+
+  // Refs
+  const emojiPickerRef = useRef(null);
+  const messageEndRef = useRef(null);
+  const audioRefs = useRef({});
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
   const audioContextRef = useRef(null);
@@ -52,36 +52,42 @@ const ChatWindow = () => {
   const customAudioPlayerRefs = useRef({});
   const progressIntervals = useRef({});
 
+  // Context
+  const { selectedChat, userId, setBarsToHidden, showChatOptions, setShowChatOptions, setChats, setSelectedChat } = useContext(ChatContext);
+  const { openGroupManager, setOpenGroupManager } = useContext(SettingsContext);
+  const { handleConnectPrivateChat } = useContext(SuggestionsContext);
+
+  // ═══════════════════════════════════════════════════════════════
+  // CLICK OUTSIDE HANDLING
+  // ═══════════════════════════════════════════════════════════════
+
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target) &&
-        !event.target.closest('.emoji-trigger')) {
+      if (emojiPickerRef.current && 
+          !emojiPickerRef.current.contains(event.target) &&
+          !event.target.closest('.emoji-trigger')) {
         setShowEmojiPicker(false);
-      }
-
-      // Close message menu when clicking outside
-      if (!event.target.closest('.message-menu') && openMessageMenuId) {
-        setOpenMessageMenuId(null);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [openMessageMenuId]);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  // Listen for chat-updated events
+  // ═══════════════════════════════════════════════════════════════
+  // SOCKET EVENT LISTENERS
+  // ═══════════════════════════════════════════════════════════════
+
+  // Listen for chat updates
   useEffect(() => {
     if (!socket || !userId) return;
 
     const handleChatUpdated = (updatedChat) => {
-      console.log('📨 Chat updated received:', updatedChat._id);
+      console.log('📨 Chat updated:', updatedChat._id);
 
       setChats(prevChats =>
         prevChats.map(chat => {
           if (chat._id === updatedChat._id) {
-            // Find current user's unread count
             const userUnread = updatedChat.unreadCount?.find(
               u => u.userId?.toString() === userId?.toString()
             );
@@ -97,10 +103,7 @@ const ChatWindow = () => {
     };
 
     socket.on('chat-updated', handleChatUpdated);
-
-    return () => {
-      socket.off('chat-updated', handleChatUpdated);
-    };
+    return () => socket.off('chat-updated', handleChatUpdated);
   }, [socket, userId, setChats]);
 
   // Listen for online status changes
@@ -108,7 +111,7 @@ const ChatWindow = () => {
     if (!socket || !userId) return;
 
     const handleUserStatusChanged = ({ userId: changedUserId, isOnline, lastSeen }) => {
-      console.log(`👤 User status changed: ${changedUserId} - ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
+      console.log(`👤 User ${changedUserId}: ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
       
       setOnlineUsers(prev => ({
         ...prev,
@@ -117,25 +120,20 @@ const ChatWindow = () => {
     };
 
     socket.on('user-status-changed', handleUserStatusChanged);
-
-    return () => {
-      socket.off('user-status-changed', handleUserStatusChanged);
-    };
+    return () => socket.off('user-status-changed', handleUserStatusChanged);
   }, [socket, userId]);
 
-  // ✅ NEW: Listen for messages being read
+  // Listen for messages being read
   useEffect(() => {
     if (!socket) return;
 
-    const handleMessagesRead = ({ chatId, userId: readByUserId, readAt }) => {
+    const handleMessagesRead = ({ chatId, readerUserId, readAt }) => {
       if (chatId === selectedChat?._id) {
-        console.log('✅ Messages marked as read by:', readByUserId);
+        console.log('✅ Messages read by:', readerUserId);
         
-        // Update all messages sent by current user to 'read' status
         setMessages(prevMessages =>
           prevMessages.map(msg => {
             const msgSenderId = msg.senderId._id || msg.senderId;
-            // If current user sent the message, mark it as read
             if (msgSenderId === userId) {
               return { ...msg, status: 'read' };
             }
@@ -146,11 +144,89 @@ const ChatWindow = () => {
     };
 
     socket.on('messages-read', handleMessagesRead);
+    return () => socket.off('messages-read', handleMessagesRead);
+  }, [socket, selectedChat, userId]);
+
+  // Listen for messages being delivered
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleMessagesDelivered = ({ chatId, recipientUserId, deliveredAt }) => {
+      if (chatId === selectedChat?._id) {
+        console.log('✅ Messages delivered to:', recipientUserId);
+        
+        setMessages(prevMessages =>
+          prevMessages.map(msg => {
+            const msgSenderId = msg.senderId._id || msg.senderId;
+            if (msgSenderId === userId && msg.status === 'sent') {
+              return { ...msg, status: 'delivered', deliveredAt };
+            }
+            return msg;
+          })
+        );
+      }
+    };
+
+    socket.on('messages-delivered', handleMessagesDelivered);
+    return () => socket.off('messages-delivered', handleMessagesDelivered);
+  }, [socket, selectedChat, userId]);
+
+  // Listen for group member changes
+  useEffect(() => {
+    if (!socket || !userId || !selectedChat) return;
+
+    const handleMembersAdded = ({ groupId, newMembers, group }) => {
+      if (selectedChat._id === groupId) {
+        console.log('👥 Members added to current group');
+        
+        setSelectedChat(prevChat => ({
+          ...prevChat,
+          members: group.members
+        }));
+      }
+    };
+
+    const handleMemberJoined = ({ groupId, newMember, group }) => {
+      if (selectedChat._id === groupId) {
+        console.log('👤 New member joined current group');
+        
+        setSelectedChat(prevChat => ({
+          ...prevChat,
+          members: group.members
+        }));
+      }
+    };
+
+    socket.on('members-added', handleMembersAdded);
+    socket.on('member-joined', handleMemberJoined);
 
     return () => {
-      socket.off('messages-read', handleMessagesRead);
+      socket.off('members-added', handleMembersAdded);
+      socket.off('member-joined', handleMemberJoined);
     };
-  }, [socket, selectedChat, userId]);
+  }, [socket, userId, selectedChat, setSelectedChat]);
+
+  // ✅ NEW: Listen for system messages
+  useEffect(() => {
+    if (!socket || !selectedChat) return;
+
+    const handleSystemMessage = ({ message }) => {
+      if (message.chatId === selectedChat._id) {
+        console.log('📢 System message received');
+        setMessages(prevMessages => [...prevMessages, message]);
+      }
+    };
+
+    socket.on('system-message', handleSystemMessage);
+
+    return () => {
+      socket.off('system-message', handleSystemMessage);
+    };
+  }, [socket, selectedChat]);
+
+  // ═══════════════════════════════════════════════════════════════
+  // MESSAGE LOADING & SOCKET HANDLERS
+  // ═══════════════════════════════════════════════════════════════
 
   useEffect(() => {
     if (!selectedChat) return;
@@ -159,9 +235,9 @@ const ChatWindow = () => {
       try {
         const response = await axiosInstance.get(`/api/messages/${selectedChat._id}`);
         setMessages(response.data);
-        console.log('Messages loaded:', response.data.length);
+        console.log('📥 Messages loaded:', response.data.length);
       } catch (error) {
-        console.error('Error fetching messages:', error);
+        console.error('❌ Error fetching messages:', error);
       }
     };
 
@@ -180,7 +256,6 @@ const ChatWindow = () => {
             return [...prevMessages, newMessage];
           }
           
-          console.log('⏭️ Skipping - duplicate or own message');
           return prevMessages;
         });
       }
@@ -207,18 +282,14 @@ const ChatWindow = () => {
       );
     };
 
-    // Handle message confirmation
     const handleMessageConfirmed = ({ tempId, message }) => {
       console.log('✅ Message confirmed:', tempId, '→', message._id);
       
       setMessages((prevMessages) =>
-        prevMessages.map(msg =>
-          msg._id === tempId ? message : msg
-        )
+        prevMessages.map(msg => msg._id === tempId ? message : msg)
       );
     };
 
-    // Handle message errors
     const handleMessageError = ({ tempId, error }) => {
       console.error('❌ Message failed:', tempId, error);
       
@@ -239,6 +310,7 @@ const ChatWindow = () => {
       socket.off('message-received', handleMessageReceived);
       socket.off('message-confirmed', handleMessageConfirmed);
       socket.off('message-error', handleMessageError);
+      
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
@@ -254,11 +326,10 @@ const ChatWindow = () => {
     };
   }, [selectedChat, userId, setChats]);
 
-  // ✅ NEW: Mark messages as read when opening chat
+  // Mark messages as read when opening chat
   useEffect(() => {
     if (!socket || !userId || !selectedChat) return;
 
-    // Small delay to ensure messages are loaded
     const timer = setTimeout(() => {
       socket.emit('mark-messages-read', {
         chatId: selectedChat._id,
@@ -269,16 +340,33 @@ const ChatWindow = () => {
     return () => clearTimeout(timer);
   }, [socket, userId, selectedChat]);
 
+  // Tell server when actively viewing chat
+  useEffect(() => {
+    if (!socket || !userId || !selectedChat) return;
+
+    socket.emit('viewing-chat', {
+      chatId: selectedChat._id,
+      userId: userId
+    });
+
+    return () => {
+      socket.emit('left-chat-view');
+    };
+  }, [socket, userId, selectedChat]);
+
+  // Auto-scroll to bottom
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-
+  // ═══════════════════════════════════════════════════════════════
+  // MESSAGE SENDING
+  // ═══════════════════════════════════════════════════════════════
 
   const handleSendMessage = (e) => {
     e?.preventDefault();
     if (!input.trim()) return;
-    
+
     const messageContent = input;
     const newMessage = {
       chatId: selectedChat._id,
@@ -286,15 +374,13 @@ const ChatWindow = () => {
       content: messageContent,
       type: "text",
     };
-    
-    setInput(''); // Clear input immediately
-    
+
+    setInput('');
+
     socket.emit('send-message', newMessage, (response) => {
       if (response.status === 'success') {
-        // Show optimistic message immediately
         setMessages((prevMessages) => [...prevMessages, response.message]);
 
-        // Update chat list immediately
         setChats((prevChats) =>
           prevChats.map((chat) => {
             if (chat._id === selectedChat._id) {
@@ -316,22 +402,23 @@ const ChatWindow = () => {
           })
         );
       } else {
-        console.error('Error sending message:', response.error);
+        console.error('❌ Error sending message:', response.error);
       }
     });
-    
+
     setShowEmojiPicker(false);
   };
- 
 
   const handleEmojiClick = (emojiObject) => {
     setInput(prevInput => prevInput + emojiObject.emoji);
   };
 
+  // ═══════════════════════════════════════════════════════════════
+  // AUDIO PLAYBACK
+  // ═══════════════════════════════════════════════════════════════
 
   const toggleAudioPlayback = (audioId, audioSrc) => {
     const audioElement = customAudioPlayerRefs.current[audioId];
-
     if (!audioElement) return;
 
     if (audioPlayingId === audioId) {
@@ -348,7 +435,7 @@ const ChatWindow = () => {
         }
       }
 
-      audioElement.play().catch(e => console.error("Audio play error:", e));
+      audioElement.play().catch(e => console.error("❌ Audio play error:", e));
       setAudioPlayingId(audioId);
       progressIntervals.current[audioId] = setInterval(() => {
         if (audioElement.duration) {
@@ -361,10 +448,7 @@ const ChatWindow = () => {
         if (audioElement.ended) {
           setAudioPlayingId(null);
           clearInterval(progressIntervals.current[audioId]);
-          setAudioProgress(prev => ({
-            ...prev,
-            [audioId]: 0
-          }));
+          setAudioProgress(prev => ({ ...prev, [audioId]: 0 }));
         }
       }, 50);
     }
@@ -373,10 +457,7 @@ const ChatWindow = () => {
   const handleAudioLoad = (audioId, e) => {
     const duration = e.target.duration;
     if (isFinite(duration) && !isNaN(duration)) {
-      setAudioDurations(prev => ({
-        ...prev,
-        [audioId]: duration
-      }));
+      setAudioDurations(prev => ({ ...prev, [audioId]: duration }));
     }
   };
 
@@ -397,16 +478,61 @@ const ChatWindow = () => {
 
     if (isFinite(clickPosition) && clickPosition >= 0 && clickPosition <= 1) {
       audioElement.currentTime = clickPosition * audioDurations[audioId];
-      setAudioProgress(prev => ({
-        ...prev,
-        [audioId]: clickPosition
-      }));
+      setAudioProgress(prev => ({ ...prev, [audioId]: clickPosition }));
 
       if (audioPlayingId !== audioId) {
         toggleAudioPlayback(audioId);
       }
     }
   };
+
+  const handleAudioError = (event, msg) => {
+    if (event.target.src.startsWith('http') && !event.target.src.startsWith('blob:')) {
+      fetchAudioAndCreateBlob(event.target.src, msg._id);
+    }
+  };
+
+  const fetchAudioAndCreateBlob = async (url, messageId) => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Network response was not ok');
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      audioRefs.current[messageId] = blobUrl;
+
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          msg._id === messageId ? { ...msg, localAudioUrl: blobUrl } : msg
+        )
+      );
+    } catch (error) {
+      console.error('❌ Error fetching audio:', error);
+    }
+  };
+
+  const generateWaveform = (messageId, progress) => {
+    const bars = [];
+    const numBars = 30;
+
+    for (let i = 0; i < numBars; i++) {
+      const angle = (i / numBars) * Math.PI;
+      const height = 30 + Math.sin(angle * 2) * 20 + Math.cos(angle * 3) * 10;
+      const isActive = i / numBars <= progress;
+
+      bars.push({
+        height: Math.max(20, Math.min(100, height)),
+        isActive
+      });
+    }
+
+    return bars;
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  // VOICE RECORDING
+  // ═══════════════════════════════════════════════════════════════
 
   const startVisualizer = (stream) => {
     if (!canvasRef.current) return;
@@ -475,14 +601,8 @@ const ChatWindow = () => {
         const url = URL.createObjectURL(blob);
         setAudioURL(url);
 
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-        }
-
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current);
-        }
-
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (animationRef.current) cancelAnimationFrame(animationRef.current);
         setVisualizerData([]);
       };
 
@@ -490,7 +610,7 @@ const ChatWindow = () => {
       setMediaRecorder(recorder);
       setIsRecording(true);
     } catch (error) {
-      console.error("Error starting recording:", error);
+      console.error("❌ Error starting recording:", error);
     }
   };
 
@@ -533,14 +653,14 @@ const ChatWindow = () => {
           chatId: selectedChat._id
         }, (response) => {
           if (response.status !== 'success') {
-            console.error('Error notifying about audio message:', response.error);
+            console.error('❌ Error notifying about audio message:', response.error);
           }
         });
       }
       setAudioBlob(null);
       setAudioURL(null);
     } catch (error) {
-      console.error("Error sending voice message:", error);
+      console.error("❌ Error sending voice message:", error);
     }
   };
 
@@ -551,69 +671,20 @@ const ChatWindow = () => {
     return `${mins}:${secs < 10 ? '0' + secs : secs}`;
   };
 
-  const handleAudioError = (event, msg) => {
-    if (event.target.src.startsWith('http') && !event.target.src.startsWith('blob:')) {
-      fetchAudioAndCreateBlob(event.target.src, msg._id);
-    }
-  };
-
-  const fetchAudioAndCreateBlob = async (url, messageId) => {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Network response was not ok');
-
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-
-      audioRefs.current[messageId] = blobUrl;
-
-      setMessages(prevMessages =>
-        prevMessages.map(msg =>
-          msg._id === messageId ? { ...msg, localAudioUrl: blobUrl } : msg
-        )
-      );
-    } catch (error) {
-      console.error('Error fetching audio:', error);
-    }
-  };
-
-  // Generate waveform for audio messages
-  const generateWaveform = (messageId, progress) => {
-    const bars = [];
-    const numBars = 30;
-
-    for (let i = 0; i < numBars; i++) {
-      const angle = (i / numBars) * Math.PI;
-      const height = 30 + Math.sin(angle * 2) * 20 + Math.cos(angle * 3) * 10;
-      const isActive = i / numBars <= progress;
-
-      bars.push({
-        height: Math.max(20, Math.min(100, height)),
-        isActive
-      });
-    }
-
-    return bars;
-  };
-
+  // ═══════════════════════════════════════════════════════════════
+  // DATE GROUPING
+  // ═══════════════════════════════════════════════════════════════
 
   const formatDateHeader = (timestamp) => {
     const messageDate = moment(timestamp);
     const today = moment().startOf('day');
     const yesterday = moment().subtract(1, 'day').startOf('day');
 
-    if (messageDate.isSame(today, 'day')) {
-      return "Today";
-    }
-
-    if (messageDate.isSame(yesterday, 'day')) {
-      return "Yesterday";
-    }
-
+    if (messageDate.isSame(today, 'day')) return "Today";
+    if (messageDate.isSame(yesterday, 'day')) return "Yesterday";
     if (messageDate.isAfter(moment().subtract(7, 'days'))) {
       return messageDate.format('dddd');
     }
-
     return messageDate.format('D MMMM YYYY');
   };
 
@@ -643,19 +714,18 @@ const ChatWindow = () => {
     return groupedMessages;
   };
 
-  // ✅ NEW: Render message status ticks
+  // ═══════════════════════════════════════════════════════════════
+  // MESSAGE STATUS RENDERING
+  // ═══════════════════════════════════════════════════════════════
+
   const renderMessageStatus = (msg) => {
-    // Only show status for messages sent by current user
     const msgSenderId = msg.senderId._id || msg.senderId;
-    if (msgSenderId !== userId) {
-      return null;
-    }
+    if (msgSenderId !== userId) return null;
 
     const status = msg.status || 'sent';
 
     switch (status) {
       case 'sending':
-        // Clock icon
         return (
           <svg className="w-3 h-3 text-gray-400" viewBox="0 0 16 16" fill="currentColor">
             <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="2" fill="none" />
@@ -664,28 +734,25 @@ const ChatWindow = () => {
         );
       
       case 'sent':
-        // Single gray tick
         return (
           <svg className="w-4 h-4 text-gray-400" viewBox="0 0 16 16" fill="none">
-            <path d="M13.5 4.5L6 12l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M13.5 4.5L6 12l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         );
       
       case 'delivered':
-        // Double gray ticks
         return (
           <svg className="w-4 h-4 text-gray-400" viewBox="0 0 16 16" fill="none">
-            <path d="M14.5 4.5L7 12l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M11.5 4.5L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M14.5 4.5L7 12l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M11.5 4.5L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         );
       
       case 'read':
-        // Double blue ticks
         return (
           <svg className="w-4 h-4 text-blue-500" viewBox="0 0 16 16" fill="none">
-            <path d="M14.5 4.5L7 12l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M11.5 4.5L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M14.5 4.5L7 12l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M11.5 4.5L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         );
       
@@ -693,6 +760,10 @@ const ChatWindow = () => {
         return null;
     }
   };
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════
 
   if (!selectedChat) {
     return (
@@ -706,18 +777,22 @@ const ChatWindow = () => {
 
   return (
     <div className="flex flex-col w-full h-screen bg-gray-950 text-white">
+      {/* HEADER */}
       <header className="flex justify-between items-center bg-gray-950 p-1.5 border-b border-gray-900">
-        <IoMdArrowBack size={20} className='block lg:hidden' onClick={(e) => {
-          e.stopPropagation();
-          setBarsToHidden(true);
-        }} />
+        <IoMdArrowBack 
+          size={20} 
+          className='block lg:hidden cursor-pointer' 
+          onClick={(e) => {
+            e.stopPropagation();
+            setBarsToHidden(true);
+          }} 
+        />
         
         <div className="flex items-center gap-2">
           <div
             onClick={() => setOpenGroupManager(true)}
             className="flex items-center gap-2 cursor-pointer">
             
-            {/* Profile picture with online indicator */}
             <div className="relative">
               {selectedChat.isGroup ? (
                 <GroupProfile />
@@ -744,7 +819,6 @@ const ChatWindow = () => {
                         </div>
                       )}
                       
-                      {/* Online indicator dot */}
                       {isUserOnline && (
                         <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-950"></div>
                       )}
@@ -754,7 +828,6 @@ const ChatWindow = () => {
               )}
             </div>
 
-            {/* Name with online status text */}
             <div className="flex flex-col">
               <h2 className="text-lg font-semibold">
                 {selectedChat.isGroup
@@ -762,7 +835,6 @@ const ChatWindow = () => {
                   : selectedChat.participants.find(p => p._id !== userId)?.name || "Unknown User"}
               </h2>
               
-              {/* Online status text */}
               {!selectedChat.isGroup && (() => {
                 const otherParticipant = selectedChat.participants.find(p => p._id !== userId);
                 const userStatus = otherParticipant && onlineUsers[otherParticipant._id];
@@ -785,10 +857,14 @@ const ChatWindow = () => {
         <div className="flex gap-2">
           <FiPhone size={20} className="cursor-pointer" />
           <HiOutlineVideoCamera size={20} className="cursor-pointer" />
-          <HiDotsVertical size={20} className="cursor-pointer" onClick={(e) => {
-            e.stopPropagation();
-            setShowChatOptions(!showChatOptions);
-          }} />
+          <HiDotsVertical 
+            size={20} 
+            className="cursor-pointer" 
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowChatOptions(!showChatOptions);
+            }} 
+          />
           {showChatOptions && (
             selectedChat.isGroup ? <GroupOptions /> : <IndividualChatOptions />
           )}
@@ -798,6 +874,7 @@ const ChatWindow = () => {
         )}
       </header>
 
+      {/* MESSAGES */}
       <div className="flex-1 overflow-y-auto p-4 space-y-1">
         {groupedItems.map((item) => {
           if (item.type === 'date') {
@@ -811,6 +888,19 @@ const ChatWindow = () => {
           }
 
           const msg = item.message;
+
+          // ✅ NEW: Handle system messages
+          if (msg.type === 'system') {
+            return (
+              <div key={item.id} className="flex justify-center my-2">
+                <div className="bg-gray-800 text-gray-400 text-xs px-3 py-1 rounded-full">
+                  <span className="font-medium text-blue-400">{msg.senderId?.name || 'Someone'}</span>
+                  {' '}{msg.content}
+                </div>
+              </div>
+            );
+          }
+
           const index = messages.findIndex(m => m._id === msg._id);
           const isCurrentUserMessage = msg.senderId._id === userId;
           const audioSrc = msg.localAudioUrl || msg.content;
@@ -824,10 +914,8 @@ const ChatWindow = () => {
           return (
             <div
               key={item.id}
-              id={item.id}
               className={`flex ${isCurrentUserMessage ? 'justify-end' : 'justify-start'} ${!isPreviousMessageFromSameSender ? 'mt-3' : 'mt-0.5'}`}
             >
-              {/* Profile picture display only in group chats */}
               {isGroupChat && !isCurrentUserMessage && !isPreviousMessageFromSameSender && (
                 <div
                   onClick={() => handleConnectPrivateChat(msg.senderId._id)}
@@ -843,31 +931,29 @@ const ChatWindow = () => {
                       alt={msg.senderId.name}
                     />
                   ) : (
-                    <div
-                      onClick={() => handleConnectPrivateChat(msg.senderId._id)}
-                      className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
                       <RxAvatar size={24} className="text-gray-400" />
                     </div>
                   )}
                 </div>
               )}
 
-              <div className={`flex flex-col ${!isCurrentUserMessage && isGroupChat ? 'ml-1 ' : ''} max-w-[75%]`}>
-                {/* Show sender name in group chats only */}
+              <div className={`flex flex-col ${!isCurrentUserMessage && isGroupChat ? 'ml-1' : ''} max-w-[75%]`}>
                 {shouldShowSenderName && (
                   <span className="text-xs font-medium" style={{ color: '#5dadec' }}>
                     <span
                       onClick={() => handleConnectPrivateChat(msg.senderId._id)}
-                      className='text-xs cursor-pointer'>{msg.senderId.name || "Unknown User"}</span>
+                      className='text-xs cursor-pointer'>
+                      {msg.senderId.name || "Unknown User"}
+                    </span>
                   </span>
                 )}
 
-                <div className={`px-3 py-2 rounded-lg shadow-sm flex ${msg.type === 'audio'
-                  ? 'bg-transparent'
-                  : (isCurrentUserMessage
-                    ? 'bg-blue-700 text-white'
-                    : 'bg-gray-800 text-white')
-                  }`}>
+                <div className={`px-3 py-2 rounded-lg shadow-sm flex ${
+                  msg.type === 'audio'
+                    ? 'bg-transparent'
+                    : (isCurrentUserMessage ? 'bg-blue-700 text-white' : 'bg-gray-800 text-white')
+                }`}>
                   <div className="flex-1 break-words pr-1">
                     {msg.type === 'audio' ? (
                       <div className="w-64 max-w-full">
@@ -885,23 +971,32 @@ const ChatWindow = () => {
                             onClick={() => toggleAudioPlayback(audioId, audioSrc)}
                             className="bg-white rounded-full p-1 flex items-center justify-center"
                           >
-                            {audioPlayingId === audioId ? <BsPauseFill size={16} className="text-blue-600" /> : <BsPlayFill size={16} className="text-blue-600 ml-0.5" />}
+                            {audioPlayingId === audioId ? (
+                              <BsPauseFill size={16} className="text-blue-600" />
+                            ) : (
+                              <BsPlayFill size={16} className="text-blue-600 ml-0.5" />
+                            )}
                           </button>
                           <div className="flex-1 mx-2 cursor-pointer" onClick={(e) => handleWaveformClick(audioId, e)}>
                             <div className="flex items-center h-8">
                               {waveData.map((bar, i) => (
-                                <div key={i} className="mx-[1px] transition-all duration-100"
+                                <div 
+                                  key={i} 
+                                  className="mx-[1px] transition-all duration-100"
                                   style={{
                                     height: `${bar.height}%`,
                                     width: '2px',
                                     backgroundColor: bar.isActive ? 'rgba(255, 255, 255, 1)' : 'rgba(255, 255, 255, 0.4)',
                                     transform: bar.isActive ? 'scale(1.05)' : 'scale(1)'
-                                  }} />
+                                  }} 
+                                />
                               ))}
                             </div>
                           </div>
                           <div className="bg-white text-blue-600 px-2 py-1 rounded-full text-xs font-medium">
-                            {audioDurations[audioId] !== undefined ? formatAudioTime(currentProgress * audioDurations[audioId]) : '0:00'}
+                            {audioDurations[audioId] !== undefined 
+                              ? formatAudioTime(currentProgress * audioDurations[audioId]) 
+                              : '0:00'}
                           </div>
                         </div>
                       </div>
@@ -909,7 +1004,6 @@ const ChatWindow = () => {
                       msg.content
                     )}
                   </div>
-                  {/* ✅ UPDATED: Timestamp with status ticks */}
                   <div className="flex items-center gap-1 text-[10px] text-gray-400 self-end ml-1">
                     <span>{msg.createdAt ? moment(msg.createdAt).format('h:mm A') : ''}</span>
                     {renderMessageStatus(msg)}
@@ -917,10 +1011,9 @@ const ChatWindow = () => {
                 </div>
               </div>
 
-              {/* Profile pic for current user only in group chats */}
               {isGroupChat && isCurrentUserMessage && !isPreviousMessageFromSameSender && (
                 <div className="flex-shrink-0 self-end ml-1 mb-1">
-                  {msg.senderId.profilePicture && msg.senderId._id != userId ? (
+                  {msg.senderId.profilePicture && msg.senderId._id !== userId ? (
                     <img
                       src={
                         msg.senderId.profilePicture.startsWith('/uploads/')
@@ -930,16 +1023,10 @@ const ChatWindow = () => {
                       className="w-8 h-8 rounded-full object-cover border border-gray-700"
                       alt={msg.senderId.name}
                     />
-                  ) : (
-                    <>
-                      {
-                        msg.senderId._id != userId && (
-                          <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
-                            <RxAvatar size={24} className="text-gray-400" />
-                          </div>
-                        )
-                      }
-                    </>
+                  ) : msg.senderId._id !== userId && (
+                    <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                      <RxAvatar size={24} className="text-gray-400" />
+                    </div>
                   )}
                 </div>
               )}
@@ -949,6 +1036,7 @@ const ChatWindow = () => {
         <div ref={messageEndRef} />
       </div>
 
+      {/* RECORDING UI */}
       {isRecording && (
         <div className="bg-gray-900 p-3 border-t border-gray-800">
           <div className="rounded-full bg-blue-600 flex items-center justify-between p-1 w-full">
@@ -984,6 +1072,7 @@ const ChatWindow = () => {
         </div>
       )}
 
+      {/* PREVIEW UI */}
       {audioURL && !isRecording && (
         <div className="bg-gray-900 p-3 border-t border-gray-800">
           <div className="rounded-full bg-blue-600 flex items-center p-1 w-full">
@@ -1039,16 +1128,27 @@ const ChatWindow = () => {
         </div>
       )}
 
+      {/* INPUT */}
       {!isRecording && !audioURL && (
         <form onSubmit={handleSendMessage} className="flex items-center p-3 bg-gray-950 border-t border-gray-900">
           <FiPaperclip size={25} className="text-gray-400 cursor-pointer mr-2" />
-          <MdOutlineEmojiEmotions size={25} className="text-gray-400 cursor-pointer mr-2 emoji-trigger" onClick={() => setShowEmojiPicker(!showEmojiPicker)} />
+          <MdOutlineEmojiEmotions 
+            size={25} 
+            className="text-gray-400 cursor-pointer mr-2 emoji-trigger" 
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+          />
           {showEmojiPicker && (
             <div ref={emojiPickerRef} className="absolute bottom-16">
               <EmojiPicker onEmojiClick={handleEmojiClick} />
             </div>
           )}
-          <input type="text" placeholder="Type a message" value={input} onChange={(e) => setInput(e.target.value)} className="flex-1 p-2 text-white bg-gray-900 rounded-lg" />
+          <input 
+            type="text" 
+            placeholder="Type a message" 
+            value={input} 
+            onChange={(e) => setInput(e.target.value)} 
+            className="flex-1 p-2 text-white bg-gray-900 rounded-lg" 
+          />
           {input.trim() ? (
             <button type="submit" className="ml-2">
               <IoMdSend size={25} className="text-indigo-500" />

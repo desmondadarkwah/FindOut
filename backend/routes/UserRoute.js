@@ -15,7 +15,6 @@ const EditUserDetails = require('../controllers/EditUserDetails');
 const GetGroupDetails = require('../controllers/GetGroupDetails');
 const { RefreshToken } = require('../controllers/RefreshToken');
 const GetAllChats = require('../controllers/GetAllChats');
-const InviteLink = require('../controllers/InviteLink');
 const Suggestions = require('../controllers/Suggestions');
 const UpdateProfilePicture = require('../controllers/UpdateProfilePicture');
 const GetUserDetails = require('../controllers/GetUserDetails');
@@ -28,6 +27,9 @@ const UpdateGroupProfilePicture = require('../controllers/UpdateGroupProfilePict
 const { AudioHandler } = require('../middleware/AudioHandler');
 const { GetAllPost, TogglePostLikes, DeletePost, AddPost } = require('../controllers/PostController');
 const { AddComment, GetComment, LikeComment, ReplyComment, GetRepliedComments, DeleteRepliedComment } = require('../controllers/CommentController');
+const JoinGroup = require('../controllers/JoinGroup');
+const SearchUsers = require('../controllers/SearchUsers');
+const JoinGroupViaInvite = require('../controllers/JoinGroupViaInvite');
 
 router.post('/register', upload.single('profilePicture'), RegisterUser);
 router.post('/login', LoginUser);
@@ -42,21 +44,24 @@ router.put('/edit-user', authMiddleware, EditUserDetails);
 router.get('/group/:groupId', authMiddleware, GetGroupDetails);
 router.post('/refresh-token', RefreshToken);
 router.get('/chats', authMiddleware, GetAllChats);
-router.post('/invite', authMiddleware, InviteLink)
-router.get('/suggestions', authMiddleware, Suggestions)
-// router.post("/status", authMiddleware, updateStatus);
-// router.get("/status", authMiddleware, getStatus);
+router.get('/suggestions', authMiddleware, Suggestions);
+
 router.post("/profile-picture", authMiddleware, upload.single("profilePicture"), UpdateProfilePicture);
 router.post("/group-profile-picture", authMiddleware, upload.single("groupProfile"), UpdateGroupProfilePicture);
+router.post('/join-group',authMiddleware,JoinGroup);
 
 router.get("/user-details", authMiddleware, GetUserDetails);
 router.post('/logout', authMiddleware, Logout);
 router.get('/my-groups', authMiddleware, FetchAllGroups);
-router.delete('/deletegroup/:groupId', authMiddleware, DeleteGroup)
+router.delete('/deletegroup/:groupId', authMiddleware, DeleteGroup);
 router.get('/messages/:chatId', authMiddleware, GetMessages);
 router.post('/messages', authMiddleware, SendMessage)
 router.post('/start-new-chat', authMiddleware, StartNewChat);
 router.post("/messages/audio", audioUpload.single("audio"), AudioHandler);
+router.get('/search-users', authMiddleware, SearchUsers);
+router.get('/join/:inviteCode', authMiddleware, JoinGroupViaInvite);
+
+
 
 //post routes
 router.post('/add-post', authMiddleware, AddPost);

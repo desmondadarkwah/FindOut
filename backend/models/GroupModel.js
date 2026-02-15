@@ -27,18 +27,43 @@ const groupSchema = new mongoose.Schema({
     maxLength: 500
   },
   meetingTime: {
-    type: String, // Example: "Monday at 3 PM"
-    // required: true
+    type: String,
   },
   groupAdmin: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
+
+  // ✅ NEW (generates if missing):
+  inviteCode: {
+    type: String,
+    unique: true,
+    sparse: true, // Allows null/undefined values to be non-unique
+    default: function () {
+      return require('crypto').randomBytes(8).toString('hex');
+    }
+  },
+  // ✅ NEW: Group privacy setting
+  isPrivate: {
+    type: Boolean,
+    default: false // false = public (anyone can join)
+  },
+  // ✅ NEW: Pending join requests (for private groups)
+  pendingRequests: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    requestedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   lastMessage: {
     content: { type: String, default: null },
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    type: { type: String, default: 'text' }, // 'text', 'audio', 'image', etc.
+    type: { type: String, default: 'text' },
     createdAt: { type: Date, default: null }
   },
   unreadCount: [{
@@ -56,29 +81,3 @@ const groupSchema = new mongoose.Schema({
 const GroupModel = mongoose.model('Group', groupSchema);
 
 module.exports = GroupModel;
-
-
-
-
-
-//new fileds addede
-// - `joinType`: Determines if users can join instantly or need approval
-// - `inviteCode`: Unique code for the invite link (easier than using full groupId)
-// - `createdBy`: Track the original creator (even if admins change later)
-
-
-  // joinType: {
-  //   type: String,
-  //   enum: ['open', 'approval_required'],
-  //   default: 'open'
-  // },
-  // inviteCode: {
-  //   type: String,
-  //   unique: true,
-  //   required: true
-  // },
-  // CreatedBy: {
-  //   type: mongoose.Schema.Types.ObjectId,
-  //   ref: 'User',
-  //   required: true
-  // },

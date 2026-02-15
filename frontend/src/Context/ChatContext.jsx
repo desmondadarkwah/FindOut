@@ -9,9 +9,6 @@ const ChatContextProvider = ({ children }) => {
   const [barsToHidden, setBarsToHidden] = useState(true);
   const [showChatOptions, setShowChatOptions] = useState(false);
 
-// const HideGroupOptions = () => {
-//   setShowChatOptions(false)
-// }
 
   return (
     <ChatContext.Provider value={{

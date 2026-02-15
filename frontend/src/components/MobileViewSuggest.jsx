@@ -26,26 +26,38 @@ const MobileViewSuggest = () => {
         {suggestedUsers.map((user) => (
           <div key={user._id} className="flex flex-col items-center">
             <img
-              onClick={() => handleConnectPrivateChat(user._id)}
               src={`${import.meta.env.VITE_BACKEND_URL}${user.profilePicture}`}
               alt={user.name}
-              className="w-16 h-16 rounded-full object-cover border-2 border-blue-600"
+              className="w-14 h-14 rounded-full object-cover border-2 border-blue-600"
             />
-            <span className="text-gray-200 text-sm">{user.name}</span>
+            <span
+              onClick={() => handleConnectPrivateChat(user._id)}
+              className="text-gray-200 text-sm hover:text-blue-600 cursor-pointer">{user.name}</span>
             <span className="text-gray-400 text-xs">{user.status}</span>
           </div>
         ))}
       </span>
 
-      <span>
+      <span className='flex gap-4'>
         {suggestedGroups.map((group) => (
           <div key={group._id} className="flex flex-col items-center">
-            <img
-              src={`${import.meta.env.VITE_BACKEND_URL}${group.profilePicture}`}
-              alt={group.name}
-              className="w-16 h-16 rounded-full object-cover border-2 border-green-500"
-            />
-            <span className="text-white text-sm mt-1">{group.name}</span>
+            {group.groupProfile ? (
+              <img
+                src={
+                  group.groupProfile.startsWith('/uploads/')
+                    ? `${import.meta.env.VITE_BACKEND_URL}${group.groupProfile}`
+                    : `${import.meta.env.VITE_BACKEND_URL}/uploads/${group.groupProfile}`
+                }
+                alt={group.groupName}
+                className="w-14 h-14 rounded-full object-cover border-2 border-green-500"
+              />
+            ) : (
+              <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center border-2 border-green-500">
+                <RxAvatar size={32} />
+              </div>
+            )}
+            <span className="text-gray-200 text-sm hover:text-blue-600 cursor-pointer">{group.groupName}</span>
+            <span className="text-gray-400 text-xs">{group.subjects}</span>
           </div>
         ))}
       </span>
