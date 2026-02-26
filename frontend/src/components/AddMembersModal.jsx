@@ -3,6 +3,7 @@ import { IoClose } from 'react-icons/io5';
 import { RxAvatar } from 'react-icons/rx';
 import axiosInstance from '../utils/axiosInstance';
 import { BeatLoader } from 'react-spinners';
+import { useToast } from '../Context/ToastContext'; // ✅ NEW
 
 const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -10,23 +11,20 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [searching, setSearching] = useState(false);
   const [adding, setAdding] = useState(false);
+  const { toast } = useToast(); // ✅ NEW
 
   const handleSearch = async (query) => {
     setSearchQuery(query);
-    
     if (query.trim().length < 2) {
       setSearchResults([]);
       return;
     }
-
     setSearching(true);
     try {
       const response = await axiosInstance.get(`/api/search-users?q=${query}`);
-      
       const availableUsers = response.data.users.filter(
         user => !existingMembers.includes(user._id)
       );
-      
       setSearchResults(availableUsers);
     } catch (error) {
       console.error('❌ Error searching users:', error);
@@ -38,17 +36,13 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
   const toggleUserSelection = (user) => {
     setSelectedUsers(prev => {
       const isSelected = prev.some(u => u._id === user._id);
-      if (isSelected) {
-        return prev.filter(u => u._id !== user._id);
-      } else {
-        return [...prev, user];
-      }
+      if (isSelected) return prev.filter(u => u._id !== user._id);
+      return [...prev, user];
     });
   };
 
   const handleAddMembers = async () => {
     if (selectedUsers.length === 0) return;
-
     setAdding(true);
     try {
       const response = await axiosInstance.post('/api/add-member', {
@@ -57,7 +51,11 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
       });
 
       if (response.data.success) {
-        alert(response.data.message);
+        // ✅ Toast instead of alert
+        toast.success(
+          `${selectedUsers.length} member${selectedUsers.length > 1 ? 's' : ''} added successfully`,
+          'Members Added'
+        );
         setSelectedUsers([]);
         setSearchQuery('');
         setSearchResults([]);
@@ -65,7 +63,8 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
       }
     } catch (error) {
       console.error('❌ Error adding members:', error);
-      alert(error.response?.data?.message || 'Failed to add members');
+      // ✅ Toast instead of alert
+      toast.error(error.response?.data?.message || 'Failed to add members');
     } finally {
       setAdding(false);
     }
@@ -105,10 +104,9 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
             {selectedUsers.map(user => (
               <div key={user._id} className="flex items-center gap-2 bg-blue-900 px-3 py-1 rounded-full">
                 <span className="text-white text-sm">{user.name}</span>
-                <button 
+                <button
                   onClick={() => toggleUserSelection(user)}
-                  className="text-white hover:text-red-400"
-                >
+                  className="text-white hover:text-red-400">
                   ×
                 </button>
               </div>
@@ -139,7 +137,6 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
           ) : (
             searchResults.map((user) => {
               const isSelected = selectedUsers.some(u => u._id === user._id);
-              
               return (
                 <div
                   key={user._id}
@@ -181,7 +178,9 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
             onClick={handleAddMembers}
             disabled={selectedUsers.length === 0 || adding}
             className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-            {adding ? 'Adding...' : selectedUsers.length === 0 ? 'Select members to add' : `Add ${selectedUsers.length} Member(s)`}
+            {adding ? 'Adding...' : selectedUsers.length === 0
+              ? 'Select members to add'
+              : `Add ${selectedUsers.length} Member(s)`}
           </button>
         </div>
       </div>

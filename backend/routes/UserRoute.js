@@ -30,6 +30,9 @@ const { AddComment, GetComment, LikeComment, ReplyComment, GetRepliedComments, D
 const JoinGroup = require('../controllers/JoinGroup');
 const SearchUsers = require('../controllers/SearchUsers');
 const JoinGroupViaInvite = require('../controllers/JoinGroupViaInvite');
+const HandleJoinRequest = require('../controllers/HandleJoinRequest');
+const UpdateGroupPrivacy = require('../controllers/UpdateGroupPrivacy');
+const LeaveGroup = require('../controllers/LeaveGroup');
 
 router.post('/register', upload.single('profilePicture'), RegisterUser);
 router.post('/login', LoginUser);
@@ -60,7 +63,8 @@ router.post('/start-new-chat', authMiddleware, StartNewChat);
 router.post("/messages/audio", audioUpload.single("audio"), AudioHandler);
 router.get('/search-users', authMiddleware, SearchUsers);
 router.get('/join/:inviteCode', authMiddleware, JoinGroupViaInvite);
-
+router.post('/groups/handle-join-request', authMiddleware, HandleJoinRequest);
+router.put('/groups/update-privacy', authMiddleware, UpdateGroupPrivacy);
 
 
 //post routes
@@ -79,5 +83,7 @@ router.post('/comments/:commentId/reply', authMiddleware, ReplyComment)
 router.get('/comments/:commentId/replies', authMiddleware, GetRepliedComments)
 router.delete('/comments/:commentId/replies/:replyId', authMiddleware, DeleteRepliedComment)
 
+
+router.post('/groups/leave', authMiddleware, LeaveGroup);
 
 module.exports = router;

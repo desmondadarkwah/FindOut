@@ -3,9 +3,9 @@ const crypto = require('crypto');
 
 const CreateGroup = async (req, res) => {
   try {
-    const { groupName, subjects, description } = req.body;
+    const { groupName, subjects, description, isPrivate } = req.body;
 
-    console.log("🔍 FILE RECEIVED:", req.file); // Debug: Check if the file is received
+    console.log("🔍 FILE RECEIVED:", req.file);
 
     const groupProfile = req.file ? `/uploads/${req.file.filename}` : null;
 
@@ -14,8 +14,6 @@ const CreateGroup = async (req, res) => {
     }
 
     const groupAdmin = req.authenticatedUser.id;
-
-    // ✅ Generate unique invite code (16 characters)
     const inviteCode = crypto.randomBytes(8).toString('hex');
 
     const newGroup = new GroupModel({
@@ -25,13 +23,13 @@ const CreateGroup = async (req, res) => {
       groupProfile,
       groupAdmin,
       members: [groupAdmin],
-      inviteCode, // ✅ Add invite code
-      unreadCount: [{ userId: groupAdmin, count: 0 }] // Initialize unread count for admin
+      inviteCode,
+      isPrivate: isPrivate === 'true' || isPrivate === true, // ✅ Accept from form
+      unreadCount: [{ userId: groupAdmin, count: 0 }]
     });
 
     await newGroup.save();
 
-    // ✅ Populate the group before sending response
     const populatedGroup = await GroupModel.findById(newGroup._id)
       .populate('members', 'name profilePicture')
       .populate('groupAdmin', 'name profilePicture');

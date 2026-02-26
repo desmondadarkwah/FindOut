@@ -1,4 +1,5 @@
 const GroupModel = require('../models/GroupModel');
+const { MessageModel } = require('../models/MessageModel');
 const { getIo } = require('../socket/socket');
 
 const RemoveGroupMember = async (req, res) => {
@@ -15,7 +16,9 @@ const RemoveGroupMember = async (req, res) => {
     }
 
     // Find the group
-    const group = await GroupModel.findById(groupId);
+    const group = await GroupModel.findById(groupId)
+      .populate('members', 'name profilePicture')
+      .populate('groupAdmin', 'name profilePicture');
 
     if (!group) {
       return res.status(404).json({
@@ -25,7 +28,7 @@ const RemoveGroupMember = async (req, res) => {
     }
 
     // Check if user is admin
-    if (group.groupAdmin.toString() !== adminId) {
+    if (group.groupAdmin._id.toString() !== adminId) {
       return res.status(403).json({
         success: false,
         message: 'Only group admin can remove members'
@@ -41,7 +44,8 @@ const RemoveGroupMember = async (req, res) => {
     }
 
     // Check if member exists in group
-    if (!group.members.includes(memberId)) {
+    const memberExists = group.members.some(m => m._id.toString() === memberId);
+    if (!memberExists) {
       return res.status(400).json({
         success: false,
         message: 'User is not a member of this group'
@@ -49,58 +53,69 @@ const RemoveGroupMember = async (req, res) => {
     }
 
     // Remove member
-    group.members = group.members.filter(
-      id => id.toString() !== memberId
-    );
+    group.members = group.members.filter(m => m._id.toString() !== memberId);
 
     // Remove member's unread count
-    group.unreadCount = group.unreadCount.filter(
+    group.unreadCount = group.unreadCount?.filter(
       u => u.userId.toString() !== memberId
-    );
+    ) || [];
 
-    // ✅ FIXED: Use updateOne instead of save to avoid validation
-    await GroupModel.updateOne(
-      { _id: groupId },
-      {
-        $set: {
-          members: group.members,
-          unreadCount: group.unreadCount
-        }
-      }
-    );
+    await group.save();
 
-    // Populate the group data
-    const populatedGroup = await GroupModel.findById(groupId)
+    // Re-populate after save
+    const updatedGroup = await GroupModel.findById(groupId)
       .populate('members', 'name profilePicture')
       .populate('groupAdmin', 'name profilePicture')
       .populate('lastMessage.senderId', 'name profilePicture');
 
-    // Notify via socket
+    // ✅ Create system message: "User was removed by admin"
     try {
-      const io = getIo();
-
-      // Notify the group
-      io.to(groupId).emit('member-removed', {
-        groupId: group._id,
-        removedMemberId: memberId,
-        group: populatedGroup
+      const systemMessage = new MessageModel({
+        chatId: group._id,
+        senderId: memberId,
+        content: 'was removed by admin',
+        type: 'system',
+        createdAt: new Date()
       });
+      await systemMessage.save();
 
-      // Notify the removed member
-      io.to(memberId).emit('removed-from-group', {
-        groupId: group._id,
-        groupName: group.groupName
-      });
+      const populatedMessage = await MessageModel.findById(systemMessage._id)
+        .populate('senderId', 'name profilePicture');
 
-      console.log(`✅ Removed member ${memberId} from group ${group.groupName}`);
-    } catch (socketError) {
-      console.log('⚠️ Socket notification skipped:', socketError.message);
+      // Notify via socket
+      try {
+        const io = getIo();
+        
+        // Notify all group members
+        io.to(groupId).emit('member-removed', {
+          groupId: group._id,
+          removedMemberId: memberId,
+          group: updatedGroup
+        });
+
+        // Send system message to group
+        io.to(groupId).emit('system-message', {
+          message: populatedMessage
+        });
+
+        // Notify the removed member
+        io.to(memberId).emit('removed-from-group', {
+          groupId: group._id,
+          groupName: group.groupName
+        });
+
+        console.log(`✅ User ${memberId} removed from group ${group.groupName}`);
+      } catch (socketError) {
+        console.warn('⚠️ Socket notification skipped:', socketError.message);
+      }
+    } catch (msgError) {
+      console.log('⚠️ System message skipped:', msgError.message);
     }
 
     res.status(200).json({
       success: true,
       message: 'Member removed successfully',
-      group: populatedGroup
+      group: updatedGroup
     });
 
   } catch (error) {

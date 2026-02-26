@@ -1,4 +1,5 @@
 const GroupModel = require('../models/GroupModel');
+const MessageModel = require('../models/MessageModel');
 const { getIo } = require('../socket/socket');
 
 const JoinGroup = async (req, res) => {
@@ -6,7 +7,6 @@ const JoinGroup = async (req, res) => {
     const { groupId } = req.body;
     const userId = req.authenticatedUser.id;
 
-    // Find the group
     const group = await GroupModel.findById(groupId);
 
     if (!group) {
@@ -16,7 +16,7 @@ const JoinGroup = async (req, res) => {
       });
     }
 
-    // Check if user is already a member
+    // Already a member
     if (group.members.includes(userId)) {
       return res.status(400).json({ 
         success: false, 
@@ -24,7 +24,7 @@ const JoinGroup = async (req, res) => {
       });
     }
 
-    // Check if user is the admin
+    // Is the admin
     if (group.groupAdmin.toString() === userId) {
       return res.status(400).json({ 
         success: false, 
@@ -32,31 +32,34 @@ const JoinGroup = async (req, res) => {
       });
     }
 
-    // If group is private, add to pending requests
+    // ✅ PRIVATE GROUP: Send join request
     if (group.isPrivate) {
-      // Check if already requested
       const alreadyRequested = group.pendingRequests.some(
-        req => req.userId.toString() === userId
+        r => r.userId.toString() === userId
       );
 
       if (alreadyRequested) {
         return res.status(400).json({ 
           success: false, 
-          message: 'Join request already sent' 
+          message: 'Join request already sent',
+          isPending: true
         });
       }
 
-      // Add to pending requests
       group.pendingRequests.push({ userId });
       await group.save();
 
       // Notify admin via socket
-      const io = getIo();
-      io.to(group.groupAdmin.toString()).emit('join-request', {
-        groupId: group._id,
-        groupName: group.groupName,
-        userId: userId
-      });
+      try {
+        const io = getIo();
+        io.to(group.groupAdmin.toString()).emit('join-request', {
+          groupId: group._id,
+          groupName: group.groupName,
+          userId: userId
+        });
+      } catch (socketError) {
+        console.log('⚠️ Socket skipped:', socketError.message);
+      }
 
       return res.status(200).json({ 
         success: true, 
@@ -65,27 +68,45 @@ const JoinGroup = async (req, res) => {
       });
     }
 
-    // If group is public, add member directly
+    // ✅ PUBLIC GROUP: Add member directly
     group.members.push(userId);
-    
-    // Initialize unread count for new member
     group.unreadCount.push({ userId, count: 0 });
-    
     await group.save();
 
-    // Populate the group data
     const populatedGroup = await GroupModel.findById(groupId)
       .populate('members', 'name profilePicture')
       .populate('groupAdmin', 'name profilePicture')
       .populate('lastMessage.senderId', 'name profilePicture');
 
-    // Notify all members via socket
-    const io = getIo();
-    io.to(groupId).emit('member-joined', {
-      groupId: group._id,
-      newMember: userId,
-      group: populatedGroup
-    });
+    // ✅ Create system message
+    try {
+      const systemMessage = new MessageModel({
+        chatId: group._id,
+        senderId: userId,
+        content: 'joined the group',
+        type: 'system',
+        createdAt: new Date()
+      });
+      await systemMessage.save();
+
+      const populatedMessage = await MessageModel.findById(systemMessage._id)
+        .populate('senderId', 'name profilePicture');
+
+      const io = getIo();
+
+      io.to(groupId).emit('member-joined', {
+        groupId: group._id,
+        newMember: userId,
+        group: populatedGroup
+      });
+
+      io.to(groupId).emit('system-message', {
+        message: populatedMessage
+      });
+
+    } catch (socketError) {
+      console.log('⚠️ Socket skipped:', socketError.message);
+    }
 
     res.status(200).json({ 
       success: true, 

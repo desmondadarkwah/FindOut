@@ -9,31 +9,33 @@ import ChatContextProvider from '../Context/ChatContext';
 import GroupProfileProvider from '../Context/groupProfileContext';
 import PostContextProvider from '../Context/PostContext';
 import CommentContextProvider from '../Context/CommentContext';
+import ToastProvider from '../Context/ToastContext'; // ✅ ADD THIS
 
 const Provider = ({ children }) => {
   return (
-
-    <SettingsProvider>
-      <ProfileProvider>
-        <EditUserProvider>
-          <ChatContextProvider>
-            <SuggestionsProvider>
-              <FetchAllGroupsProvider>
-                <DeleteGroupProvider>
-                  <GroupProfileProvider>
-                    <PostContextProvider>
-                      <CommentContextProvider>
-                        {children}
-                      </CommentContextProvider>
-                    </PostContextProvider>
-                  </GroupProfileProvider>
-                </DeleteGroupProvider>
-              </FetchAllGroupsProvider>
-            </SuggestionsProvider>
-          </ChatContextProvider>
-        </EditUserProvider>
-      </ProfileProvider>
-    </SettingsProvider>
+    <ToastProvider> {/* ✅ Outermost so toasts show above everything */}
+      <SettingsProvider>
+        <ProfileProvider>
+          <EditUserProvider>
+            <ChatContextProvider>
+              <SuggestionsProvider>
+                <FetchAllGroupsProvider>
+                  <DeleteGroupProvider>
+                    <GroupProfileProvider>
+                      <PostContextProvider>
+                        <CommentContextProvider>
+                          {children}
+                        </CommentContextProvider>
+                      </PostContextProvider>
+                    </GroupProfileProvider>
+                  </DeleteGroupProvider>
+                </FetchAllGroupsProvider>
+              </SuggestionsProvider>
+            </ChatContextProvider>
+          </EditUserProvider>
+        </ProfileProvider>
+      </SettingsProvider>
+    </ToastProvider>
   );
 };
 

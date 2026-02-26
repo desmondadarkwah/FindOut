@@ -9,15 +9,18 @@ const ChatContextProvider = ({ children }) => {
   const [barsToHidden, setBarsToHidden] = useState(true);
   const [showChatOptions, setShowChatOptions] = useState(false);
 
-
   return (
     <ChatContext.Provider value={{
-      chats, setChats,
-      selectedChat, setSelectedChat,
-      userId, setUserId,
-      barsToHidden, setBarsToHidden,
-      showChatOptions, setShowChatOptions,
-      // HideGroupOptions
+      chats, 
+      setChats, // ✅ Make sure this is exported
+      selectedChat, 
+      setSelectedChat,
+      userId, 
+      setUserId,
+      barsToHidden, 
+      setBarsToHidden,
+      showChatOptions, 
+      setShowChatOptions,
     }}>
       {children}
     </ChatContext.Provider>

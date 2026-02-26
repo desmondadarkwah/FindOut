@@ -1,42 +1,71 @@
 import React, { useContext, useState } from "react";
 import { RxAvatar } from "react-icons/rx";
 import { BeatLoader } from "react-spinners";
+import { MdLock } from "react-icons/md";
 import { SuggestionsContext } from "../Context/SuggestionsContext";
 import axiosInstance from "../utils/axiosInstance";
 import { ChatContext } from "../Context/ChatContext";
+import { useToast } from "../Context/ToastContext"; // ✅ NEW
 
 const Suggestions = () => {
-  const { suggestedUsers, suggestedGroups, loading, handleConnectPrivateChat } = useContext(SuggestionsContext);
-  const { setChats } = useContext(ChatContext);
-  const [joiningGroupId, setJoiningGroupId] = useState(null);
+  const {
+    suggestedUsers,
+    suggestedGroups,
+    loading,
+    handleConnectPrivateChat,
+    handleOpenGroupChat
+  } = useContext(SuggestionsContext);
 
-  const handleJoinGroup = async (groupId) => {
+  const { setChats, userId } = useContext(ChatContext);
+  const { toast } = useToast(); // ✅ NEW
+  const [joiningGroupId, setJoiningGroupId] = useState(null);
+  const [requestedGroups, setRequestedGroups] = useState([]);
+
+  const handleJoinGroup = async (group) => {
+    const groupId = group._id;
+    const isAlreadyMember = group.members?.some(
+      m => (m._id || m) === userId
+    );
+
+    if (isAlreadyMember) {
+      handleOpenGroupChat(groupId);
+      return;
+    }
+
     setJoiningGroupId(groupId);
 
     try {
       const response = await axiosInstance.post('/api/join-group', { groupId });
 
       if (response.data.success) {
-        console.log('✅ Joined group:', response.data.message);
-
-        // Add group to chats if not pending
-        if (!response.data.isPending) {
+        if (response.data.isPending) {
+          setRequestedGroups(prev => [...prev, groupId]);
+          // ✅ Toast instead of alert
+          toast.info(
+            'Your request has been sent to the group admin',
+            'Request Sent'
+          );
+        } else {
           setChats(prevChats => {
-            // Check if group already exists
             const exists = prevChats.some(chat => chat._id === groupId);
-            if (!exists) {
-              return [response.data.group, ...prevChats];
-            }
+            if (!exists) return [response.data.group, ...prevChats];
             return prevChats;
           });
+          toast.success(`You joined ${group.groupName}!`, 'Joined Group');
+          handleOpenGroupChat(groupId);
         }
-
-        // Show success message
-        alert(response.data.message);
       }
     } catch (error) {
       console.error('❌ Error joining group:', error);
-      alert(error.response?.data?.message || 'Failed to join group');
+      const errData = error.response?.data;
+
+      if (errData?.isPending) {
+        setRequestedGroups(prev => [...prev, groupId]);
+        toast.info('Your request has been sent to the group admin', 'Request Sent');
+      } else {
+        // ✅ Toast instead of alert
+        toast.error(errData?.message || 'Failed to join group');
+      }
     } finally {
       setJoiningGroupId(null);
     }
@@ -48,7 +77,8 @@ const Suggestions = () => {
 
   return (
     <div className="p-2 w-full bg-black">
-      {/* USERS */}
+
+      {/* ─── USERS ─── */}
       {suggestedUsers.map((user) => (
         <div key={user._id} className="flex items-center justify-between p-1">
           <div className="flex items-center gap-2">
@@ -64,7 +94,9 @@ const Suggestions = () => {
               </div>
             )}
             <span className="flex flex-col">
-              <span className="font-semibold text-white truncate block w-32">{user.name}</span>
+              <span className="font-semibold text-white truncate block w-32">
+                {user.name}
+              </span>
               <span className="block text-gray-500 text-sm">{user.status}</span>
             </span>
           </div>
@@ -76,12 +108,25 @@ const Suggestions = () => {
         </div>
       ))}
 
-      {/* GROUPS */}
+      {/* ─── GROUPS ─── */}
       {suggestedGroups.map((group) => {
-        const isJoining = joiningGroupId === group._id;
+        const groupId = group._id;
+        const isJoining = joiningGroupId === groupId;
+        const isRequested = requestedGroups.includes(groupId);
+        const isAlreadyMember = group.members?.some(
+          m => (m._id || m) === userId
+        );
+
+        const getButtonLabel = () => {
+          if (isJoining) return <BeatLoader color="white" size={6} />;
+          if (isAlreadyMember) return 'Open';
+          if (isRequested) return null;
+          if (group.isPrivate) return 'Request';
+          return 'Join';
+        };
 
         return (
-          <div key={group._id} className="flex items-center justify-between p-1">
+          <div key={groupId} className="flex items-center justify-between p-1">
             <div className="flex items-center gap-2">
               {group.groupProfile ? (
                 <img
@@ -98,21 +143,35 @@ const Suggestions = () => {
                   <RxAvatar size={20} />
                 </div>
               )}
+
               <span className="flex flex-col">
-                <span className="font-semibold text-white truncate block w-32">
+                <span className="font-semibold text-white truncate block w-28">
                   {group.groupName}
+                  {group.isPrivate && (
+                    <MdLock size={12} className="text-gray-400 inline ml-1" />
+                  )}
                 </span>
                 <span className="block text-gray-500 text-xs">
-                  {group.members?.length || 0} members
+                  {group.members?.length || 0} members •{' '}
+                  {group.isPrivate ? 'Private' : 'Public'}
                 </span>
               </span>
             </div>
-            <button
-              onClick={() => handleJoinGroup(group._id)}
-              disabled={isJoining}
-              className="text-blue-500 text-sm hover:text-blue-400 transition disabled:opacity-50">
-              {isJoining ? 'Joining...' : 'Join'}
-            </button>
+
+            {isRequested ? (
+              <span className="text-gray-500 text-xs">Requested</span>
+            ) : (
+              <button
+                onClick={() => handleJoinGroup(group)}
+                disabled={isJoining}
+                className={`text-sm transition disabled:opacity-50 ${
+                  isAlreadyMember
+                    ? 'text-green-500 hover:text-green-400'
+                    : 'text-blue-500 hover:text-blue-400'
+                }`}>
+                {getButtonLabel()}
+              </button>
+            )}
           </div>
         );
       })}

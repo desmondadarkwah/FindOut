@@ -172,40 +172,79 @@ const ChatWindow = () => {
   }, [socket, selectedChat, userId]);
 
   // Listen for group member changes
-  useEffect(() => {
-    if (!socket || !userId || !selectedChat) return;
+// Listen for group member changes
+useEffect(() => {
+  if (!socket || !userId || !selectedChat) return;
 
-    const handleMembersAdded = ({ groupId, newMembers, group }) => {
+  const handleMembersAdded = ({ groupId, newMembers, group }) => {
+    if (selectedChat._id === groupId) {
+      console.log('👥 Members added to current group');
+      
+      setSelectedChat(prevChat => ({
+        ...prevChat,
+        members: group.members
+      }));
+    }
+  };
+
+  const handleMemberJoined = ({ groupId, newMember, group }) => {
+    if (selectedChat._id === groupId) {
+      console.log('👤 New member joined current group');
+      
+      setSelectedChat(prevChat => ({
+        ...prevChat,
+        members: group.members
+      }));
+    }
+  };
+
+  // ✅ NEW: Handle member removed
+  const handleMemberRemoved = ({ groupId, removedMemberId, group }) => {
+    if (selectedChat._id === groupId) {
+      console.log('👤 Member removed from group');
+      setSelectedChat(group);
+    }
+
+    // If YOU were removed, remove chat from list
+    if (removedMemberId === userId) {
+      setChats(prevChats => prevChats.filter(chat => chat._id !== groupId));
       if (selectedChat._id === groupId) {
-        console.log('👥 Members added to current group');
-        
-        setSelectedChat(prevChat => ({
-          ...prevChat,
-          members: group.members
-        }));
+        setSelectedChat(null);
       }
-    };
+    }
+  };
 
-    const handleMemberJoined = ({ groupId, newMember, group }) => {
-      if (selectedChat._id === groupId) {
-        console.log('👤 New member joined current group');
-        
-        setSelectedChat(prevChat => ({
-          ...prevChat,
-          members: group.members
-        }));
-      }
-    };
+  // ✅ NEW: Handle member left
+  const handleMemberLeft = ({ groupId, leftMemberId, group }) => {
+    if (selectedChat._id === groupId) {
+      console.log('👤 Member left group');
+      setSelectedChat(group);
+    }
+  };
 
-    socket.on('members-added', handleMembersAdded);
-    socket.on('member-joined', handleMemberJoined);
+  // ✅ NEW: Handle YOU being removed
+  const handleRemovedFromGroup = ({ groupId, groupName }) => {
+    console.log(`❌ You were removed from ${groupName}`);
+    setChats(prevChats => prevChats.filter(chat => chat._id !== groupId));
+    if (selectedChat._id === groupId) {
+      setSelectedChat(null);
+    }
+  };
 
-    return () => {
-      socket.off('members-added', handleMembersAdded);
-      socket.off('member-joined', handleMemberJoined);
-    };
-  }, [socket, userId, selectedChat, setSelectedChat]);
+  socket.on('members-added', handleMembersAdded);
+  socket.on('member-joined', handleMemberJoined);
+  socket.on('member-removed', handleMemberRemoved); // ✅ NEW
+  socket.on('member-left', handleMemberLeft); // ✅ NEW
+  socket.on('removed-from-group', handleRemovedFromGroup); // ✅ NEW
 
+  return () => {
+    socket.off('members-added', handleMembersAdded);
+    socket.off('member-joined', handleMemberJoined);
+    socket.off('member-removed', handleMemberRemoved); // ✅ NEW
+    socket.off('member-left', handleMemberLeft); // ✅ NEW
+    socket.off('removed-from-group', handleRemovedFromGroup); // ✅ NEW
+  };
+}, [socket, userId, selectedChat, setSelectedChat, setChats]); // ✅ Added setChats to dependencies
   // ✅ NEW: Listen for system messages
   useEffect(() => {
     if (!socket || !selectedChat) return;

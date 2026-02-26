@@ -4,7 +4,10 @@ const GetGroupDetails = async (req, res) => {
   try {
     const { groupId } = req.params;
 
-    const group = await GroupModel.findById(groupId).populate('members','name')
+    const group = await GroupModel.findById(groupId)
+      .populate('members', 'name profilePicture email')
+      .populate('groupAdmin', 'name profilePicture')
+      .populate('pendingRequests.userId', 'name profilePicture email');
 
     if (!group) {
       return res.status(404).json({ message: 'Group not found' })

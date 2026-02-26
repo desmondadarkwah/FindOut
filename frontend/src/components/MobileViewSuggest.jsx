@@ -1,5 +1,7 @@
 import React, { useContext } from 'react';
 import { SuggestionsContext } from '../Context/SuggestionsContext';
+import { RxAvatar } from "react-icons/rx";
+
 
 const MobileViewSuggest = () => {
   const { suggestedUsers, suggestedGroups, loading, handleConnectPrivateChat } = useContext(SuggestionsContext);
