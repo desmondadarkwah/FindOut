@@ -11,6 +11,7 @@ import Inbox from './Pages/Inbox';
 import AddPost from './Feed/AddPost';
 import AllPost from './Feed/AllPost';
 import JoinGroup from './Pages/JoinGroup';
+import AdminLogin from './Pages/AdminLogin';
 
 function App() {
   return (
@@ -29,7 +30,7 @@ function App() {
           <Route path="/add-post" element={<AddPost />} />
           <Route path="/feed" element={<AllPost />} />
           <Route path="/join/:inviteCode" element={<JoinGroup />} />
-
+          <Route path="/admin-login" element={<AdminLogin />} />
         </Routes>
       {/* </Router> */}
     </>

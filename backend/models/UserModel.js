@@ -26,13 +26,17 @@ const userSchema = new mongoose.Schema({
     enum: ["Ready To Teach", "Ready To Learn", "Later"],
     default: "Later",
   },
-
   freetime: {
     type: String
   },
   isVerified: {
     type: Boolean,
     default: false,
+  },
+  // ✅ NEW: Reputation system
+  reputation: {
+    type: Number,
+    default: 0
   },
   isOnline: {
     type: Boolean,
@@ -51,5 +55,4 @@ const userSchema = new mongoose.Schema({
 });
 
 const UserModel = mongoose.model('User', userSchema);
-
 module.exports = UserModel;

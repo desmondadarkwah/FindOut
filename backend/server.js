@@ -6,6 +6,8 @@ const router = require('./routes/UserRoute');
 const path = require('path');
 const { createServer } = require('http');
 const { initializeSocket } = require('./socket/Socket');
+const adminRoutes = require('./routes/adminRoutes');
+
 
 const app = express();
 const httpServer = createServer(app);
@@ -28,6 +30,7 @@ app.use(
 );
 
 app.use('/api', router);
+app.use('/api/admin', adminRoutes);
 
 connectDB().then(() => {
   httpServer.listen(PORT, () => {

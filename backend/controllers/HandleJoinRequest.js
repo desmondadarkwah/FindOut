@@ -1,5 +1,5 @@
 const GroupModel = require('../models/GroupModel');
-const { MessageModel } = require('../models/MessageModel');
+const { MessageModel, ChatModel } = require('../models/MessageModel');
 const { getIo } = require('../socket/socket');
 
 const HandleJoinRequest = async (req, res) => {
@@ -21,7 +21,6 @@ const HandleJoinRequest = async (req, res) => {
       });
     }
 
-    // ✅ Find and populate group
     const group = await GroupModel.findById(groupId)
       .populate('members', 'name profilePicture')
       .populate('groupAdmin', 'name profilePicture')
@@ -34,7 +33,6 @@ const HandleJoinRequest = async (req, res) => {
       });
     }
 
-    // Only admin can approve/deny
     if (group.groupAdmin._id.toString() !== adminId) {
       return res.status(403).json({
         success: false,
@@ -42,7 +40,6 @@ const HandleJoinRequest = async (req, res) => {
       });
     }
 
-    // Check if user has a pending request
     const requestExists = group.pendingRequests.some(
       r => (r.userId._id || r.userId).toString() === userId
     );
@@ -59,33 +56,37 @@ const HandleJoinRequest = async (req, res) => {
       r => (r.userId._id || r.userId).toString() !== userId
     );
 
-    // ✅ Initialize io variable OUTSIDE try block
     let io;
     try {
       io = getIo();
     } catch (socketError) {
       console.warn('⚠️ Socket.io not available:', socketError.message);
-      io = null; // ✅ Set to null instead of crashing
+      io = null;
     }
 
     if (action === 'approve') {
       // Add user to members
       group.members.push(userId);
       
-      // Initialize unread count for new member
       if (!group.unreadCount) group.unreadCount = [];
       group.unreadCount.push({ userId, count: 0 });
       
       await group.save();
 
-      // Re-populate after save
+      // ✅ ALSO update ChatModel
+      await ChatModel.findByIdAndUpdate(groupId, {
+        participants: group.members,
+        $push: { unreadCount: { userId, count: 0 } }
+      });
+
+      // Re-populate
       const populatedGroup = await GroupModel.findById(groupId)
         .populate('members', 'name profilePicture')
         .populate('groupAdmin', 'name profilePicture')
         .populate('lastMessage.senderId', 'name profilePicture')
         .populate('pendingRequests.userId', 'name profilePicture');
 
-      // ✅ Create system message (optional, won't crash if fails)
+      // Create system message
       try {
         const systemMessage = new MessageModel({
           chatId: group._id,
@@ -99,7 +100,6 @@ const HandleJoinRequest = async (req, res) => {
         const populatedMessage = await MessageModel.findById(systemMessage._id)
           .populate('senderId', 'name profilePicture');
 
-        // ✅ Only emit if socket available
         if (io) {
           io.to(groupId).emit('system-message', { message: populatedMessage });
         }
@@ -107,18 +107,25 @@ const HandleJoinRequest = async (req, res) => {
         console.log('⚠️ System message skipped:', msgError.message);
       }
 
-      // ✅ Emit events only if socket available
       if (io) {
+        // ✅ Notify all group members
         io.to(groupId).emit('member-joined', {
           groupId: group._id,
           newMember: userId,
           group: populatedGroup
         });
 
+        // ✅ Tell the approved user to add the chat
         io.to(userId).emit('join-request-approved', {
           groupId: group._id,
           groupName: group.groupName,
           group: populatedGroup
+        });
+
+        // ✅ Update admin's ManageGroup view instantly
+        io.to(adminId).emit('pending-requests-updated', {
+          groupId: group._id,
+          pendingRequests: populatedGroup.pendingRequests
         });
       }
 
@@ -134,17 +141,21 @@ const HandleJoinRequest = async (req, res) => {
       // Deny - just remove from pending
       await group.save();
 
-      // Re-populate after save
       const populatedGroup = await GroupModel.findById(groupId)
         .populate('members', 'name profilePicture')
         .populate('groupAdmin', 'name profilePicture')
         .populate('pendingRequests.userId', 'name profilePicture');
 
-      // ✅ Only emit if socket available
       if (io) {
         io.to(userId).emit('join-request-denied', {
           groupId: group._id,
           groupName: group.groupName
+        });
+
+        // ✅ Update admin's ManageGroup view
+        io.to(adminId).emit('pending-requests-updated', {
+          groupId: group._id,
+          pendingRequests: populatedGroup.pendingRequests
         });
       }
 

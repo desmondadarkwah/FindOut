@@ -25,7 +25,7 @@ const { GetMessages, SendMessage } = require('../controllers/MessageController')
 const StartNewChat = require('../controllers/StartNewChat');
 const UpdateGroupProfilePicture = require('../controllers/UpdateGroupProfilePicture');
 const { AudioHandler } = require('../middleware/AudioHandler');
-const { GetAllPost, TogglePostLikes, DeletePost, AddPost } = require('../controllers/PostController');
+const { GetAllPost,TogglePostHelpful, DeletePost, AddPost } = require('../controllers/PostController');
 const { AddComment, GetComment, LikeComment, ReplyComment, GetRepliedComments, DeleteRepliedComment } = require('../controllers/CommentController');
 const JoinGroup = require('../controllers/JoinGroup');
 const SearchUsers = require('../controllers/SearchUsers');
@@ -65,12 +65,13 @@ router.get('/search-users', authMiddleware, SearchUsers);
 router.get('/join/:inviteCode', authMiddleware, JoinGroupViaInvite);
 router.post('/groups/handle-join-request', authMiddleware, HandleJoinRequest);
 router.put('/groups/update-privacy', authMiddleware, UpdateGroupPrivacy);
+router.post('/groups/leave', authMiddleware, LeaveGroup);
 
 
 //post routes
 router.post('/add-post', authMiddleware, AddPost);
 router.get('/getallposts', GetAllPost);
-router.post('/posts/:postId/like', authMiddleware, TogglePostLikes);
+router.post('/posts/:postId/helpful', authMiddleware, TogglePostHelpful);
 router.delete('/posts/delete-post/:postId', authMiddleware, DeletePost);
 
 //post comment routes
@@ -83,7 +84,5 @@ router.post('/comments/:commentId/reply', authMiddleware, ReplyComment)
 router.get('/comments/:commentId/replies', authMiddleware, GetRepliedComments)
 router.delete('/comments/:commentId/replies/:replyId', authMiddleware, DeleteRepliedComment)
 
-
-router.post('/groups/leave', authMiddleware, LeaveGroup);
 
 module.exports = router;

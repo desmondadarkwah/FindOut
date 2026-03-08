@@ -23,6 +23,10 @@ const initializeSocket = (httpServer) => {
 
     socket.on('user-online', async (userId) => {
       try {
+        // ✅ JOIN PERSONAL ROOM FIRST
+        socket.join(userId);
+        console.log(`🔗 User ${userId} joined their personal room`);
+
         // Mark user as online
         await User.findByIdAndUpdate(userId, {
           isOnline: true,
@@ -40,6 +44,12 @@ const initializeSocket = (httpServer) => {
           ...chats.map(c => c._id.toString()),
           ...groups.map(g => g._id.toString())
         ];
+
+        //JOIN ALL CHAT -new code
+        allChatIds.forEach(chatId => {
+          socket.join(chatId);
+          console.log(`🔗 User ${userId} joined room ${chatId}`);
+        });
 
         // Update all 'sent' messages to 'delivered' in these chats
         const result = await MessageModel.updateMany(

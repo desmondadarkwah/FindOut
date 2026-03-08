@@ -1,5 +1,5 @@
 const GroupModel = require('../models/GroupModel');
-const { MessageModel } = require('../models/MessageModel');
+const { MessageModel, ChatModel } = require('../models/MessageModel');
 const { getIo } = require('../socket/socket');
 
 const LeaveGroup = async (req, res) => {
@@ -15,7 +15,6 @@ const LeaveGroup = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Group not found' });
     }
 
-    // Cannot leave if you're the admin
     if (group.groupAdmin._id.toString() === userId) {
       return res.status(400).json({ 
         success: false, 
@@ -28,13 +27,19 @@ const LeaveGroup = async (req, res) => {
     group.unreadCount = group.unreadCount?.filter(u => u.userId.toString() !== userId) || [];
     await group.save();
 
+    // ✅ ALSO remove from ChatModel
+    await ChatModel.findByIdAndUpdate(groupId, {
+      participants: group.members.map(m => m._id),
+      $pull: { unreadCount: { userId: userId } }
+    });
+
     // Re-populate
     const updatedGroup = await GroupModel.findById(groupId)
       .populate('members', 'name profilePicture')
       .populate('groupAdmin', 'name profilePicture')
       .populate('lastMessage.senderId', 'name profilePicture');
 
-    // ✅ Create system message: "User left the group"
+    // Create system message
     try {
       const systemMessage = new MessageModel({
         chatId: group._id,
@@ -52,14 +57,21 @@ const LeaveGroup = async (req, res) => {
       try {
         const io = getIo();
         
-        // Notify remaining group members
+        // ✅ Tell the user who left to remove chat
+        io.to(userId).emit('force-remove-chat', {
+          groupId: group._id,
+          groupName: group.groupName,
+          reason: 'left'
+        });
+
+        // ✅ Update remaining members
         io.to(groupId).emit('member-left', {
           groupId: group._id,
           leftMemberId: userId,
           group: updatedGroup
         });
 
-        // Send system message
+        // ✅ Send system message
         io.to(groupId).emit('system-message', {
           message: populatedMessage
         });

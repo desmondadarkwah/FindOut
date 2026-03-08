@@ -1,8 +1,8 @@
-// postController.js
 const PostModel = require('../models/PostModel');
+const UserModel = require('../models/UserModel');
 const fs = require('fs');
 const path = require('path');
-const { uploadSingle } = require('../config/upload'); // Adjust path as needed
+const { uploadSingle } = require('../config/upload');
 
 const AddPost = async (req, res) => {
   uploadSingle(req, res, async (err) => {
@@ -26,9 +26,6 @@ const AddPost = async (req, res) => {
 
       const userId = req.authenticatedUser?.id || req.user?.id;
       
-      console.log('User object:', req.user); 
-      console.log('Extracted userId:', userId); 
-      
       if (!userId) {
         if (fs.existsSync(req.file.path)) {
           fs.unlinkSync(req.file.path);
@@ -39,27 +36,24 @@ const AddPost = async (req, res) => {
         });
       }
 
-      const { caption } = req.body;
+      // ✅ NEW: Get postType and subject from request
+      const { caption, postType, subject } = req.body;
       
       const newPost = new PostModel({
         author: userId,
         image: req.file.path.replace(/\\/g, '/'), 
         caption: caption?.trim() || '',
-        likes: [],
+        postType: postType || 'general',
+        subject: subject || 'General',
+        helpful: [],
         comments: [],
-        likeCount: 0,
+        helpfulCount: 0,
         commentCount: 0
       });
-
-      console.log('Creating post with author:', userId); // Debug log
       
-      // Save post to database
       const savedPost = await newPost.save();
+      await savedPost.populate('author', 'name profilePicture subjects status');
       
-      // Populate author details for response
-      await savedPost.populate('author', 'name profilePicture');
-      
-      // Return success response
       res.status(201).json({
         success: true,
         message: 'Post created successfully!',
@@ -84,35 +78,44 @@ const AddPost = async (req, res) => {
 const GetAllPost = async (req, res) => {
   try {
     const currentUserId = req.authenticatedUser?.id;
+    
+    // ✅ NEW: Optional filtering by subject and postType
+    const { subject, postType } = req.query;
+    
+    let filter = {};
+    if (subject && subject !== 'all') {
+      filter.subject = subject;
+    }
+    if (postType && postType !== 'all') {
+      filter.postType = postType;
+    }
 
-    const posts = await PostModel.find()
-      .populate('author', 'name profilePicture')
+    const posts = await PostModel.find(filter)
+      .populate('author', 'name profilePicture subjects status reputation isVerified')
       .populate({
         path: 'comments.user',
         select: 'name profilePicture'
       })
       .sort({ createdAt: -1 })
-      .lean(); // Use lean() for better performance
+      .lean();
 
-    // Add isLiked field for each post if user is authenticated
-    const postsWithLikeStatus = posts.map(post => {
-      let isLiked = false;
+    const postsWithStatus = posts.map(post => {
+      let isHelpful = false;
       if (currentUserId) {
-        isLiked = post.likes.some(like => like.user.toString() === currentUserId);
+        isHelpful = post.helpful?.some(h => h.user.toString() === currentUserId);
       }
       
       return {
         ...post,
-        isLiked,
-        // Don't send the full likes array to frontend for privacy
-        likes: undefined
+        isHelpful,
+        helpful: undefined // Don't send full array
       };
     });
 
     res.json({
       success: true,
-      posts: postsWithLikeStatus,
-      totalPosts: postsWithLikeStatus.length
+      posts: postsWithStatus,
+      totalPosts: postsWithStatus.length
     });
   } catch (error) {
     console.error('Error fetching posts:', error);
@@ -124,7 +127,8 @@ const GetAllPost = async (req, res) => {
   }
 };
 
-const TogglePostLikes = async (req, res) => {
+// ✅ CHANGED: Toggle helpful instead of like
+const TogglePostHelpful = async (req, res) => {
   try {
     const { postId } = req.params;
     const userId = req.authenticatedUser?.id || req.user?.id;
@@ -144,36 +148,44 @@ const TogglePostLikes = async (req, res) => {
       });
     }
 
-    const existingLikeIndex = post.likes.findIndex(
-      like => like.user.toString() === userId
+    const existingIndex = post.helpful.findIndex(
+      h => h.user.toString() === userId
     );
 
-    let isLiked;
-    if (existingLikeIndex > -1) {
-      // Unlike the post
-      post.likes.splice(existingLikeIndex, 1);
-      post.likeCount = Math.max(0, post.likeCount - 1);
-      isLiked = false;
+    let isHelpful;
+    let reputationChange = 0;
+
+    if (existingIndex > -1) {
+      post.helpful.splice(existingIndex, 1);
+      post.helpfulCount = Math.max(0, post.helpfulCount - 1);
+      isHelpful = false;
+      reputationChange = -5; // Remove points
     } else {
-      // Like the post
-      post.likes.push({ user: userId });
-      post.likeCount += 1;
-      isLiked = true;
+      post.helpful.push({ user: userId });
+      post.helpfulCount += 1;
+      isHelpful = true;
+      reputationChange = 5; // Add points
     }
 
     await post.save();
 
+    // ✅ UPDATE AUTHOR REPUTATION
+    await UserModel.findByIdAndUpdate(
+      post.author,
+      { $inc: { reputation: reputationChange } }
+    );
+
     res.json({
       success: true,
-      liked: isLiked,
-      likeCount: post.likeCount,
-      message: isLiked ? 'Post liked' : 'Post unliked'
+      helpful: isHelpful,
+      helpfulCount: post.helpfulCount,
+      message: isHelpful ? 'Marked as helpful' : 'Removed helpful mark'
     });
   } catch (error) {
-    console.error('Error toggling like:', error);
+    console.error('Error toggling helpful:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to toggle like'
+      message: 'Failed to toggle helpful'
     });
   }
 };
@@ -198,7 +210,6 @@ const DeletePost = async (req, res) => {
       });
     }
 
-    // Check if user is the author
     if (post.author.toString() !== userId) {
       return res.status(403).json({
         success: false,
@@ -206,7 +217,6 @@ const DeletePost = async (req, res) => {
       });
     }
 
-    // Delete the image file if it exists
     if (post.image) {
       const imagePath = path.resolve(post.image);
       if (fs.existsSync(imagePath)) {
@@ -214,7 +224,6 @@ const DeletePost = async (req, res) => {
           fs.unlinkSync(imagePath);
         } catch (fileError) {
           console.error('Error deleting image file:', fileError);
-          // Continue with post deletion even if file deletion fails
         }
       }
     }
@@ -236,7 +245,7 @@ const DeletePost = async (req, res) => {
 
 module.exports = {
   GetAllPost,
-  TogglePostLikes,
+  TogglePostHelpful,
   DeletePost,
   AddPost
 };

@@ -10,6 +10,7 @@ import GroupProfileProvider from '../Context/groupProfileContext';
 import PostContextProvider from '../Context/PostContext';
 import CommentContextProvider from '../Context/CommentContext';
 import ToastProvider from '../Context/ToastContext'; // ✅ ADD THIS
+import AdminContextProvider from '../Context/AdminContext';
 
 const Provider = ({ children }) => {
   return (
@@ -17,21 +18,23 @@ const Provider = ({ children }) => {
       <SettingsProvider>
         <ProfileProvider>
           <EditUserProvider>
-            <ChatContextProvider>
-              <SuggestionsProvider>
-                <FetchAllGroupsProvider>
-                  <DeleteGroupProvider>
-                    <GroupProfileProvider>
-                      <PostContextProvider>
-                        <CommentContextProvider>
-                          {children}
-                        </CommentContextProvider>
-                      </PostContextProvider>
-                    </GroupProfileProvider>
-                  </DeleteGroupProvider>
-                </FetchAllGroupsProvider>
-              </SuggestionsProvider>
-            </ChatContextProvider>
+            <AdminContextProvider>
+              <ChatContextProvider>
+                <SuggestionsProvider>
+                  <FetchAllGroupsProvider>
+                    <DeleteGroupProvider>
+                      <GroupProfileProvider>
+                        <PostContextProvider>
+                          <CommentContextProvider>
+                            {children}
+                          </CommentContextProvider>
+                        </PostContextProvider>
+                      </GroupProfileProvider>
+                    </DeleteGroupProvider>
+                  </FetchAllGroupsProvider>
+                </SuggestionsProvider>
+              </ChatContextProvider>
+            </AdminContextProvider>
           </EditUserProvider>
         </ProfileProvider>
       </SettingsProvider>

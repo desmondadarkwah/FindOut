@@ -191,7 +191,7 @@ const Suggestions = async (req, res) => {
 
         matchScore += Math.min(group.members.length, 15);
         if (matchedSubjects.length > 1) matchScore += matchedSubjects.length * 3;
-        if (group.isPrivate) matchScore -= 2;
+        // ✅ REMOVED: No penalty for private groups
 
         return matchScore > 0 ? {
           ...group,

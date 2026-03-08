@@ -13,6 +13,7 @@ import { SuggestionsContext } from "../Context/SuggestionsContext";
 import axiosInstance from "../utils/axiosInstance";
 import { BeatLoader } from "react-spinners";
 import { useToast } from "../Context/ToastContext";
+import socket from '../socket/socket'; 
 
 const ManageGroup = () => {
   const { selectedChat, userId, setSelectedChat, setChats } = useContext(ChatContext);
@@ -56,26 +57,56 @@ const ManageGroup = () => {
   }, [selectedChat?._id]);
 
   // ✅ Real-time updates for admin
-  useEffect(() => {
-    if (!selectedChat?._id || !isAdmin) return;
+useEffect(() => {
+  if (!selectedChat?._id || !isAdmin) return;
 
-    const fetchGroupDetails = async () => {
-      try {
-        const response = await axiosInstance.get(`/api/group/${selectedChat._id}`);
-        if (response.data.group) {
-          setPendingRequests(response.data.group.pendingRequests || []);
-          setIsPrivate(response.data.group.isPrivate || false);
-        }
-      } catch (error) {
-        console.error('❌ Error fetching group details:', error);
+  const fetchGroupDetails = async () => {
+    try {
+      const response = await axiosInstance.get(`/api/group/${selectedChat._id}`);
+      if (response.data.group) {
+        setPendingRequests(response.data.group.pendingRequests || []);
+        setIsPrivate(response.data.group.isPrivate || false);
       }
-    };
+    } catch (error) {
+      console.error('❌ Error fetching group details:', error);
+    }
+  };
 
-    fetchGroupDetails();
-    const interval = setInterval(fetchGroupDetails, 5000);
-    
-    return () => clearInterval(interval);
-  }, [selectedChat?._id, isAdmin]);
+  fetchGroupDetails();
+  const interval = setInterval(fetchGroupDetails, 5000);
+
+  // ✅ NEW: Listen for instant pending request updates
+  const handlePendingRequestsUpdated = ({ groupId, pendingRequests }) => {
+    if (groupId === selectedChat._id) {
+      console.log('📝 Pending requests updated via socket');
+      setPendingRequests(pendingRequests || []);
+    }
+  };
+
+  // ✅ NEW: Listen for new join requests
+  const handleNewJoinRequest = ({ groupId, group }) => {
+    if (groupId === selectedChat._id) {
+      console.log('📝 New join request received');
+      setPendingRequests(group.pendingRequests || []);
+      
+      // Optional: Show toast notification
+      toast.info('New join request received', 'Join Request');
+    }
+  };
+
+  if (socket) {
+    socket.on('pending-requests-updated', handlePendingRequestsUpdated);
+    socket.on('new-join-request', handleNewJoinRequest);
+  }
+
+  return () => {
+    clearInterval(interval);
+    if (socket) {
+      socket.off('pending-requests-updated', handlePendingRequestsUpdated);
+      socket.off('new-join-request', handleNewJoinRequest);
+    }
+  };
+}, [selectedChat?._id, isAdmin, toast, socket]);
 
   // ─────────────────────────────────────────
   // ✅ SAVE GROUP CHANGES (Admin Only)
@@ -170,7 +201,7 @@ const ManageGroup = () => {
   // ─────────────────────────────────────────
   const handleRemoveMember = async (memberId, memberName) => {
     if (!isAdmin) return;
-
+  
     const confirmed = await confirm({
       title: 'Remove Member',
       message: `Are you sure you want to remove ${memberName || 'this member'} from the group?`,
@@ -178,18 +209,33 @@ const ManageGroup = () => {
       cancelText: 'Cancel',
       confirmStyle: 'danger'
     });
-
+  
     if (!confirmed) return;
-
+  
     setRemoving(memberId);
     try {
       const response = await axiosInstance.put('/api/groups/remove-member', {
         groupId: selectedChat._id,
         memberId
       });
-
+  
       if (response.data.success) {
         toast.success(`${memberName || 'Member'} has been removed`, 'Member Removed');
+        
+        // ✅ IMMEDIATELY update local state
+        setSelectedChat(prev => ({
+          ...prev,
+          members: prev.members.filter(m => (m._id || m) !== memberId)
+        }));
+  
+        // ✅ Update in chats list
+        setChats(prevChats =>
+          prevChats.map(chat =>
+            chat._id === selectedChat._id
+              ? { ...chat, members: chat.members.filter(m => (m._id || m) !== memberId) }
+              : chat
+          )
+        );
       }
     } catch (error) {
       console.error('❌ Error removing member:', error);

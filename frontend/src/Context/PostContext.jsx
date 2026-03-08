@@ -54,34 +54,36 @@ const PostContextProvider = ({ children }) => {
     }
   };
 
-  const likePost = async (postId) => {
-    try {
-      const response = await axiosInstance.post(`/api/posts/${postId}/like`);
-      if (response.data.success) {
-        setPosts(prevPosts =>
-          prevPosts.map(post =>
-            post._id === postId
-              ? {
-                  ...post,
-                  likeCount: response.data.likeCount,
-                  isLiked: response.data.liked // Note: using 'liked' from backend response
-                }
-              : post
-          )
-        );
-        return {
-          liked: response.data.liked,
-          likeCount: response.data.likeCount
-        };
-      } else {
-        throw new Error(response.data.message || 'Failed to like post');
-      }
-    } catch (error) {
-      console.error('Error liking post:', error);
-      setError(error.message || 'Failed to like post');
-      throw error;
+
+// REPLACE WITH THIS:
+const markHelpful = async (postId) => {
+  try {
+    const response = await axiosInstance.post(`/api/posts/${postId}/helpful`);
+    if (response.data.success) {
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post._id === postId
+            ? {
+                ...post,
+                helpfulCount: response.data.helpfulCount,
+                isHelpful: response.data.helpful
+              }
+            : post
+        )
+      );
+      return {
+        helpful: response.data.helpful,
+        helpfulCount: response.data.helpfulCount
+      };
+    } else {
+      throw new Error(response.data.message || 'Failed to mark helpful');
     }
-  };
+  } catch (error) {
+    console.error('Error marking helpful:', error);
+    setError(error.message || 'Failed to mark helpful');
+    throw error;
+  }
+};
 
   const deletePost = async (postId) => {
     try {
@@ -294,7 +296,7 @@ const PostContextProvider = ({ children }) => {
     
     // Post operations
     fetchPosts,
-    likePost,
+    markHelpful,
     deletePost, // New delete functionality
     getPostById,
     updatePost,

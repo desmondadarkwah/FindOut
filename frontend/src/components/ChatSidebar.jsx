@@ -26,6 +26,10 @@ const ChatSidebar = () => {
 
         setUserId(userId);
         setLoading(false);
+
+        setUserId(userId);
+        localStorage.setItem('userId', userId); 
+
       } catch (error) {
         console.error("Error fetching chats:", error);
         setLoading(false);
@@ -72,7 +76,7 @@ const ChatSidebar = () => {
 
     const handleUserStatusChanged = ({ userId: changedUserId, isOnline, lastSeen }) => {
       console.log(`👤 User ${changedUserId} status: ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
-      
+
       setOnlineUsers(prev => ({
         ...prev,
         [changedUserId]: { isOnline, lastSeen }
@@ -92,7 +96,7 @@ const ChatSidebar = () => {
 
     const handleMembersAdded = ({ groupId, newMembers, group }) => {
       console.log('👥 Members added to group:', groupId);
-      
+
       // Update the group in chat list
       setChats(prevChats =>
         prevChats.map(chat =>
@@ -103,7 +107,7 @@ const ChatSidebar = () => {
 
     const handleMemberJoined = ({ groupId, newMember, group }) => {
       console.log('👤 New member joined group:', groupId);
-      
+
       // Update the group in chat list
       setChats(prevChats =>
         prevChats.map(chat =>
@@ -114,7 +118,7 @@ const ChatSidebar = () => {
 
     const handleAddedToGroup = ({ groupId, groupName, addedBy }) => {
       console.log('✅ You were added to group:', groupName);
-      
+
       // Fetch updated chat list to include new group
       axiosInstance.get("/api/chats").then(response => {
         setChats(response.data.chats);
@@ -133,6 +137,40 @@ const ChatSidebar = () => {
       socket.off('added-to-group', handleAddedToGroup);
     };
   }, [socket, userId, setChats]);
+
+  // ✅ NEW: Listen for FORCED chat removal (when removed/left)
+  useEffect(() => {
+    if (!socket || !userId) return;
+
+    const handleForceRemoveChat = ({ groupId, groupName, reason }) => {
+      console.log(`❌ FORCE REMOVING chat ${groupName} - Reason: ${reason}`);
+
+      // ✅ IMMEDIATELY remove from chats
+      setChats(prevChats => prevChats.filter(chat => chat._id !== groupId));
+
+      // ✅ If this was the selected chat, clear it
+      setSelectedChat(prev => {
+        if (prev?._id === groupId) {
+          return null;
+        }
+        return prev;
+      });
+
+      // ✅ Show toast notification
+      if (reason === 'removed') {
+        // You'll need to import toast or create a notification
+        console.log(`You were removed from ${groupName}`);
+      } else if (reason === 'left') {
+        console.log(`You left ${groupName}`);
+      }
+    };
+
+    socket.on('force-remove-chat', handleForceRemoveChat);
+
+    return () => {
+      socket.off('force-remove-chat', handleForceRemoveChat);
+    };
+  }, [socket, userId, setChats, setSelectedChat]);
 
   const handleChatClick = (chat) => {
     // ✅ UPDATED: Always mark as read when clicking
@@ -264,7 +302,7 @@ const ChatSidebar = () => {
                         )
                       )}
                     </div>
-                    
+
                     {!chat.isGroup && isUserOnline && (
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900 shadow-sm"></div>
                     )}

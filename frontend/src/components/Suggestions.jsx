@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState,useEffect } from "react";
 import { RxAvatar } from "react-icons/rx";
 import { BeatLoader } from "react-spinners";
 import { MdLock } from "react-icons/md";
@@ -6,6 +6,7 @@ import { SuggestionsContext } from "../Context/SuggestionsContext";
 import axiosInstance from "../utils/axiosInstance";
 import { ChatContext } from "../Context/ChatContext";
 import { useToast } from "../Context/ToastContext"; // ✅ NEW
+import socket from '../socket/socket';
 
 const Suggestions = () => {
   const {
@@ -20,6 +21,47 @@ const Suggestions = () => {
   const { toast } = useToast(); // ✅ NEW
   const [joiningGroupId, setJoiningGroupId] = useState(null);
   const [requestedGroups, setRequestedGroups] = useState([]);
+
+  // ✅ ADD THIS ENTIRE useEffect RIGHT AFTER const [requestedGroups, setRequestedGroups] = useState([]);
+
+  useEffect(() => {
+    if (!socket || !userId) return;
+
+    const handleJoinRequestApproved = ({ groupId, groupName, group }) => {
+      console.log(`✅ Join request approved for ${groupName}`);
+
+      // ✅ Add group to chats immediately
+      setChats(prevChats => {
+        const exists = prevChats.some(chat => chat._id === groupId);
+        if (!exists) return [group, ...prevChats];
+        return prevChats;
+      });
+
+      // ✅ Remove from requested list
+      setRequestedGroups(prev => prev.filter(id => id !== groupId));
+
+      // ✅ Show success toast
+      toast.success(`You've been added to ${groupName}!`, 'Request Approved');
+    };
+
+    const handleJoinRequestDenied = ({ groupId, groupName }) => {
+      console.log(`❌ Join request denied for ${groupName}`);
+
+      // ✅ Remove from requested list
+      setRequestedGroups(prev => prev.filter(id => id !== groupId));
+
+      // ✅ Show info toast
+      toast.info(`Your request to join ${groupName} was declined`, 'Request Denied');
+    };
+
+    socket.on('join-request-approved', handleJoinRequestApproved);
+    socket.on('join-request-denied', handleJoinRequestDenied);
+
+    return () => {
+      socket.off('join-request-approved', handleJoinRequestApproved);
+      socket.off('join-request-denied', handleJoinRequestDenied);
+    };
+  }, [userId, setChats, toast, socket]);
 
   const handleJoinGroup = async (group) => {
     const groupId = group._id;
@@ -164,11 +206,10 @@ const Suggestions = () => {
               <button
                 onClick={() => handleJoinGroup(group)}
                 disabled={isJoining}
-                className={`text-sm transition disabled:opacity-50 ${
-                  isAlreadyMember
-                    ? 'text-green-500 hover:text-green-400'
-                    : 'text-blue-500 hover:text-blue-400'
-                }`}>
+                className={`text-sm transition disabled:opacity-50 ${isAlreadyMember
+                  ? 'text-green-500 hover:text-green-400'
+                  : 'text-blue-500 hover:text-blue-400'
+                  }`}>
                 {getButtonLabel()}
               </button>
             )}

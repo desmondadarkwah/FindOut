@@ -1,5 +1,6 @@
 const GroupModel = require('../models/GroupModel');
 const { MessageModel } = require('../models/MessageModel');
+const { ChatModel } = require('../models/MessageModel');
 const { getIo } = require('../socket/socket');
 
 const RemoveGroupMember = async (req, res) => {
@@ -7,7 +8,6 @@ const RemoveGroupMember = async (req, res) => {
     const { groupId, memberId } = req.body;
     const adminId = req.authenticatedUser.id;
 
-    // Validate input
     if (!groupId || !memberId) {
       return res.status(400).json({
         success: false,
@@ -15,7 +15,6 @@ const RemoveGroupMember = async (req, res) => {
       });
     }
 
-    // Find the group
     const group = await GroupModel.findById(groupId)
       .populate('members', 'name profilePicture')
       .populate('groupAdmin', 'name profilePicture');
@@ -27,7 +26,6 @@ const RemoveGroupMember = async (req, res) => {
       });
     }
 
-    // Check if user is admin
     if (group.groupAdmin._id.toString() !== adminId) {
       return res.status(403).json({
         success: false,
@@ -35,7 +33,6 @@ const RemoveGroupMember = async (req, res) => {
       });
     }
 
-    // Can't remove admin
     if (memberId === adminId) {
       return res.status(400).json({
         success: false,
@@ -43,7 +40,6 @@ const RemoveGroupMember = async (req, res) => {
       });
     }
 
-    // Check if member exists in group
     const memberExists = group.members.some(m => m._id.toString() === memberId);
     if (!memberExists) {
       return res.status(400).json({
@@ -54,21 +50,25 @@ const RemoveGroupMember = async (req, res) => {
 
     // Remove member
     group.members = group.members.filter(m => m._id.toString() !== memberId);
-
-    // Remove member's unread count
     group.unreadCount = group.unreadCount?.filter(
       u => u.userId.toString() !== memberId
     ) || [];
 
     await group.save();
 
-    // Re-populate after save
+    // ✅ ALSO remove from ChatModel participants
+    await ChatModel.findByIdAndUpdate(groupId, {
+      participants: group.members.map(m => m._id),
+      $pull: { unreadCount: { userId: memberId } }
+    });
+
+    // Re-populate
     const updatedGroup = await GroupModel.findById(groupId)
       .populate('members', 'name profilePicture')
       .populate('groupAdmin', 'name profilePicture')
       .populate('lastMessage.senderId', 'name profilePicture');
 
-    // ✅ Create system message: "User was removed by admin"
+    // Create system message
     try {
       const systemMessage = new MessageModel({
         chatId: group._id,
@@ -86,22 +86,23 @@ const RemoveGroupMember = async (req, res) => {
       try {
         const io = getIo();
         
-        // Notify all group members
+        // ✅ FIRST: Tell removed user to delete the chat from their sidebar
+        io.to(memberId).emit('force-remove-chat', {
+          groupId: group._id,
+          groupName: group.groupName,
+          reason: 'removed'
+        });
+
+        // ✅ SECOND: Update remaining members
         io.to(groupId).emit('member-removed', {
           groupId: group._id,
           removedMemberId: memberId,
           group: updatedGroup
         });
 
-        // Send system message to group
+        // ✅ THIRD: Send system message to group
         io.to(groupId).emit('system-message', {
           message: populatedMessage
-        });
-
-        // Notify the removed member
-        io.to(memberId).emit('removed-from-group', {
-          groupId: group._id,
-          groupName: group.groupName
         });
 
         console.log(`✅ User ${memberId} removed from group ${group.groupName}`);
