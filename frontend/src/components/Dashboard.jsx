@@ -94,19 +94,19 @@ const Dashboard = () => {
   const recentChats = chats
     .filter((chat) => {
       if (!chat.lastMessage) return false;
-      
+
       // Only show chats from last 48 hours
       const messageTime = new Date(chat.lastMessage.createdAt);
       const now = new Date();
       const hoursDiff = (now - messageTime) / (1000 * 60 * 60);
-      
+
       return hoursDiff <= 48;
     })
     .sort((a, b) => {
       // 1. Unread chats first
       if (a.unreadCount > 0 && b.unreadCount === 0) return -1;
       if (b.unreadCount > 0 && a.unreadCount === 0) return 1;
-      
+
       // 2. Then by most recent
       const aTime = a.lastMessage?.createdAt || a.createdAt;
       const bTime = b.lastMessage?.createdAt || b.createdAt;
@@ -330,11 +330,10 @@ const Dashboard = () => {
                               </span>
                             </div>
                             <p
-                              className={`text-sm truncate ${
-                                chat.unreadCount > 0
+                              className={`text-sm truncate ${chat.unreadCount > 0
                                   ? "text-white font-medium"
                                   : "text-gray-400"
-                              }`}>
+                                }`}>
                               {messagePreview || "No messages yet"}
                             </p>
                           </div>
@@ -405,7 +404,9 @@ const Dashboard = () => {
                 <p className="text-sm text-gray-400">Find existing groups</p>
               </button>
 
-              <button className="group p-6 bg-gradient-to-r from-purple-600/20 to-purple-700/20 border border-purple-500/30 rounded-xl hover:from-purple-600/30 hover:to-purple-700/30 hover:border-purple-400/50 transition-all duration-300 text-left">
+              <button
+                onClick={() => navigate('/explore-groups')}
+                className="group p-6 bg-gradient-to-r from-purple-600/20 to-purple-700/20 border border-purple-500/30 rounded-xl hover:from-purple-600/30 hover:to-purple-700/30 hover:border-purple-400/50 transition-all duration-300 text-left">
                 <div className="flex items-center space-x-3 mb-2">
                   <span className="text-2xl">🔍</span>
                   <span className="font-semibold text-white group-hover:text-purple-300">

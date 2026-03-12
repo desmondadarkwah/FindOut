@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { Heart, MessageCircle, Share2, MoreVertical, User, Clock, BookOpen, Filter, Home, Menu, X } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreVertical, User, Clock, BookOpen, Filter, Home, Menu, X, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../utils/axiosInstance';
 import DashSidebar from '../components/DashSidebar';
@@ -35,52 +35,38 @@ const AllPost = () => {
   const uniqueSubjects = ['all', ...new Set(posts.map(p => p.subject))];
 
   const postTypeOptions = [
-    { value: 'all', label: 'All Posts', icon: '📝' },
-    { value: 'resource', label: 'Resources', icon: '📚' },
-    { value: 'help', label: 'Help Requests', icon: '❓' },
+    { value: 'all',         label: 'All',          icon: '📝' },
+    { value: 'resource',    label: 'Resources',    icon: '📚' },
+    { value: 'help',        label: 'Help',         icon: '❓' },
     { value: 'explanation', label: 'Explanations', icon: '💡' },
-    { value: 'challenge', label: 'Challenges', icon: '🎯' },
-    { value: 'general', label: 'General', icon: '📋' }
+    { value: 'challenge',   label: 'Challenges',   icon: '🎯' },
+    { value: 'general',     label: 'General',      icon: '📋' },
   ];
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
+  useEffect(() => { fetchPosts(); }, []);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
         setActiveDropdown(null);
-      }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleMarkHelpful = async (postId) => {
-    try {
-      await markHelpful(postId);
-    } catch (error) {
-      console.error('Error marking helpful:', error);
-    }
+    try { await markHelpful(postId); }
+    catch (e) { console.error('Error marking helpful:', e); }
   };
 
   const handleAuthorClick = async (authorId, authorName) => {
-    if (authorId === userId) {
-      alert("That's you!");
-      return;
-    }
-
+    if (authorId === userId) { alert("That's you!"); return; }
     try {
       const response = await axiosInstance.post("/api/start-new-chat", { userIdToChat: authorId });
       const newChatId = response.data.chat._id;
       const allChatsResponse = await axiosInstance.get(`/api/chats`);
       const allChats = allChatsResponse.data.chats;
       const fullChat = allChats.find(chat => chat._id === newChatId);
-      
       if (fullChat) {
         setSelectedChat(fullChat);
         setChats((prevChats) => {
@@ -89,122 +75,128 @@ const AllPost = () => {
           return [...prevChats, fullChat];
         });
         navigate("/inbox");
-      } else {
-        console.error('Could not find the newly created chat');
       }
-    } catch (error) {
-      console.error("Error starting chat:", error);
-      alert('Failed to start chat');
-    }
+    } catch (e) { console.error("Error starting chat:", e); alert('Failed to start chat'); }
   };
 
-  const toggleDropdown = (postId) => {
-    setActiveDropdown(activeDropdown === postId ? null : postId);
-  };
-
-  const handleCloseDropdown = () => {
-    setActiveDropdown(null);
-  };
-
-  const handleOpenComments = (postId) => {
-    setActiveCommentModal(postId);
-  };
-
-  const handleCloseComments = () => {
-    setActiveCommentModal(null);
-  };
-
-  const handleRetry = () => {
-    fetchPosts();
-  };
+  const toggleDropdown   = (postId) => setActiveDropdown(activeDropdown === postId ? null : postId);
+  const handleCloseDropdown  = () => setActiveDropdown(null);
+  const handleOpenComments   = (postId) => setActiveCommentModal(postId);
+  const handleCloseComments  = () => setActiveCommentModal(null);
+  const handleRetry          = () => fetchPosts();
 
   const filteredPosts = posts.filter(post => {
     const matchesSubject = subjectFilter === 'all' || post.subject === subjectFilter;
-    const matchesType = postTypeFilter === 'all' || post.postType === postTypeFilter;
+    const matchesType    = postTypeFilter === 'all' || post.postType === postTypeFilter;
     return matchesSubject && matchesType;
   });
 
   const getPostTypeBadge = (type) => {
     const badges = {
-      resource: { bg: 'bg-blue-500/20', text: 'text-blue-400', label: '📚 Resource' },
-      help: { bg: 'bg-red-500/20', text: 'text-red-400', label: '❓ Help' },
-      explanation: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: '💡 Explanation' },
-      challenge: { bg: 'bg-purple-500/20', text: 'text-purple-400', label: '🎯 Challenge' },
-      general: { bg: 'bg-gray-500/20', text: 'text-gray-400', label: '📝 General' }
+      resource:    { gradient: 'linear-gradient(135deg,#3b82f6,#6366f1)', label: '📚 Resource' },
+      help:        { gradient: 'linear-gradient(135deg,#ef4444,#f97316)', label: '❓ Help' },
+      explanation: { gradient: 'linear-gradient(135deg,#eab308,#f59e0b)', label: '💡 Explanation' },
+      challenge:   { gradient: 'linear-gradient(135deg,#a855f7,#ec4899)', label: '🎯 Challenge' },
+      general:     { gradient: 'linear-gradient(135deg,#6b7280,#9ca3af)', label: '📝 General' },
     };
     return badges[type] || badges.general;
   };
 
-  if (postsLoading) {
-    return <FindOutLoader />;
-  }
+  if (postsLoading) return <FindOutLoader />;
 
-  if (postsError) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <p className="text-red-400 mb-4">{postsError}</p>
-          <button
-            onClick={handleRetry}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
+  if (postsError) return (
+    <div style={{ minHeight:'100vh', background:'linear-gradient(135deg,#0f0f1a,#0a0a0f,#111827)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ textAlign:'center' }}>
+        <p style={{ color:'#f87171', marginBottom:16 }}>{postsError}</p>
+        <button onClick={handleRetry} style={{ padding:'10px 24px', background:'linear-gradient(135deg,#3b82f6,#6366f1)', color:'#fff', border:'none', borderRadius:10, cursor:'pointer', fontWeight:600 }}>
+          Try Again
+        </button>
       </div>
-    );
-  }
+    </div>
+  );
 
-  // ✅ RENDER POSTS COMPONENT (Used by both mobile and desktop)
+  /* ── POSTS LIST ── */
   const PostsList = () => (
-    <>
-      {/* Filters */}
-      <div className="mb-6 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-4">
+    <div>
+      {/* Filter Bar */}
+      <div style={{
+        marginBottom: 24,
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 16,
+        overflow: 'hidden',
+      }}>
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center justify-between w-full text-white"
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', padding: '14px 18px',
+            background: 'none', border: 'none', cursor: 'pointer', color: '#fff',
+          }}
         >
-          <div className="flex items-center gap-2">
-            <Filter size={18} className="text-blue-400" />
-            <span className="font-medium">Filters</span>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <Filter size={16} style={{ color:'#818cf8' }} />
+            <span style={{ fontWeight:600, fontSize:14, letterSpacing:'0.02em' }}>Filters</span>
+            {(subjectFilter !== 'all' || postTypeFilter !== 'all') && (
+              <span style={{
+                background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
+                color:'#fff', fontSize:10, fontWeight:700,
+                padding:'2px 8px', borderRadius:99, letterSpacing:'0.06em',
+              }}>ACTIVE</span>
+            )}
           </div>
-          <span className="text-sm text-gray-400">
-            {filteredPosts.length} posts
-          </span>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ fontSize:12, color:'rgba(255,255,255,0.3)', fontWeight:500 }}>
+              {filteredPosts.length} posts
+            </span>
+            <ChevronDown size={16} style={{ color:'rgba(255,255,255,0.3)', transform: showFilters ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }} />
+          </div>
         </button>
 
         {showFilters && (
-          <div className="mt-4 space-y-3">
-            <div>
-              <label className="text-sm text-gray-400 mb-2 block">Subject</label>
+          <div style={{ padding:'0 18px 18px', borderTop:'1px solid rgba(255,255,255,0.05)' }}>
+            {/* Subject */}
+            <div style={{ marginTop:14 }}>
+              <label style={{ display:'block', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', marginBottom:8 }}>
+                Subject
+              </label>
               <select
                 value={subjectFilter}
                 onChange={(e) => setSubjectFilter(e.target.value)}
-                className="w-full p-2 bg-gray-900/50 border border-gray-600/50 text-white rounded-lg focus:ring-2 focus:ring-blue-500/50"
+                style={{
+                  width:'100%', padding:'10px 14px',
+                  background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.08)',
+                  color:'#fff', borderRadius:10, fontSize:13, outline:'none',
+                  cursor:'pointer',
+                }}
               >
-                {uniqueSubjects.map(subject => (
-                  <option key={subject} value={subject}>
-                    {subject === 'all' ? 'All Subjects' : subject}
+                {uniqueSubjects.map(s => (
+                  <option key={s} value={s} style={{ background:'#1a1a2e' }}>
+                    {s === 'all' ? 'All Subjects' : s}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div>
-              <label className="text-sm text-gray-400 mb-2 block">Post Type</label>
-              <div className="grid grid-cols-2 gap-2">
-                {postTypeOptions.map(option => (
+            {/* Post Type */}
+            <div style={{ marginTop:14 }}>
+              <label style={{ display:'block', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', marginBottom:8 }}>
+                Post Type
+              </label>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6 }}>
+                {postTypeOptions.map(opt => (
                   <button
-                    key={option.value}
-                    onClick={() => setPostTypeFilter(option.value)}
-                    className={`p-2 rounded-lg text-sm transition-all ${
-                      postTypeFilter === option.value
-                        ? 'bg-blue-500/20 border-2 border-blue-500 text-white'
-                        : 'bg-gray-900/50 border border-gray-600/50 text-gray-400 hover:border-gray-500'
-                    }`}
+                    key={opt.value}
+                    onClick={() => setPostTypeFilter(opt.value)}
+                    style={{
+                      padding:'8px 6px', borderRadius:10, fontSize:11, fontWeight:600,
+                      cursor:'pointer', transition:'all 0.2s',
+                      border: postTypeFilter === opt.value ? '1.5px solid #6366f1' : '1.5px solid rgba(255,255,255,0.07)',
+                      background: postTypeFilter === opt.value ? 'rgba(99,102,241,0.18)' : 'rgba(0,0,0,0.2)',
+                      color: postTypeFilter === opt.value ? '#a5b4fc' : 'rgba(255,255,255,0.4)',
+                    }}
                   >
-                    <span className="mr-1">{option.icon}</span>
-                    {option.label}
+                    <span style={{ marginRight:4 }}>{opt.icon}</span>{opt.label}
                   </button>
                 ))}
               </div>
@@ -215,153 +207,240 @@ const AllPost = () => {
 
       {/* Posts Feed */}
       {filteredPosts.length > 0 ? (
-        <div className="space-y-6">
+        <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
           {filteredPosts.map((post) => {
             const badge = getPostTypeBadge(post.postType);
-            
             return (
-              <div key={post._id} className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden">
-                {/* Post Header */}
-                <div className="p-4 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+              <article
+                key={post._id}
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                  borderRadius: 20,
+                  overflow: 'hidden',
+                  transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)';
+                  e.currentTarget.style.boxShadow   = '0 8px 40px rgba(99,102,241,0.08)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)';
+                  e.currentTarget.style.boxShadow   = 'none';
+                }}
+              >
+                {/* Header */}
+                <div style={{ padding:'14px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                    {/* Avatar */}
+                    <div style={{
+                      width:42, height:42, borderRadius:'50%',
+                      background:'linear-gradient(135deg,#3b82f6,#8b5cf6)',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      flexShrink:0, overflow:'hidden',
+                      boxShadow:'0 0 0 2px rgba(99,102,241,0.25)',
+                    }}>
                       {post.author?.profilePicture ? (
                         <img
                           src={`${import.meta.env.VITE_BACKEND_URL}${post.author.profilePicture}`}
                           alt={post.author.name}
-                          className="w-full h-full rounded-full object-cover"
+                          style={{ width:'100%', height:'100%', objectFit:'cover' }}
                         />
                       ) : (
-                        <User size={20} className="text-white" />
+                        <User size={18} color="#fff" />
                       )}
                     </div>
+
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                         <button
                           onClick={() => handleAuthorClick(post.author?._id, post.author?.name)}
-                          className="text-white font-semibold hover:text-blue-400 transition-colors"
+                          style={{
+                            background:'none', border:'none', cursor:'pointer',
+                            color:'#f1f5f9', fontWeight:700, fontSize:14,
+                            padding:0, transition:'color 0.2s',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.color = '#818cf8'}
+                          onMouseLeave={e => e.currentTarget.style.color = '#f1f5f9'}
                         >
                           {post.author?.name || 'Anonymous'}
                         </button>
                         {post.author?.isVerified && (
-                          <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
-                            ✓ Verified
-                          </span>
+                          <span style={{
+                            fontSize:10, fontWeight:700, letterSpacing:'0.06em',
+                            background:'rgba(34,197,94,0.12)', color:'#4ade80',
+                            border:'1px solid rgba(34,197,94,0.2)',
+                            padding:'2px 7px', borderRadius:99,
+                          }}>✓ Verified</span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-400">
-                        <Clock size={12} />
-                        {formatTimeAgo(post.createdAt)}
+                      <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
+                        <Clock size={11} color="rgba(255,255,255,0.3)" />
+                        <span style={{ fontSize:11, color:'rgba(255,255,255,0.3)' }}>{formatTimeAgo(post.createdAt)}</span>
                         {post.author?.reputation > 0 && (
                           <>
-                            <span>•</span>
-                            <span className="text-yellow-400">⭐ {post.author.reputation}</span>
+                            <span style={{ color:'rgba(255,255,255,0.15)', fontSize:11 }}>·</span>
+                            <span style={{ fontSize:11, color:'#fbbf24' }}>⭐ {post.author.reputation}</span>
                           </>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="relative" ref={dropdownRef}>
+                  <div style={{ position:'relative' }} ref={dropdownRef}>
                     <button
                       onClick={() => toggleDropdown(post._id)}
-                      className="text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-gray-700/50"
+                      style={{
+                        background:'none', border:'1px solid rgba(255,255,255,0.07)',
+                        borderRadius:8, cursor:'pointer', padding:'6px 8px',
+                        color:'rgba(255,255,255,0.35)', transition:'all 0.2s',
+                        display:'flex', alignItems:'center',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.color='#fff'; e.currentTarget.style.borderColor='rgba(255,255,255,0.2)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.color='rgba(255,255,255,0.35)'; e.currentTarget.style.borderColor='rgba(255,255,255,0.07)'; }}
                     >
-                      <MoreVertical size={20} />
+                      <MoreVertical size={16} />
                     </button>
-
                     {activeDropdown === post._id && (
-                      <div className="absolute right-0 top-full mt-2 z-50">
-                        <PostSettings
-                          postId={post._id}
-                          authorId={post.author?._id}
-                          onClose={handleCloseDropdown}
-                        />
+                      <div style={{ position:'absolute', right:0, top:'calc(100% + 6px)', zIndex:50 }}>
+                        <PostSettings postId={post._id} authorId={post.author?._id} onClose={handleCloseDropdown} />
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Post Type & Subject Badge */}
-                <div className="px-4 pb-2 flex items-center gap-2">
-                  <span className={`text-xs px-2 py-1 rounded-full ${badge.bg} ${badge.text}`}>
-                    {badge.label}
-                  </span>
-                  <span className="text-xs px-2 py-1 rounded-full bg-gray-700/50 text-gray-300 flex items-center gap-1">
-                    <BookOpen size={12} />
-                    {post.subject}
+                {/* Badges */}
+                <div style={{ padding:'0 16px 12px', display:'flex', gap:6 }}>
+                  <span style={{
+                    fontSize:11, fontWeight:700, letterSpacing:'0.04em',
+                    padding:'3px 10px', borderRadius:99,
+                    background: badge.gradient,
+                    color:'#fff',
+                  }}>{badge.label}</span>
+                  <span style={{
+                    fontSize:11, fontWeight:600,
+                    padding:'3px 10px', borderRadius:99,
+                    background:'rgba(255,255,255,0.06)',
+                    border:'1px solid rgba(255,255,255,0.08)',
+                    color:'rgba(255,255,255,0.5)',
+                    display:'flex', alignItems:'center', gap:4,
+                  }}>
+                    <BookOpen size={11} />{post.subject}
                   </span>
                 </div>
 
-                {/* Post Image */}
-                <div className="relative">
+                {/* Image */}
+                <div style={{ position:'relative', overflow:'hidden' }}>
                   <img
                     src={`http://localhost:5000/${post.image}`}
                     alt="Post content"
-                    className="w-full h-96 object-cover"
-                    onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/600x400?text=Image+Not+Found';
-                    }}
+                    style={{ width:'100%', height:340, objectFit:'cover', display:'block' }}
+                    onError={(e) => { e.target.src = 'https://via.placeholder.com/600x400?text=Image+Not+Found'; }}
                   />
+                  {/* subtle gradient overlay at bottom */}
+                  <div style={{
+                    position:'absolute', bottom:0, left:0, right:0, height:60,
+                    background:'linear-gradient(to top, rgba(10,10,20,0.6), transparent)',
+                    pointerEvents:'none',
+                  }} />
                 </div>
 
-                {/* Post Actions */}
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-4">
-                      <button
-                        onClick={() => handleMarkHelpful(post._id)}
-                        className="flex items-center space-x-2 text-gray-400 hover:text-green-500 transition-colors"
-                      >
-                        <Heart size={20} className={post.isHelpful ? 'fill-green-500 text-green-500' : ''} />
-                        <span className="text-sm">
-                          {post.helpfulCount || 0} helpful
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => handleOpenComments(post._id)}
-                        className="flex items-center space-x-2 text-gray-400 hover:text-blue-400 transition-colors"
-                      >
-                        <MessageCircle size={20} />
-                        <span className="text-sm">{post.commentCount || 0}</span>
-                      </button>
-                      <button className="text-gray-400 hover:text-green-400 transition-colors">
-                        <Share2 size={20} />
-                      </button>
-                    </div>
+                {/* Actions */}
+                <div style={{ padding:'12px 16px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:12 }}>
+                    {/* Helpful */}
+                    <button
+                      onClick={() => handleMarkHelpful(post._id)}
+                      style={{
+                        display:'flex', alignItems:'center', gap:6,
+                        padding:'7px 14px', borderRadius:99, cursor:'pointer',
+                        border: post.isHelpful ? '1px solid rgba(34,197,94,0.4)' : '1px solid rgba(255,255,255,0.07)',
+                        background: post.isHelpful ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)',
+                        color: post.isHelpful ? '#4ade80' : 'rgba(255,255,255,0.4)',
+                        fontSize:12, fontWeight:600, transition:'all 0.2s',
+                      }}
+                      onMouseEnter={e => { if (!post.isHelpful) { e.currentTarget.style.borderColor='rgba(34,197,94,0.3)'; e.currentTarget.style.color='#4ade80'; } }}
+                      onMouseLeave={e => { if (!post.isHelpful) { e.currentTarget.style.borderColor='rgba(255,255,255,0.07)'; e.currentTarget.style.color='rgba(255,255,255,0.4)'; } }}
+                    >
+                      <Heart size={14} style={{ fill: post.isHelpful ? '#4ade80' : 'none' }} />
+                      {post.helpfulCount || 0} helpful
+                    </button>
+
+                    {/* Comments */}
+                    <button
+                      onClick={() => handleOpenComments(post._id)}
+                      style={{
+                        display:'flex', alignItems:'center', gap:6,
+                        padding:'7px 14px', borderRadius:99, cursor:'pointer',
+                        border:'1px solid rgba(255,255,255,0.07)',
+                        background:'rgba(255,255,255,0.03)',
+                        color:'rgba(255,255,255,0.4)',
+                        fontSize:12, fontWeight:600, transition:'all 0.2s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor='rgba(99,102,241,0.4)'; e.currentTarget.style.color='#818cf8'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.07)'; e.currentTarget.style.color='rgba(255,255,255,0.4)'; }}
+                    >
+                      <MessageCircle size={14} />
+                      {post.commentCount || 0}
+                    </button>
+
+                    {/* Share */}
+                    <button
+                      style={{
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        width:34, height:34, borderRadius:'50%', cursor:'pointer',
+                        border:'1px solid rgba(255,255,255,0.07)',
+                        background:'rgba(255,255,255,0.03)',
+                        color:'rgba(255,255,255,0.4)', transition:'all 0.2s',
+                        marginLeft:'auto',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.2)'; e.currentTarget.style.color='#fff'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.07)'; e.currentTarget.style.color='rgba(255,255,255,0.4)'; }}
+                    >
+                      <Share2 size={14} />
+                    </button>
                   </div>
 
-                  {/* Post Caption */}
+                  {/* Caption */}
                   {post.caption && (
-                    <div className="mb-3">
-                      <p className="text-white">
-                        <span className="font-semibold mr-2">{post.author?.name}</span>
-                        {post.caption}
-                      </p>
-                    </div>
+                    <p style={{ fontSize:13, color:'rgba(255,255,255,0.75)', lineHeight:1.6, marginBottom:8 }}>
+                      <span style={{ fontWeight:700, color:'#f1f5f9', marginRight:6 }}>{post.author?.name}</span>
+                      {post.caption}
+                    </p>
                   )}
 
-                  {/* Comments Preview */}
+                  {/* View comments link */}
                   {post.comments?.length > 0 && (
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => handleOpenComments(post._id)}
-                        className="text-gray-400 text-sm hover:text-white transition-colors"
-                      >
-                        View all {post.commentCount} comments
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => handleOpenComments(post._id)}
+                      style={{
+                        background:'none', border:'none', cursor:'pointer',
+                        fontSize:12, color:'rgba(255,255,255,0.25)',
+                        padding:0, transition:'color 0.2s', fontWeight:500,
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color='rgba(255,255,255,0.6)'}
+                      onMouseLeave={e => e.currentTarget.style.color='rgba(255,255,255,0.25)'}
+                    >
+                      View all {post.commentCount} comments
+                    </button>
                   )}
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
       ) : (
-        <div className="text-center mt-12">
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8">
-            <h3 className="text-xl font-semibold text-white mb-2">No posts found</h3>
-            <p className="text-gray-400 mb-4">
+        <div style={{ textAlign:'center', paddingTop:48 }}>
+          <div style={{
+            background:'rgba(255,255,255,0.02)',
+            border:'1px solid rgba(255,255,255,0.06)',
+            borderRadius:20, padding:'48px 32px',
+          }}>
+            <div style={{ fontSize:48, marginBottom:16 }}>
+              {subjectFilter !== 'all' || postTypeFilter !== 'all' ? '🔍' : '✨'}
+            </div>
+            <h3 style={{ color:'#f1f5f9', fontWeight:700, fontSize:18, marginBottom:8 }}>No posts found</h3>
+            <p style={{ color:'rgba(255,255,255,0.3)', fontSize:13, lineHeight:1.6 }}>
               {subjectFilter !== 'all' || postTypeFilter !== 'all'
                 ? 'Try adjusting your filters'
                 : 'Be the first to share something amazing!'}
@@ -369,68 +448,105 @@ const AllPost = () => {
           </div>
         </div>
       )}
-    </>
+    </div>
+  );
+
+  /* ── PAGE HEADER ── */
+  const PageHeader = () => (
+    <div style={{ marginBottom:28 }}>
+      <h1 style={{
+        fontSize: 28, fontWeight:800, margin:'0 0 4px',
+        background:'linear-gradient(135deg,#60a5fa,#a78bfa)',
+        WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+        letterSpacing:'-0.02em',
+      }}>FindOut</h1>
+      <p style={{ fontSize:13, color:'rgba(255,255,255,0.3)', margin:0, fontWeight:500 }}>
+        Share knowledge · Ask questions · Help others learn
+      </p>
+    </div>
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800">
-      {/* ✅ MOBILE VIEW */}
+    <div style={{ minHeight:'100vh', background:'linear-gradient(135deg,#0f0f1a 0%,#0a0a0f 50%,#0d0d1a 100%)' }}>
+
+      {/* ── MOBILE ── */}
       <div className="lg:hidden">
         <MobileViewBar />
-        
-        <div className="max-w-xl mx-auto p-4">
-          <div className="text-center mb-6 pt-8">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-              Learning Hub
-            </h1>
-            <p className="text-gray-400">Share knowledge, ask questions, help others learn</p>
-          </div>
-
+        <div style={{ maxWidth:520, margin:'0 auto', padding:'80px 16px 100px' }}>
+          <PageHeader />
           <PostsList />
         </div>
-
         <MobileViewIcons />
       </div>
 
-      {/* ✅ DESKTOP VIEW */}
+      {/* ── DESKTOP ── */}
       <div className="hidden lg:block">
-        {/* Sidebar Toggle Button */}
+        {/* Sidebar toggle */}
         <button
           onClick={() => setShowSidebar(!showSidebar)}
-          className="fixed top-4 left-4 z-50 p-3 bg-gray-800/90 backdrop-blur-sm border border-gray-700/50 rounded-xl text-white hover:bg-gray-700/90 transition-all shadow-lg"
+          style={{
+            position:'fixed', top:16, left:16, zIndex:50,
+            display:'flex', alignItems:'center', justifyContent:'center',
+            width:40, height:40,
+            background:'rgba(255,255,255,0.04)',
+            border:'1px solid rgba(255,255,255,0.08)',
+            borderRadius:10, cursor:'pointer', color:'rgba(255,255,255,0.6)',
+            transition:'all 0.2s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.08)'; e.currentTarget.style.color='#fff'; }}
+          onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.04)'; e.currentTarget.style.color='rgba(255,255,255,0.6)'; }}
         >
-          {showSidebar ? <X size={20} /> : <Menu size={20} />}
+          {showSidebar ? <X size={18} /> : <Menu size={18} />}
         </button>
 
-        {/* Sidebar Overlay */}
+        {/* Sidebar overlay */}
         {showSidebar && (
           <>
             <div
-              className="fixed inset-0 bg-black/50 z-40"
+              style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:40, backdropFilter:'blur(4px)' }}
               onClick={() => setShowSidebar(false)}
             />
-            <div className="fixed left-0 top-0 h-full w-64 z-50">
+            <div style={{ position:'fixed', left:0, top:0, height:'100%', width:256, zIndex:50 }}>
               <DashSidebar />
             </div>
           </>
         )}
 
-        {/* Main Content */}
-        <div className="flex justify-center">
-          <div className="w-full max-w-2xl px-4 py-8">
-            {/* Top Navigation Bar */}
-            <div className="mb-6 flex items-center justify-between bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-4">
+        {/* Main */}
+        <div style={{ display:'flex', justifyContent:'center' }}>
+          <div style={{ width:'100%', maxWidth:620, padding:'32px 20px' }}>
+
+            {/* Top nav bar */}
+            <div style={{
+              marginBottom:28,
+              display:'flex', alignItems:'center', justifyContent:'space-between',
+              background:'rgba(255,255,255,0.03)',
+              border:'1px solid rgba(255,255,255,0.07)',
+              borderRadius:14, padding:'10px 16px',
+            }}>
               <button
                 onClick={() => navigate('/dashboard')}
-                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+                style={{
+                  display:'flex', alignItems:'center', gap:7,
+                  background:'none', border:'none', cursor:'pointer',
+                  color:'rgba(255,255,255,0.4)', fontSize:13, fontWeight:600,
+                  padding:0, transition:'color 0.2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.color='#fff'}
+                onMouseLeave={e => e.currentTarget.style.color='rgba(255,255,255,0.4)'}
               >
-                <Home size={20} />
-                <span className="font-medium">Dashboard</span>
+                <Home size={16} />
+                Dashboard
               </button>
-              <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Learning Hub
-              </h2>
-              <div className="w-24"></div>
+
+              <span style={{
+                fontWeight:800, fontSize:15,
+                background:'linear-gradient(135deg,#60a5fa,#a78bfa)',
+                WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+                letterSpacing:'-0.01em',
+              }}>FindOut</span>
+
+              <div style={{ width:80 }} />
             </div>
 
             <PostsList />

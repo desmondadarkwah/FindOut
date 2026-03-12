@@ -3,7 +3,18 @@ const AdminModel = require('../models/AdminModel');
 
 const adminAuth = async (req, res, next) => {
   try {
-    const token = req.cookies.adminToken || req.headers.authorization?.replace('Bearer ', '');
+    // ✅ FIX: Check both cookies and headers
+    let token = null;
+    
+    // Try to get from cookies first
+    if (req.cookies && req.cookies.adminToken) {
+      token = req.cookies.adminToken;
+    }
+    
+    // If not in cookies, try Authorization header
+    if (!token && req.headers.authorization) {
+      token = req.headers.authorization.replace('Bearer ', '');
+    }
 
     if (!token) {
       return res.status(401).json({

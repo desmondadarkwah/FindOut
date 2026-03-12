@@ -25,142 +25,87 @@ const PostComment = ({ postId, isOpen, onClose }) => {
     clearAllReplies
   } = useContext(CommentContext);
 
-  const [newComment, setNewComment] = useState('');
+  const [newComment, setNewComment]         = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [replyingTo, setReplyingTo] = useState(null);
-  const [replyText, setReplyText] = useState('');
+  const [isSubmitting, setIsSubmitting]     = useState(false);
+  const [replyingTo, setReplyingTo]         = useState(null);
+  const [replyText, setReplyText]           = useState('');
   const [expandedReplies, setExpandedReplies] = useState(new Set());
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
-  const quickEmojis = ['😀', '😂', '😍', '😭', '👍', '❤️', '🔥', '💯', '🙌', '👏'];
+  const quickEmojis = ['😀','😂','😍','😭','👍','❤️','🔥','💯','🙌','👏'];
 
-  // Fetch comments when modal opens
   useEffect(() => {
-    if (isOpen && postId) {
-      fetchComments(postId);
-    }
-    
+    if (isOpen && postId) fetchComments(postId);
     if (!isOpen) {
-      clearComments();
-      clearAllReplies(); // Clear all replies when modal closes
-      setExpandedReplies(new Set());
-      setReplyingTo(null);
-      setReplyText('');
-      setNewComment('');
-      setShowEmojiPicker(false);
+      clearComments(); clearAllReplies();
+      setExpandedReplies(new Set()); setReplyingTo(null);
+      setReplyText(''); setNewComment(''); setShowEmojiPicker(false);
     }
   }, [isOpen, postId, fetchComments, clearComments, clearAllReplies]);
 
   useEffect(() => {
     if (comments.length > 0) {
-      const commentsWithReplies = comments.filter(comment => 
-        comment.replyCount > 0 && expandedReplies.has(comment._id)
-      );
-      
-      commentsWithReplies.forEach(comment => {
-        if (!areRepliesLoaded(comment._id)) {
-          fetchReplies(comment._id).catch(error => {
-            console.error('Failed to auto-fetch replies:', error);
-          });
-        }
-      });
+      comments
+        .filter(c => c.replyCount > 0 && expandedReplies.has(c._id))
+        .forEach(c => { if (!areRepliesLoaded(c._id)) fetchReplies(c._id).catch(console.error); });
     }
   }, [comments, expandedReplies, areRepliesLoaded, fetchReplies]);
 
   const handleAddComment = useCallback(async () => {
     if (!newComment.trim() || isSubmitting) return;
-
     try {
       setIsSubmitting(true);
       await addComment(postId, newComment.trim());
-      setNewComment('');
-      setShowEmojiPicker(false);
-    } catch (error) {
-      console.error('Failed to add comment:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
+      setNewComment(''); setShowEmojiPicker(false);
+    } catch (e) { console.error(e); } finally { setIsSubmitting(false); }
   }, [newComment, isSubmitting, addComment, postId]);
 
   const handleLikeComment = useCallback(async (commentId) => {
-    try {
-      await likeComment(commentId);
-    } catch (error) {
-      console.error('Failed to like comment:', error);
-    }
+    try { await likeComment(commentId); } catch (e) { console.error(e); }
   }, [likeComment]);
 
   const handleAddReply = useCallback(async (commentId) => {
     if (!replyText.trim() || isSubmittingReply) return;
-
     try {
       setIsSubmittingReply(true);
       await addReply(commentId, replyText.trim());
-      setReplyText('');
-      setReplyingTo(null);
-      
-      // Auto-expand replies after adding a new reply
+      setReplyText(''); setReplyingTo(null);
       setExpandedReplies(prev => new Set([...prev, commentId]));
-    } catch (error) {
-      console.error('Failed to add reply:', error);
-    } finally {
-      setIsSubmittingReply(false);
-    }
+    } catch (e) { console.error(e); } finally { setIsSubmittingReply(false); }
   }, [replyText, isSubmittingReply, addReply]);
 
   const handleToggleReplies = useCallback(async (commentId) => {
-    const isExpanded = expandedReplies.has(commentId);
-    
-    if (isExpanded) {
-      // Collapse replies
-      setExpandedReplies(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(commentId);
-        return newSet;
-      });
+    if (expandedReplies.has(commentId)) {
+      setExpandedReplies(prev => { const s = new Set(prev); s.delete(commentId); return s; });
     } else {
-      // Expand replies - always fetch fresh data
       try {
         await fetchReplies(commentId);
         setExpandedReplies(prev => new Set([...prev, commentId]));
-      } catch (error) {
-        console.error('Failed to fetch replies:', error);
-        return;
-      }
+      } catch (e) { console.error(e); }
     }
   }, [expandedReplies, fetchReplies]);
 
   const formatTimeAgo = useCallback((date) => {
-    const now = new Date();
-    const commentDate = new Date(date);
-    const diffInSeconds = Math.floor((now - commentDate) / 1000);
-
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d`;
-
-    return commentDate.toLocaleDateString();
+    const diff = Math.floor((new Date() - new Date(date)) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff/60)}m`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h`;
+    if (diff < 604800) return `${Math.floor(diff/86400)}d`;
+    return new Date(date).toLocaleDateString();
   }, []);
 
   const addEmoji = useCallback((emoji) => {
-    if (replyingTo) {
-      setReplyText(prev => prev + emoji);
-    } else {
-      setNewComment(prev => prev + emoji);
-    }
+    if (replyingTo) setReplyText(p => p + emoji);
+    else setNewComment(p => p + emoji);
     setShowEmojiPicker(false);
   }, [replyingTo]);
 
   const handleKeyPress = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (replyingTo) {
-        handleAddReply(replyingTo);
-      } else {
-        handleAddComment();
-      }
+      if (replyingTo) handleAddReply(replyingTo);
+      else handleAddComment();
     }
   }, [replyingTo, handleAddReply, handleAddComment]);
 
@@ -171,291 +116,385 @@ const PostComment = ({ postId, isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  /* ── shared input style ── */
+  const inputStyle = {
+    width: '100%',
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 12,
+    padding: '10px 14px',
+    color: '#f1f5f9',
+    fontSize: 13,
+    resize: 'none',
+    outline: 'none',
+    fontFamily: 'inherit',
+    lineHeight: 1.55,
+    transition: 'border-color 0.2s, box-shadow 0.2s',
+  };
+
+  /* ── avatar helper ── */
+  const Avatar = ({ src, name, size = 34, gradient = 'linear-gradient(135deg,#3b82f6,#8b5cf6)' }) => (
+    <div style={{
+      width: size, height: size, borderRadius: '50%',
+      background: gradient,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexShrink: 0, overflow: 'hidden',
+      boxShadow: '0 0 0 2px rgba(99,102,241,0.2)',
+    }}>
+      {src
+        ? <img src={`${import.meta.env.VITE_BACKEND_URL}${src}`} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+        : <User size={size * 0.45} color="#fff" />
+      }
+    </div>
+  );
+
+  /* ── send button ── */
+  const SendBtn = ({ onClick, disabled, loading: spin, size = 16 }) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: 36, height: 36, borderRadius: 10, border: 'none',
+        background: disabled
+          ? 'rgba(255,255,255,0.05)'
+          : 'linear-gradient(135deg,#3b82f6,#6366f1)',
+        color: disabled ? 'rgba(255,255,255,0.2)' : '#fff',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        flexShrink: 0, transition: 'opacity 0.2s',
+      }}
+    >
+      {spin
+        ? <div style={{ width:14, height:14, border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%', animation:'pc-spin 0.7s linear infinite' }} />
+        : <Send size={size} />
+      }
+    </button>
+  );
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md h-[80vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
-          <h3 className="text-lg font-semibold text-white">Comments</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors p-1"
-            aria-label="Close comments"
-          >
-            <X size={20} />
-          </button>
-        </div>
+    <>
+      <style>{`
+        @keyframes pc-spin { to { transform:rotate(360deg); } }
+        @keyframes pc-slide-up { from { opacity:0; transform:translateY(24px) scale(0.98); } to { opacity:1; transform:none; } }
 
-        {/* Error Messages */}
-        {(error || repliesError) && (
-          <div className="px-4 py-2 bg-red-900/20 border-b border-red-700/30 flex-shrink-0">
-            <p className="text-red-400 text-sm">{error || repliesError}</p>
-          </div>
-        )}
+        .pc-modal {
+          position: fixed; inset: 0; z-index: 50;
+          display: flex; align-items: flex-end; justify-content: center;
+          padding: 0;
+          background: rgba(0,0,0,0.7);
+          backdrop-filter: blur(6px);
+        }
+        @media (min-width: 640px) {
+          .pc-modal { align-items: center; padding: 16px; }
+        }
 
-        {/* Comments List - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-4 min-h-0">
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-              <p className="text-gray-400">Loading comments...</p>
-            </div>
-          ) : comments.length > 0 ? (
-            <div className="space-y-4">
-              {comments.map((comment) => (
-                <div key={comment._id} className="space-y-3">
-                  {/* Main Comment */}
-                  <div className="flex space-x-3">
-                    {/* User Profile Picture */}
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
-                      {comment.user?.profilePicture ? (
-                        <img
-                          src={`${import.meta.env.VITE_BACKEND_URL}${comment.user.profilePicture}`}
-                          alt={comment.user.name}
-                          className="w-full h-full rounded-full object-cover"
-                        />
-                      ) : (
-                        <User size={16} className="text-white" />
-                      )}
-                    </div>
+        .pc-panel {
+          background: #0f0f1a;
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 24px 24px 0 0;
+          width: 100%; max-width: 480px;
+          height: 82vh;
+          display: flex; flex-direction: column;
+          overflow: hidden;
+          animation: pc-slide-up 0.3s cubic-bezier(0.34,1.2,0.64,1);
+          box-shadow: 0 -8px 60px rgba(0,0,0,0.6);
+        }
+        @media (min-width: 640px) {
+          .pc-panel { border-radius: 24px; height: 78vh; }
+        }
 
-                    {/* Comment Content */}
-                    <div className="flex-1">
-                      <div className="bg-gray-700/50 rounded-lg px-3 py-2">
-                        <p className="text-sm font-medium text-white mb-1">
-                          {comment.user?.name || 'Anonymous'}
-                        </p>
-                        <p className="text-gray-300 text-sm leading-relaxed">
-                          {comment.text}
-                        </p>
-                      </div>
+        .pc-scroll::-webkit-scrollbar { width: 4px; }
+        .pc-scroll::-webkit-scrollbar-track { background: transparent; }
+        .pc-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
 
-                      {/* Comment Actions */}
-                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-400">
-                        <span className="flex items-center">
-                          <Clock size={12} className="mr-1" />
-                          {formatTimeAgo(comment.createdAt)}
-                        </span>
-                        <button
-                          onClick={() => handleLikeComment(comment._id)}
-                          className={`flex items-center space-x-1 hover:text-red-400 transition-colors ${
-                            comment.isLiked ? 'text-red-400' : ''
-                          }`}
-                          aria-label={`${comment.isLiked ? 'Unlike' : 'Like'} comment`}
-                        >
-                          <Heart size={12} className={comment.isLiked ? 'fill-current' : ''} />
-                          <span>{comment.likeCount || 0}</span>
-                        </button>
-                        <button 
-                          onClick={() => handleReplyToggle(comment._id)}
-                          className="hover:text-blue-400 transition-colors flex items-center space-x-1"
-                          aria-label="Reply to comment"
-                        >
-                          <Reply size={12} />
-                          <span>Reply</span>
-                        </button>
-                        
-                        {/* Toggle Replies Button */}
-                        {comment.replyCount > 0 && (
-                          <button
-                            onClick={() => handleToggleReplies(comment._id)}
-                            className="hover:text-blue-400 transition-colors flex items-center space-x-1"
-                            disabled={isLoadingReplies(comment._id)}
-                            aria-label={`${expandedReplies.has(comment._id) ? 'Hide' : 'Show'} replies`}
-                          >
-                            {expandedReplies.has(comment._id) ? (
-                              <ChevronUp size={12} />
-                            ) : (
-                              <ChevronDown size={12} />
-                            )}
-                            <span>
-                              {isLoadingReplies(comment._id) ? 'Loading...' : `${comment.replyCount} ${comment.replyCount === 1 ? 'reply' : 'replies'}`}
-                            </span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+        .pc-input:focus {
+          border-color: rgba(99,102,241,0.5) !important;
+          box-shadow: 0 0 0 3px rgba(99,102,241,0.08) !important;
+        }
 
-                  {/* Reply Input */}
-                  {replyingTo === comment._id && (
-                    <div className="ml-11 space-y-2">
-                      <div className="flex items-end space-x-2">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-r from-green-500 to-blue-500 flex items-center justify-center flex-shrink-0">
-                          <User size={12} className="text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <textarea
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            onKeyPress={handleKeyPress}
-                            placeholder={`Reply to ${comment.user?.name || 'Anonymous'}...`}
-                            disabled={isSubmittingReply}
-                            className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 text-sm"
-                            rows="2"
-                            aria-label={`Reply to ${comment.user?.name || 'Anonymous'}`}
-                          />
-                        </div>
-                        <button
-                          onClick={() => handleAddReply(comment._id)}
-                          disabled={!replyText.trim() || isSubmittingReply}
-                          className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
-                            replyText.trim() && !isSubmittingReply
-                              ? 'bg-blue-600 text-white hover:bg-blue-700'
-                              : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                          }`}
-                          aria-label="Send reply"
-                        >
-                          {isSubmittingReply ? (
-                            <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                          ) : (
-                            <Send size={14} />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+        .pc-action-btn {
+          background: none; border: none; cursor: pointer;
+          display: flex; align-items: center; gap: 4px;
+          font-size: 11px; font-weight: 600;
+          padding: 4px 8px; border-radius: 6px;
+          transition: all 0.15s;
+          letter-spacing: 0.02em;
+        }
+        .pc-action-btn:hover { background: rgba(255,255,255,0.05); }
+      `}</style>
 
-                  {/* Replies List */}
-                  {expandedReplies.has(comment._id) && (
-                    <div className="ml-11 space-y-3">
-                      {isLoadingReplies(comment._id) ? (
-                        <div className="text-center py-4">
-                          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                          <p className="text-gray-400 text-xs">Loading replies...</p>
-                        </div>
-                      ) : (
-                        getRepliesForComment(comment._id).map((reply) => (
-                          <div key={reply._id} className="flex space-x-2">
-                            <div className="w-6 h-6 rounded-full bg-gradient-to-r from-green-500 to-blue-500 flex items-center justify-center flex-shrink-0">
-                              {reply.user?.profilePicture ? (
-                                <img
-                                  src={`${import.meta.env.VITE_BACKEND_URL}${reply.user.profilePicture}`}
-                                  alt={reply.user.name}
-                                  className="w-full h-full rounded-full object-cover"
-                                />
-                              ) : (
-                                <User size={12} className="text-white" />
-                              )}
-                            </div>
-                            
-                            <div className="flex-1">
-                              <div className="bg-gray-700/30 rounded-lg px-3 py-2">
-                                <p className="text-xs font-medium text-white mb-1">
-                                  {reply.user?.name || 'Anonymous'}
-                                </p>
-                                <p className="text-gray-300 text-xs leading-relaxed">
-                                  {reply.text}
-                                </p>
-                              </div>
-                              
-                              <div className="flex items-center space-x-3 mt-1 text-xs text-gray-500">
-                                <span className="flex items-center">
-                                  <Clock size={10} className="mr-1" />
-                                  {formatTimeAgo(reply.createdAt)}
-                                </span>
-                                <button 
-                                  className="hover:text-red-400 transition-colors flex items-center space-x-1"
-                                  aria-label="Like reply"
-                                >
-                                  <Heart size={10} />
-                                  <span>{reply.likeCount || 0}</span>
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                      
-                      {/* Show message if no replies loaded */}
-                      {!isLoadingReplies(comment._id) && getRepliesForComment(comment._id).length === 0 && (
-                        <div className="text-center py-2">
-                          <p className="text-gray-500 text-xs">No replies found</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-400 mb-2">No comments yet</p>
-              <p className="text-gray-500 text-sm">Be the first to comment!</p>
-            </div>
-          )}
-        </div>
+      <div className="pc-modal" onClick={e => e.target === e.currentTarget && onClose()}>
+        <div className="pc-panel">
 
-        {/* Add Comment Section - Fixed at bottom */}
-        <div className="border-t border-gray-700 p-4 flex-shrink-0">
-          {/* Emoji Picker */}
-          {showEmojiPicker && (
-            <div className="mb-3 p-3 bg-gray-700/50 rounded-lg">
-              <div className="flex flex-wrap gap-2">
-                {quickEmojis.map((emoji, index) => (
-                  <button
-                    key={index}
-                    onClick={() => addEmoji(emoji)}
-                    className="text-lg hover:bg-gray-600 rounded p-1 transition-colors"
-                    aria-label={`Add ${emoji} emoji`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* ── HEADER ── */}
+          <div style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexShrink: 0,
+          }}>
+            {/* drag pill (mobile hint) */}
+            <div style={{ position:'absolute', top:10, left:'50%', transform:'translateX(-50%)', width:36, height:4, background:'rgba(255,255,255,0.12)', borderRadius:99 }} />
 
-          {/* Comment Input */}
-          <div className="flex items-end space-x-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
-              <User size={16} className="text-white" />
-            </div>
-            
-            <div className="flex-1 relative">
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Add a comment..."
-                disabled={isSubmitting}
-                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 pr-10 text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                rows="2"
-                aria-label="Add a comment"
-              />
-              
-              {/* Emoji Button */}
-              <button
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                disabled={isSubmitting}
-                className="absolute right-2 top-2 text-gray-400 hover:text-yellow-400 transition-colors disabled:opacity-50"
-                aria-label="Toggle emoji picker"
-              >
-                <Smile size={16} />
-              </button>
+            <div>
+              <h3 style={{ color:'#f1f5f9', fontWeight:700, fontSize:15, margin:0, letterSpacing:'-0.01em' }}>Comments</h3>
+              <p style={{ color:'rgba(255,255,255,0.25)', fontSize:11, margin:0, marginTop:2 }}>{comments.length} total</p>
             </div>
 
-            {/* Post Button */}
             <button
-              onClick={handleAddComment}
-              disabled={!newComment.trim() || isSubmitting}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                newComment.trim() && !isSubmitting
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-              }`}
-              aria-label="Post comment"
+              onClick={onClose}
+              style={{
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: 10, padding: '7px 8px',
+                color: 'rgba(255,255,255,0.4)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.1)'; e.currentTarget.style.color='#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.05)'; e.currentTarget.style.color='rgba(255,255,255,0.4)'; }}
             >
-              {isSubmitting ? (
-                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <Send size={16} />
-              )}
+              <X size={16} />
             </button>
           </div>
+
+          {/* ── ERROR ── */}
+          {(error || repliesError) && (
+            <div style={{
+              padding: '10px 20px', flexShrink: 0,
+              background: 'rgba(239,68,68,0.08)',
+              borderBottom: '1px solid rgba(239,68,68,0.15)',
+            }}>
+              <p style={{ color:'#f87171', fontSize:12, margin:0 }}>{error || repliesError}</p>
+            </div>
+          )}
+
+          {/* ── COMMENTS LIST ── */}
+          <div className="pc-scroll" style={{ flex:1, overflowY:'auto', padding:'16px 20px', minHeight:0 }}>
+
+            {loading ? (
+              <div style={{ textAlign:'center', padding:'40px 0' }}>
+                <div style={{ width:32, height:32, border:'2px solid rgba(99,102,241,0.3)', borderTopColor:'#818cf8', borderRadius:'50%', animation:'pc-spin 0.7s linear infinite', margin:'0 auto 12px' }} />
+                <p style={{ color:'rgba(255,255,255,0.3)', fontSize:13 }}>Loading comments…</p>
+              </div>
+            ) : comments.length > 0 ? (
+              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                {comments.map((comment) => (
+                  <div key={comment._id}>
+
+                    {/* ── COMMENT ── */}
+                    <div style={{ display:'flex', gap:10 }}>
+                      <Avatar src={comment.user?.profilePicture} name={comment.user?.name} size={34} />
+
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{
+                          background: 'rgba(255,255,255,0.04)',
+                          border: '1px solid rgba(255,255,255,0.06)',
+                          borderRadius: '4px 14px 14px 14px',
+                          padding: '10px 14px',
+                        }}>
+                          <p style={{ color:'#f1f5f9', fontWeight:700, fontSize:12, margin:'0 0 4px', letterSpacing:'0.01em' }}>
+                            {comment.user?.name || 'Anonymous'}
+                          </p>
+                          <p style={{ color:'rgba(255,255,255,0.65)', fontSize:13, margin:0, lineHeight:1.6 }}>
+                            {comment.text}
+                          </p>
+                        </div>
+
+                        {/* actions row */}
+                        <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:6, paddingLeft:4 }}>
+                          <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'rgba(255,255,255,0.2)' }}>
+                            <Clock size={10} />{formatTimeAgo(comment.createdAt)}
+                          </span>
+                          <span style={{ color:'rgba(255,255,255,0.1)', fontSize:11 }}>·</span>
+
+                          <button
+                            className="pc-action-btn"
+                            onClick={() => handleLikeComment(comment._id)}
+                            style={{ color: comment.isLiked ? '#f87171' : 'rgba(255,255,255,0.35)' }}
+                          >
+                            <Heart size={11} style={{ fill: comment.isLiked ? '#f87171' : 'none' }} />
+                            {comment.likeCount || 0}
+                          </button>
+
+                          <button
+                            className="pc-action-btn"
+                            onClick={() => handleReplyToggle(comment._id)}
+                            style={{ color: replyingTo === comment._id ? '#818cf8' : 'rgba(255,255,255,0.35)' }}
+                          >
+                            <Reply size={11} />Reply
+                          </button>
+
+                          {comment.replyCount > 0 && (
+                            <button
+                              className="pc-action-btn"
+                              onClick={() => handleToggleReplies(comment._id)}
+                              disabled={isLoadingReplies(comment._id)}
+                              style={{ color:'rgba(99,102,241,0.7)', marginLeft:'auto' }}
+                            >
+                              {expandedReplies.has(comment._id) ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                              {isLoadingReplies(comment._id) ? 'Loading…' : `${comment.replyCount} ${comment.replyCount === 1 ? 'reply' : 'replies'}`}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── REPLY INPUT ── */}
+                    {replyingTo === comment._id && (
+                      <div style={{ marginLeft:44, marginTop:10, display:'flex', gap:8, alignItems:'flex-end' }}>
+                        <Avatar size={26} gradient="linear-gradient(135deg,#10b981,#3b82f6)" />
+                        <div style={{ flex:1, position:'relative' }}>
+                          <textarea
+                            className="pc-input"
+                            style={{ ...inputStyle, paddingRight:44 }}
+                            value={replyText}
+                            onChange={e => setReplyText(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            placeholder={`Reply to ${comment.user?.name || 'Anonymous'}…`}
+                            disabled={isSubmittingReply}
+                            rows={2}
+                          />
+                        </div>
+                        <SendBtn
+                          onClick={() => handleAddReply(comment._id)}
+                          disabled={!replyText.trim() || isSubmittingReply}
+                          loading={isSubmittingReply}
+                        />
+                      </div>
+                    )}
+
+                    {/* ── REPLIES ── */}
+                    {expandedReplies.has(comment._id) && (
+                      <div style={{ marginLeft:44, marginTop:10, display:'flex', flexDirection:'column', gap:12 }}>
+                        {isLoadingReplies(comment._id) ? (
+                          <div style={{ textAlign:'center', padding:'12px 0' }}>
+                            <div style={{ width:20, height:20, border:'2px solid rgba(99,102,241,0.3)', borderTopColor:'#818cf8', borderRadius:'50%', animation:'pc-spin 0.7s linear infinite', margin:'0 auto 6px' }} />
+                            <p style={{ color:'rgba(255,255,255,0.2)', fontSize:11 }}>Loading replies…</p>
+                          </div>
+                        ) : getRepliesForComment(comment._id).length === 0 ? (
+                          <p style={{ color:'rgba(255,255,255,0.2)', fontSize:11, textAlign:'center', padding:'8px 0' }}>No replies yet</p>
+                        ) : (
+                          getRepliesForComment(comment._id).map(reply => (
+                            <div key={reply._id} style={{ display:'flex', gap:8 }}>
+                              <Avatar
+                                src={reply.user?.profilePicture}
+                                name={reply.user?.name}
+                                size={26}
+                                gradient="linear-gradient(135deg,#10b981,#3b82f6)"
+                              />
+                              <div style={{ flex:1, minWidth:0 }}>
+                                <div style={{
+                                  background: 'rgba(255,255,255,0.03)',
+                                  border: '1px solid rgba(255,255,255,0.05)',
+                                  borderRadius: '4px 12px 12px 12px',
+                                  padding: '8px 12px',
+                                }}>
+                                  <p style={{ color:'#f1f5f9', fontWeight:700, fontSize:11, margin:'0 0 3px' }}>
+                                    {reply.user?.name || 'Anonymous'}
+                                  </p>
+                                  <p style={{ color:'rgba(255,255,255,0.6)', fontSize:12, margin:0, lineHeight:1.55 }}>
+                                    {reply.text}
+                                  </p>
+                                </div>
+                                <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:4, paddingLeft:2 }}>
+                                  <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, color:'rgba(255,255,255,0.2)' }}>
+                                    <Clock size={9} />{formatTimeAgo(reply.createdAt)}
+                                  </span>
+                                  <button
+                                    className="pc-action-btn"
+                                    style={{ color:'rgba(255,255,255,0.25)', fontSize:10 }}
+                                  >
+                                    <Heart size={9} />{reply.likeCount || 0}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign:'center', padding:'48px 0' }}>
+                <div style={{ fontSize:40, marginBottom:12 }}>💬</div>
+                <p style={{ color:'rgba(255,255,255,0.4)', fontSize:14, fontWeight:600, margin:'0 0 4px' }}>No comments yet</p>
+                <p style={{ color:'rgba(255,255,255,0.2)', fontSize:12, margin:0 }}>Be the first to comment!</p>
+              </div>
+            )}
+          </div>
+
+          {/* ── COMMENT INPUT ── */}
+          <div style={{
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+            padding: '12px 20px 16px',
+            flexShrink: 0,
+            background: 'rgba(0,0,0,0.2)',
+          }}>
+            {/* Emoji picker */}
+            {showEmojiPicker && (
+              <div style={{
+                marginBottom: 10, padding: '10px 12px',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: 12,
+                display: 'flex', flexWrap: 'wrap', gap: 6,
+              }}>
+                {quickEmojis.map((emoji, i) => (
+                  <button
+                    key={i}
+                    onClick={() => addEmoji(emoji)}
+                    style={{
+                      fontSize:20, background:'none', border:'none', cursor:'pointer',
+                      padding:'4px 6px', borderRadius:8, transition:'background 0.15s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.08)'}
+                    onMouseLeave={e => e.currentTarget.style.background='none'}
+                  >{emoji}</button>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display:'flex', gap:10, alignItems:'flex-end' }}>
+              <Avatar size={32} />
+
+              <div style={{ flex:1, position:'relative' }}>
+                <textarea
+                  className="pc-input"
+                  style={{ ...inputStyle, paddingRight:40 }}
+                  value={newComment}
+                  onChange={e => setNewComment(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Add a comment…"
+                  disabled={isSubmitting}
+                  rows={2}
+                />
+                <button
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  disabled={isSubmitting}
+                  style={{
+                    position:'absolute', right:10, top:10,
+                    background:'none', border:'none', cursor:'pointer',
+                    color: showEmojiPicker ? '#fbbf24' : 'rgba(255,255,255,0.25)',
+                    transition:'color 0.2s', padding:0,
+                    display:'flex', alignItems:'center',
+                  }}
+                >
+                  <Smile size={16} />
+                </button>
+              </div>
+
+              <SendBtn
+                onClick={handleAddComment}
+                disabled={!newComment.trim() || isSubmitting}
+                loading={isSubmitting}
+              />
+            </div>
+          </div>
+
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

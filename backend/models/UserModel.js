@@ -31,9 +31,18 @@ const userSchema = new mongoose.Schema({
   },
   isVerified: {
     type: Boolean,
-    default: false,
+    default: false
   },
-  // ✅ NEW: Reputation system
+  verifiedSubjects: [{
+    subject: {
+      type: String,
+      required: true
+    },
+    verifiedAt: {
+      type: Date,
+      required: true
+    }
+  }],
   reputation: {
     type: Number,
     default: 0

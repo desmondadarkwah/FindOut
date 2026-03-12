@@ -1,6 +1,5 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext } from 'react';
 import axiosInstance from '../utils/axiosInstance';
-import { useNavigate } from 'react-router-dom';
 
 export const AdminContext = createContext();
 
@@ -14,54 +13,61 @@ export const useAdminContext = () => {
 
 const AdminContextProvider = ({ children }) => {
   const [admin, setAdmin] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
 
-  // Check if admin is logged in
-  useEffect(() => {
-    const checkAdminAuth = async () => {
-      try {
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-          setLoading(false);
-          return;
-        }
-
-        const response = await axiosInstance.get('/api/admin/me', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-
-        if (response.data.success) {
-          setAdmin(response.data.admin);
-        }
-      } catch (error) {
-        console.error('Admin auth check failed:', error);
-        localStorage.removeItem('adminToken');
-        setAdmin(null);
-      } finally {
+  // ✅ MANUAL check - only called when needed
+  const checkAuth = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('adminToken');
+      
+      if (!token) {
         setLoading(false);
+        return false;
       }
-    };
+  
+      const response = await axiosInstance.get('/api/admin/me', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
 
-    checkAdminAuth();
-  }, []);
+      console.log('auth-response: ',response)
+  
+      if (response.data.success) {
+        setAdmin(response.data.admin);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Admin auth check failed:', error);
+      // ✅ AUTO-CLEAR expired/invalid tokens
+      // localStorage.removeItem('adminToken');
+      // setAdmin(null);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const login = async (email, password) => {
     try {
       setError(null);
+      setLoading(true);
+      
       const response = await axiosInstance.post('/api/admin/login', {
         email,
         password
       });
 
+      console.log('login-response: ' ,response)
+
       if (response.data.success) {
         setAdmin(response.data.admin);
         localStorage.setItem('adminToken', response.data.token);
         
-        // Configure axios to use admin token
         axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
         
         return { success: true };
@@ -70,6 +76,8 @@ const AdminContextProvider = ({ children }) => {
       const errorMessage = error.response?.data?.message || 'Login failed';
       setError(errorMessage);
       return { success: false, message: errorMessage };
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,7 +90,6 @@ const AdminContextProvider = ({ children }) => {
       setAdmin(null);
       localStorage.removeItem('adminToken');
       delete axiosInstance.defaults.headers.common['Authorization'];
-      navigate('/admin-login');
     }
   };
 
@@ -92,6 +99,7 @@ const AdminContextProvider = ({ children }) => {
     error,
     login,
     logout,
+    checkAuth, // ✅ NEW - manual check function
     isAuthenticated: !!admin,
     isSuperAdmin: admin?.isSuperAdmin || false
   };

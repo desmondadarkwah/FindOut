@@ -5,8 +5,14 @@ const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL, 
 });
 
-// Attach access token to every request
+// ✅ FIX: Don't override Authorization header if it's already set (for admin routes)
 axiosInstance.interceptors.request.use((config) => {
+  // Skip if Authorization header is already set (admin routes set it manually)
+  if (config.headers.Authorization) {
+    return config;
+  }
+
+  // Only add user token if no Authorization header exists
   const token = getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -16,9 +22,14 @@ axiosInstance.interceptors.request.use((config) => {
 
 // Handle token expiration
 axiosInstance.interceptors.response.use(
-  (response) => response, // Pass successful responses as is
+  (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // ✅ SKIP interceptor for admin routes
+    if (originalRequest.url?.includes('/api/admin')) {
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
@@ -27,15 +38,14 @@ axiosInstance.interceptors.response.use(
         const refreshToken = getRefreshToken();
         if (!refreshToken) throw new Error('Refresh token not available');
 
-        // Request new tokens using the refresh cd fro
         const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/refresh-token`, { refreshToken });
-        setTokens(data); // Save the new tokens
+        setTokens(data);
 
         originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
-        return axiosInstance(originalRequest); // Retry the original request
+        return axiosInstance(originalRequest);
       } catch (refreshError) {
-        clearTokens(); // Clear tokens if refreshing fails
-        window.location.href = '/login'; // Redirect to login
+        clearTokens();
+        window.location.href = '/login';
         return Promise.reject(refreshError);
       }
     }

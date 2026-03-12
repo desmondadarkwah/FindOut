@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Lock, Mail, Eye, EyeOff, LogIn } from 'lucide-react';
 import { useAdminContext } from '../Context/AdminContext';
@@ -10,15 +10,10 @@ const AdminLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const { login, isAuthenticated } = useAdminContext();
+  const { login } = useAdminContext(); // ✅ REMOVED isAuthenticated check
   const navigate = useNavigate();
 
-  // Redirect if already logged in
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/admin-dashboard');
-    }
-  }, [isAuthenticated, navigate]);
+  // ✅ REMOVED the useEffect that was redirecting
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,8 +28,11 @@ const AdminLogin = () => {
 
     try {
       const result = await login(email, password);
+
+      console.log('login-result: ',result);
       
       if (result.success) {
+        // ✅ Navigate immediately after successful login
         navigate('/admin-dashboard');
       } else {
         setErrorMessage(result.message || 'Invalid credentials');
@@ -143,7 +141,7 @@ const AdminLogin = () => {
         {/* Back to Site */}
         <div className="mt-6 text-center">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/login')}
             className="text-gray-400 hover:text-white transition-colors text-sm"
           >
             ← Back to main site

@@ -7,7 +7,8 @@ const path = require('path');
 const { createServer } = require('http');
 const { initializeSocket } = require('./socket/Socket');
 const adminRoutes = require('./routes/adminRoutes');
-
+const searchRoutes = require('./routes/searchRoutes');
+const verificationRoutes = require('./routes/verificationRoutes');
 
 const app = express();
 const httpServer = createServer(app);
@@ -31,6 +32,9 @@ app.use(
 
 app.use('/api', router);
 app.use('/api/admin', adminRoutes);
+app.use('/api', searchRoutes);
+app.use('/api', verificationRoutes);
+
 
 connectDB().then(() => {
   httpServer.listen(PORT, () => {

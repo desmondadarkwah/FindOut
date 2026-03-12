@@ -6,13 +6,15 @@ import { BsChatDots } from "react-icons/bs";
 import { MdOutlineAddBox } from "react-icons/md";
 import { IoMdNotificationsOutline } from "react-icons/io";
 import { IoIosMore } from "react-icons/io";
-
+import { useState } from 'react';
+import GlobalSearch from './GlobalSearch';
 import UserProfile from "./UserProfile";
 import { SettingsContext } from '../Context/SettingsContext';
 
 const DashSidebar = () => {
   const { setOpenSettings } = useContext(SettingsContext);
-  
+  const [showSearch, setShowSearch] = useState(false);
+
   return (
     <div className="flex">
       <aside className="w-60 border border-gray-900 hidden md:block fixed left-0 top-0 h-full bg-black z-10 overflow-y-auto custom-scrollbar">
@@ -32,13 +34,15 @@ const DashSidebar = () => {
         </div>
         <span className="flex items-center hover:bg-[#1c1e21] p-2">
           <MdHome size={25} color="white" />
-          <a href="#" className="block px-4 font-medium text-white rounded-md">
+          <a href="/dashboard" className="block px-4 font-medium text-white rounded-md">
             Home
           </a>
         </span>
-        <span className="flex items-center hover:bg-[#1c1e21] p-2">
+        <span
+          onClick={() => setShowSearch(true)}
+          className="flex items-center hover:bg-[#1c1e21] p-2">
           <FiSearch size={25} color="white" />
-          <a href="#" className="block px-4 py-2 font-medium text-white">
+          <a href="" className="block px-4 py-2 font-medium text-white">
             Search
           </a>
         </span>
@@ -87,6 +91,10 @@ const DashSidebar = () => {
           <a href="#" className="text-blue-500 hover:underline">Connect with fellow learners</a> and enhance your academic journey today!
         </span>
       </aside>
+
+      {/* Global Search Modal */}
+      <GlobalSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
+
     </div>
   )
 }
