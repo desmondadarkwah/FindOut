@@ -1,17 +1,13 @@
-const Anthropic = require('@anthropic-ai/sdk');
 const QuizModel = require('../models/QuizModel');
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
-});
 
 class QuizGenerator {
   /**
-   * Generate quiz questions for a subject using Claude AI
+   * Generate mock quiz questions (no API needed)
+   * Works for ANY subject - personalizes question text with subject name
    */
   async generateQuiz(subject) {
     try {
-      console.log(`🤖 Generating quiz for subject: ${subject}`);
+      console.log(` Generating MOCK quiz for subject: ${subject}`);
 
       // Check if we have a cached quiz for this subject
       const cachedQuiz = await QuizModel.findOne({
@@ -26,26 +22,8 @@ class QuizGenerator {
         return cachedQuiz.questions;
       }
 
-      // Generate new quiz using Claude
-      const prompt = this.buildQuizPrompt(subject);
-      
-      const message = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
-      });
-
-      const responseText = message.content[0].text;
-      
-      // Parse the JSON response
-      const questions = this.parseQuizResponse(responseText);
-
-      if (!questions || questions.length !== 10) {
-        throw new Error('Failed to generate valid quiz questions');
-      }
+      // Generate mock questions
+      const questions = this.generateMockQuestions(subject);
 
       // Cache the quiz
       await QuizModel.create({
@@ -54,7 +32,7 @@ class QuizGenerator {
         timesUsed: 1
       });
 
-      console.log(`✅ Generated and cached new quiz for ${subject}`);
+      console.log(`✅ Generated and cached new MOCK quiz for ${subject}`);
       return questions;
 
     } catch (error) {
@@ -64,92 +42,139 @@ class QuizGenerator {
   }
 
   /**
-   * Build the prompt for Claude to generate quiz questions
+   * Generate mock questions for testing
+   * These questions test teaching ability, not subject-specific knowledge
    */
-  buildQuizPrompt(subject) {
-    return `You are an expert educator creating a verification quiz for teachers who claim to teach "${subject}".
-
-Generate EXACTLY 10 multiple-choice questions that test fundamental and intermediate knowledge of ${subject}.
-
-Requirements:
-- Questions should be clear and unambiguous
-- Mix of difficulty: 4 easy, 4 medium, 2 hard
-- Each question must have exactly 4 options (A, B, C, D)
-- Only ONE correct answer per question
-- Questions should cover different aspects of the subject
-- Avoid trick questions or overly obscure topics
-- Focus on practical teaching knowledge
-
-Return your response as a valid JSON array with this EXACT structure:
-[
-  {
-    "question": "What is the fundamental theorem of calculus?",
-    "options": [
-      "It relates differentiation and integration",
-      "It proves all functions are continuous",
-      "It defines the derivative",
-      "It solves differential equations"
-    ],
-    "correctAnswer": 0,
-    "difficulty": "medium",
-    "explanation": "The fundamental theorem of calculus establishes the relationship between differentiation and integration."
-  }
-]
-
-Important:
-- correctAnswer is the index (0, 1, 2, or 3) of the correct option
-- Return ONLY the JSON array, no markdown formatting, no backticks, no explanation text
-- Ensure valid JSON syntax
-
-Generate the quiz now:`;
-  }
-
-  /**
-   * Parse Claude's response and extract quiz questions
-   */
-  parseQuizResponse(responseText) {
-    try {
-      // Remove markdown code blocks if present
-      let cleanedText = responseText.trim();
-      
-      // Remove ```json and ``` if present
-      cleanedText = cleanedText.replace(/```json\s*/g, '');
-      cleanedText = cleanedText.replace(/```\s*/g, '');
-      
-      // Find the JSON array
-      const jsonMatch = cleanedText.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        throw new Error('No JSON array found in response');
+  generateMockQuestions(subject) {
+    const templates = [
+      {
+        question: `What is the most important foundation when teaching ${subject}?`,
+        options: [
+          "Ensuring students understand core concepts before moving forward",
+          "Rushing through material to cover everything quickly",
+          "Only focusing on memorization without understanding",
+          "Skipping fundamentals and jumping to advanced topics"
+        ],
+        correctAnswer: 0,
+        difficulty: "easy",
+        explanation: "Building strong foundations ensures students can handle more complex topics later."
+      },
+      {
+        question: `Which teaching approach works best for ${subject}?`,
+        options: [
+          "Only lecturing without any student interaction",
+          "Combining explanations with hands-on practice and real examples",
+          "Avoiding student questions to save time",
+          "Reading directly from textbooks without elaboration"
+        ],
+        correctAnswer: 1,
+        difficulty: "easy",
+        explanation: "Active learning through practice and examples helps students retain information better."
+      },
+      {
+        question: `What is a common challenge students face when learning ${subject}?`,
+        options: [
+          "Having too much support from teachers",
+          "Moving too fast without fully understanding each concept",
+          "Asking too many clarifying questions",
+          "Practicing regularly and consistently"
+        ],
+        correctAnswer: 1,
+        difficulty: "medium",
+        explanation: "Students often struggle when they don't take time to fully grasp each concept before moving on."
+      },
+      {
+        question: `How should you evaluate if students understand ${subject}?`,
+        options: [
+          "Never check, just assume they understand",
+          "Use varied assessments: quizzes, discussions, projects, and practical tasks",
+          "Only give one final exam at the end",
+          "Just ask 'Does everyone understand?' and move on"
+        ],
+        correctAnswer: 1,
+        difficulty: "medium",
+        explanation: "Multiple assessment methods give a complete picture of student understanding."
+      },
+      {
+        question: `What resources enhance learning in ${subject}?`,
+        options: [
+          "Only one textbook and nothing else",
+          "Diverse materials: videos, interactive exercises, real-world examples, and practice problems",
+          "No additional resources beyond lectures",
+          "Only theoretical reading materials"
+        ],
+        correctAnswer: 1,
+        difficulty: "easy",
+        explanation: "Different learning materials help students understand concepts from multiple angles."
+      },
+      {
+        question: `When students struggle with ${subject}, what should you do?`,
+        options: [
+          "Tell them they're not smart enough for the subject",
+          "Provide extra support, break concepts into smaller steps, offer additional practice",
+          "Ignore struggling students and focus on advanced learners",
+          "Move faster through material to catch up with the syllabus"
+        ],
+        correctAnswer: 1,
+        difficulty: "medium",
+        explanation: "Personalized support helps struggling students build confidence and understanding."
+      },
+      {
+        question: `How do you make ${subject} interesting and engaging for students?`,
+        options: [
+          "Make lessons as theoretical and abstract as possible",
+          "Connect concepts to real-life applications and student interests",
+          "Focus only on rote memorization and repetition",
+          "Avoid any interactive or hands-on activities"
+        ],
+        correctAnswer: 1,
+        difficulty: "medium",
+        explanation: "Real-world connections make learning relevant and maintain student motivation."
+      },
+      {
+        question: `In teaching ${subject}, how important is regular practice?`,
+        options: [
+          "Practice is essential for building skills and confidence",
+          "Practice is unnecessary if students understand the theory",
+          "Students should only practice once before tests",
+          "Practice should be avoided as it takes too much time"
+        ],
+        correctAnswer: 0,
+        difficulty: "easy",
+        explanation: "Consistent practice reinforces learning and develops mastery over time."
+      },
+      {
+        question: `What should be your main goal when teaching ${subject}?`,
+        options: [
+          "Finishing the entire syllabus as quickly as possible",
+          "Ensuring students can understand, apply, and think critically about concepts",
+          "Making the subject seem as difficult as possible",
+          "Only teaching what appears on standardized tests"
+        ],
+        correctAnswer: 1,
+        difficulty: "medium",
+        explanation: "Deep understanding and application are more valuable than superficial coverage."
+      },
+      {
+        question: `How do you stay effective as a ${subject} teacher?`,
+        options: [
+          "Never update your knowledge or teaching methods",
+          "Continuously learn through courses, reading, peer collaboration, and student feedback",
+          "Only teach what you learned years ago",
+          "Assume you already know everything about teaching"
+        ],
+        correctAnswer: 1,
+        difficulty: "hard",
+        explanation: "Continuous professional growth ensures you provide the best education to your students."
       }
+    ];
 
-      const questions = JSON.parse(jsonMatch[0]);
-
-      // Validate questions
-      if (!Array.isArray(questions) || questions.length !== 10) {
-        throw new Error('Invalid number of questions');
-      }
-
-      // Validate each question
-      questions.forEach((q, index) => {
-        if (!q.question || !Array.isArray(q.options) || q.options.length !== 4) {
-          throw new Error(`Invalid question at index ${index}`);
-        }
-        if (typeof q.correctAnswer !== 'number' || q.correctAnswer < 0 || q.correctAnswer > 3) {
-          throw new Error(`Invalid correctAnswer at index ${index}`);
-        }
-      });
-
-      return questions;
-
-    } catch (error) {
-      console.error('Error parsing quiz response:', error);
-      console.error('Response text:', responseText);
-      throw new Error('Failed to parse quiz questions');
-    }
+    return templates;
   }
 
   /**
    * Grade a quiz attempt
+   * Compares user answers with correct answers and calculates score
    */
   gradeQuiz(questions, userAnswers) {
     let correctCount = 0;

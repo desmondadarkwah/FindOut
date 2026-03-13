@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAdminContext } from '../Context/AdminContext';
 import axiosInstance from '../utils/axiosInstance';
+import FindOutLoader from '../Loader/FindOutLoader';
 
 const AdminUsers = () => {
   const { admin, logout } = useAdminContext();
@@ -158,12 +159,7 @@ const AdminUsers = () => {
 
   if (loading && users.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading users...</p>
-        </div>
-      </div>
+      <FindOutLoader />
     );
   }
 
@@ -347,11 +343,10 @@ const AdminUsers = () => {
                       </div>
                     </td>
                     <td className="p-4">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        user.status === 'Ready To Teach'
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${user.status === 'Ready To Teach'
                           ? 'bg-blue-500/20 text-blue-400'
                           : 'bg-purple-500/20 text-purple-400'
-                      }`}>
+                        }`}>
                         {user.status === 'Ready To Teach' ? '👨‍🏫 Teacher' : '📚 Learner'}
                       </span>
                     </td>

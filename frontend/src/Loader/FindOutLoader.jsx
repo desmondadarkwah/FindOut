@@ -2,8 +2,8 @@ import React from 'react';
 
 const FindOutLoader = ({ 
   size = 'large', 
-  text = 'Loading...', 
-  showText = true, 
+  // text = 'Loading...', 
+  // showText = true, 
   fullScreen = true,
   variant = 'default' 
 }) => {
@@ -130,7 +130,7 @@ const FindOutLoader = ({
         </div>
 
         {/* Loading text */}
-        {showText && (
+        {/* {showText && (
           <div className="animate-pulse">
             <p className={`text-white ${config.text} font-medium tracking-wide`}>
               {text}
@@ -143,28 +143,10 @@ const FindOutLoader = ({
               </div>
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   );
 };
 
 export default FindOutLoader;
-
-
-
-
-// Full screen loader (default)
-{/* <FindOutLoader /> */}
-
-// Small inline loader
-{/* <FindOutLoader size="small" fullScreen={false} /> */}
-
-// Different variant with custom text
-{/* <FindOutLoader variant="dots" text="Fetching posts..." /> */}
-
-// Minimal loader without text
-{/* <FindOutLoader showText={false} variant="pulse" /> */}
-
-// Custom loading message
-{/* <FindOutLoader text="Connecting to server..." variant="orbit" /> */}

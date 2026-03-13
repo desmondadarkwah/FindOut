@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { BeatLoader } from 'react-spinners';
+// import { BeatLoader } from 'react-spinners';
+import FindOutLoader from "../Loader/FindOutLoader";
 
 const VerifyEmail = () => {
   const [searchParams] = useSearchParams();
@@ -53,7 +54,7 @@ const VerifyEmail = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-center gap-4">
               <span className="text-gray-300 text-center">{status}</span>
-              {loading && <BeatLoader color="#60A5FA" size={12} />}
+              {loading && <FindOutLoader />}
             </div>
 
             {!loading && status.includes("Invalid") && (

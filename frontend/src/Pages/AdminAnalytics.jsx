@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAdminContext } from '../Context/AdminContext';
 import axiosInstance from '../utils/axiosInstance';
+import FindOutLoader from '../Loader/FindOutLoader';
 
 const AdminAnalytics = () => {
   const { admin, logout } = useAdminContext();
@@ -54,12 +55,7 @@ const AdminAnalytics = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading analytics...</p>
-        </div>
-      </div>
+      <FindOutLoader />
     );
   }
 
@@ -202,7 +198,7 @@ const AdminAnalytics = () => {
               </div>
             </div>
             <h3 className="text-3xl font-bold text-white mb-1">
-              {stats?.users?.total > 0 
+              {stats?.users?.total > 0
                 ? Math.round((stats?.users?.online / stats?.users?.total) * 100)
                 : 0}%
             </h3>
@@ -271,14 +267,14 @@ const AdminAnalytics = () => {
                   <div
                     className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500"
                     style={{
-                      width: `${stats?.users?.total > 0 
-                        ? (stats?.users?.teachers / stats?.users?.total) * 100 
+                      width: `${stats?.users?.total > 0
+                        ? (stats?.users?.teachers / stats?.users?.total) * 100
                         : 0}%`
                     }}
                   ></div>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  {stats?.users?.total > 0 
+                  {stats?.users?.total > 0
                     ? Math.round((stats?.users?.teachers / stats?.users?.total) * 100)
                     : 0}% of total users
                 </p>
@@ -296,14 +292,14 @@ const AdminAnalytics = () => {
                   <div
                     className="bg-gradient-to-r from-purple-500 to-purple-600 h-full rounded-full transition-all duration-500"
                     style={{
-                      width: `${stats?.users?.total > 0 
-                        ? (stats?.users?.learners / stats?.users?.total) * 100 
+                      width: `${stats?.users?.total > 0
+                        ? (stats?.users?.learners / stats?.users?.total) * 100
                         : 0}%`
                     }}
                   ></div>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  {stats?.users?.total > 0 
+                  {stats?.users?.total > 0
                     ? Math.round((stats?.users?.learners / stats?.users?.total) * 100)
                     : 0}% of total users
                 </p>
@@ -313,7 +309,7 @@ const AdminAnalytics = () => {
               <div className="mt-6 p-4 bg-gray-900/50 rounded-xl">
                 <p className="text-gray-400 text-sm mb-2">Teacher : Learner Ratio</p>
                 <p className="text-2xl font-bold text-white">
-                  1 : {stats?.users?.teachers > 0 
+                  1 : {stats?.users?.teachers > 0
                     ? (stats?.users?.learners / stats?.users?.teachers).toFixed(1)
                     : 0}
                 </p>
@@ -369,14 +365,14 @@ const AdminAnalytics = () => {
                       <div
                         className={`bg-gradient-to-r ${config.bar} h-full rounded-full transition-all duration-500`}
                         style={{
-                          width: `${stats?.posts?.total > 0 
-                            ? (type.count / stats?.posts?.total) * 100 
+                          width: `${stats?.posts?.total > 0
+                            ? (type.count / stats?.posts?.total) * 100
                             : 0}%`
                         }}
                       ></div>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      {stats?.posts?.total > 0 
+                      {stats?.posts?.total > 0
                         ? Math.round((type.count / stats?.posts?.total) * 100)
                         : 0}% of total posts
                     </p>

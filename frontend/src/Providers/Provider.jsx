@@ -11,6 +11,7 @@ import PostContextProvider from '../Context/PostContext';
 import CommentContextProvider from '../Context/CommentContext';
 import ToastProvider from '../Context/ToastContext'; // ✅ ADD THIS
 import AdminContextProvider from '../Context/AdminContext';
+import VerificationProvider from '../Context/VerificationContext';
 
 const Provider = ({ children }) => {
   return (
@@ -24,11 +25,13 @@ const Provider = ({ children }) => {
                   <FetchAllGroupsProvider>
                     <DeleteGroupProvider>
                       <GroupProfileProvider>
-                        <PostContextProvider>
-                          <CommentContextProvider>
-                            {children}
-                          </CommentContextProvider>
-                        </PostContextProvider>
+                        <VerificationProvider>
+                          <PostContextProvider>
+                            <CommentContextProvider>
+                              {children}
+                            </CommentContextProvider>
+                          </PostContextProvider>
+                        </VerificationProvider>
                       </GroupProfileProvider>
                     </DeleteGroupProvider>
                   </FetchAllGroupsProvider>

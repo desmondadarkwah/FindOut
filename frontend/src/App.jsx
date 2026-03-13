@@ -17,6 +17,8 @@ import AdminUsers from './Pages/AdminUsers';
 import AdminPosts from './Pages/AdminPosts';
 import AdminAnalytics from './Pages/AdminAnalytics';
 import ExploreGroups from './Pages/ExploreGroups';
+import VerificationDashboard from './Pages/VerificationDashboard';
+import TakeQuiz from './Pages/TakeQuiz';
 
 
 function App() {
@@ -43,6 +45,9 @@ function App() {
         <Route path="/admin-analytics" element={<AdminAnalytics />} />
         <Route path="/explore-groups" element={<ExploreGroups />} />
 
+        <Route path="/verification" element={<VerificationDashboard />} />
+        <Route path="/take-quiz/:subject" element={<TakeQuiz />} />
+
       </Routes>
       {/* </Router> */}
     </>
@@ -50,3 +55,5 @@ function App() {
 }
 
 export default App;
+
+

@@ -331,8 +331,8 @@ const Dashboard = () => {
                             </div>
                             <p
                               className={`text-sm truncate ${chat.unreadCount > 0
-                                  ? "text-white font-medium"
-                                  : "text-gray-400"
+                                ? "text-white font-medium"
+                                : "text-gray-400"
                                 }`}>
                               {messagePreview || "No messages yet"}
                             </p>
@@ -394,14 +394,16 @@ const Dashboard = () => {
                 <p className="text-sm text-gray-400">Start a new study group</p>
               </button>
 
-              <button className="group p-6 bg-gradient-to-r from-green-600/20 to-green-700/20 border border-green-500/30 rounded-xl hover:from-green-600/30 hover:to-green-700/30 hover:border-green-400/50 transition-all duration-300 text-left">
+              <button
+                onClick={() => navigate('/verification')}
+                className="group p-6 bg-gradient-to-r from-green-600/20 to-green-700/20 border border-green-500/30 rounded-xl hover:from-green-600/30 hover:to-green-700/30 hover:border-green-400/50 transition-all duration-300 text-left">
                 <div className="flex items-center space-x-3 mb-2">
                   <span className="text-2xl">🤝</span>
                   <span className="font-semibold text-white group-hover:text-green-300">
-                    Join Group
+                    Get Verified
                   </span>
                 </div>
-                <p className="text-sm text-gray-400">Find existing groups</p>
+                <p className="text-sm text-gray-400">Take quick quizzes to verify your subjects and stand out</p>
               </button>
 
               <button
