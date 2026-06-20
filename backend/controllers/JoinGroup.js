@@ -19,6 +19,15 @@ const JoinGroup = async (req, res) => {
       });
     }
 
+    // ✅ SECRET GROUP: Cannot be joined directly - invite link only
+    if (group.privacy === 'secret') {
+      return res.status(403).json({
+        success: false,
+        message: 'This group is secret. You can only join via an invite link.',
+        isSecret: true
+      });
+    }
+
     // Check if already a member
     const isAlreadyMember = group.members.some(m => 
       (m._id || m).toString() === userId.toString()
@@ -46,21 +55,20 @@ const JoinGroup = async (req, res) => {
       });
     }
 
-    // ✅ PRIVATE GROUP: Create join request
-    if (group.isPrivate) {
+    // ✅ PRIVATE GROUP: Create join request (visible on explore but needs approval)
+    if (group.privacy === 'private') {
       group.pendingRequests.push({
         userId: userId,
         requestedAt: new Date()
       });
       await group.save();
 
-      // Re-populate after save
       const updatedGroup = await GroupModel.findById(groupId)
         .populate('members', 'name profilePicture')
         .populate('groupAdmin', 'name profilePicture')
         .populate('pendingRequests.userId', 'name profilePicture');
 
-      // ✅ Notify admin INSTANTLY
+      // Notify admin instantly via socket
       try {
         const io = getIo();
         
@@ -71,7 +79,6 @@ const JoinGroup = async (req, res) => {
           group: updatedGroup
         });
 
-        // ✅ Update ManageGroup if admin has it open
         io.to(group.groupAdmin._id.toString()).emit('pending-requests-updated', {
           groupId: group._id,
           pendingRequests: updatedGroup.pendingRequests

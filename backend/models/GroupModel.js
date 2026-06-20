@@ -34,22 +34,23 @@ const groupSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-
-  // ✅ NEW (generates if missing):
   inviteCode: {
     type: String,
     unique: true,
-    sparse: true, // Allows null/undefined values to be non-unique
+    sparse: true,
     default: function () {
       return require('crypto').randomBytes(8).toString('hex');
     }
   },
-  // ✅ NEW: Group privacy setting
-  isPrivate: {
-    type: Boolean,
-    default: false // false = public (anyone can join)
+
+  // ✅ UPDATED: Replaced isPrivate (Boolean) with privacy (String - 3 levels)
+  privacy: {
+    type: String,
+    enum: ['public', 'private', 'secret'],
+    default: 'public'
   },
-  // ✅ NEW: Pending join requests (for private groups)
+
+  // ✅ KEPT: Pending join requests (for private groups)
   pendingRequests: [{
     userId: {
       type: mongoose.Schema.Types.ObjectId,

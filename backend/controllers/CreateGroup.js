@@ -3,9 +3,10 @@ const crypto = require('crypto');
 
 const CreateGroup = async (req, res) => {
   try {
-    const { groupName, subjects, description, isPrivate } = req.body;
+    const { groupName, subjects, description, privacy } = req.body; // ✅ privacy instead of isPrivate
 
     console.log("🔍 FILE RECEIVED:", req.file);
+    console.log("🔍 PRIVACY SETTING:", privacy);
 
     const groupProfile = req.file ? `/uploads/${req.file.filename}` : null;
 
@@ -16,6 +17,10 @@ const CreateGroup = async (req, res) => {
     const groupAdmin = req.authenticatedUser.id;
     const inviteCode = crypto.randomBytes(8).toString('hex');
 
+    // ✅ Validate privacy value - default to 'public' if invalid
+    const validPrivacyValues = ['public', 'private', 'secret'];
+    const groupPrivacy = validPrivacyValues.includes(privacy) ? privacy : 'public';
+
     const newGroup = new GroupModel({
       groupName,
       subjects,
@@ -24,7 +29,7 @@ const CreateGroup = async (req, res) => {
       groupAdmin,
       members: [groupAdmin],
       inviteCode,
-      isPrivate: isPrivate === 'true' || isPrivate === true, // ✅ Accept from form
+      privacy: groupPrivacy, // ✅ UPDATED: was isPrivate boolean
       unreadCount: [{ userId: groupAdmin, count: 0 }]
     });
 

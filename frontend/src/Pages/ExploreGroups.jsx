@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Filter, Users, Lock, Unlock, TrendingUp,
-  Clock, Sparkles, UserPlus, CheckCircle, Menu, X, Home
+  Clock, Sparkles, UserPlus, CheckCircle, Menu, X, Home, Ghost
 } from 'lucide-react';
 import axiosInstance from '../utils/axiosInstance';
 import DashSidebar from '../components/DashSidebar';
@@ -20,7 +20,7 @@ const ExploreGroups = () => {
   const [loading, setLoading] = useState(true);
 
   const [subjectFilter, setSubjectFilter] = useState('all');
-  const [privacyFilter, setPrivacyFilter] = useState('all');
+  const [privacyFilter, setPrivacyFilter] = useState('all'); // 'all' | 'public' | 'private'
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -35,7 +35,7 @@ const ExploreGroups = () => {
       setLoading(true);
       const params = new URLSearchParams({ page: currentPage, limit: 20, sortBy });
       if (subjectFilter !== 'all') params.append('subject', subjectFilter);
-      if (privacyFilter !== 'all') params.append('isPrivate', privacyFilter);
+      if (privacyFilter !== 'all') params.append('privacy', privacyFilter); // ✅ UPDATED: was isPrivate
       const response = await axiosInstance.get(`/api/explore/groups?${params}`);
       if (response.data.success) {
         setSuggested(response.data.suggested || []);
@@ -48,7 +48,7 @@ const ExploreGroups = () => {
     finally { setLoading(false); }
   };
 
-  const handleJoinGroup = async (groupId, isPrivate) => {
+  const handleJoinGroup = async (groupId) => {
     try {
       const response = await axiosInstance.post('/api/join-group', { groupId });
       if (response.data.success) {
@@ -64,14 +64,91 @@ const ExploreGroups = () => {
     }
   };
 
+  /* ── PRIVACY BADGE ── */
+  const PrivacyBadge = ({ privacy }) => {
+    if (privacy === 'private') return (
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700,
+        background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', color: '#fb923c',
+      }}>
+        <Lock size={9} />Private
+      </span>
+    );
+
+    if (privacy === 'public') return (
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700,
+        background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#4ade80',
+      }}>
+        <Unlock size={9} />Public
+      </span>
+    );
+
+    // Secret groups never appear here but just in case
+    return null;
+  };
+
+  /* ── JOIN BUTTON ── */
+  const JoinButton = ({ group }) => {
+    if (group.isMember) return (
+      <button
+        onClick={() => navigate('/inbox')}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          padding: '9px 0', borderRadius: 10, cursor: 'pointer',
+          background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)',
+          color: '#60a5fa', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.18)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.1)'}
+      >
+        <CheckCircle size={14} />Already Joined
+      </button>
+    );
+
+    if (group.hasPendingRequest) return (
+      <button disabled style={{
+        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        padding: '9px 0', borderRadius: 10, border: '1px solid rgba(234,179,8,0.2)',
+        background: 'rgba(234,179,8,0.08)', color: '#fbbf24',
+        fontSize: 12, fontWeight: 700, cursor: 'not-allowed', letterSpacing: '0.04em',
+      }}>
+        <Clock size={14} />Request Pending
+      </button>
+    );
+
+    // ✅ UPDATED: Button text and behaviour based on privacy field
+    return (
+      <button
+        onClick={() => handleJoinGroup(group._id)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          padding: '9px 0', borderRadius: 10, border: 'none', cursor: 'pointer',
+          background: group.privacy === 'private'
+            ? 'linear-gradient(135deg,#f97316,#ea580c)'    // orange for private
+            : 'linear-gradient(135deg,#3b82f6,#6366f1)',   // blue for public
+          color: '#fff', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
+          transition: 'opacity 0.2s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
+        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+      >
+        <UserPlus size={14} />
+        {group.privacy === 'private' ? 'Request to Join' : 'Join Group'}
+      </button>
+    );
+  };
+
   /* ── GROUP CARD ── */
   const GroupCard = ({ group, showBadge = false }) => (
     <div
       style={{
         background: 'rgba(255,255,255,0.03)',
         border: '1px solid rgba(255,255,255,0.07)',
-        borderRadius: 18,
-        padding: '20px',
+        borderRadius: 18, padding: '20px',
         transition: 'border-color 0.2s, box-shadow 0.2s',
         cursor: 'default',
       }}
@@ -135,19 +212,8 @@ const ExploreGroups = () => {
               <Users size={11} />{group.memberCount} members
             </span>
 
-            {group.isPrivate ? (
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700,
-                background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', color: '#fb923c',
-              }}><Lock size={9} />Private</span>
-            ) : (
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700,
-                background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#4ade80',
-              }}><Unlock size={9} />Public</span>
-            )}
+            {/* ✅ UPDATED: Use privacy field instead of isPrivate */}
+            <PrivacyBadge privacy={group.privacy} />
 
             {group.subject && (
               <span style={{
@@ -157,48 +223,8 @@ const ExploreGroups = () => {
             )}
           </div>
 
-          {/* CTA */}
-          {group.isMember ? (
-            <button
-              onClick={() => navigate('/inbox')}
-              style={{
-                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                padding: '9px 0', borderRadius: 10, cursor: 'pointer',
-                background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)',
-                color: '#60a5fa', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.18)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.1)'}
-            >
-              <CheckCircle size={14} />Already Joined
-            </button>
-          ) : group.hasPendingRequest ? (
-            <button disabled style={{
-              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              padding: '9px 0', borderRadius: 10, border: '1px solid rgba(234,179,8,0.2)',
-              background: 'rgba(234,179,8,0.08)', color: '#fbbf24',
-              fontSize: 12, fontWeight: 700, cursor: 'not-allowed', letterSpacing: '0.04em',
-            }}>
-              <Clock size={14} />Request Pending
-            </button>
-          ) : (
-            <button
-              onClick={() => handleJoinGroup(group._id, group.isPrivate)}
-              style={{
-                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                padding: '9px 0', borderRadius: 10, border: 'none', cursor: 'pointer',
-                background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
-                color: '#fff', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
-                transition: 'opacity 0.2s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-            >
-              <UserPlus size={14} />
-              {group.isPrivate ? 'Request to Join' : 'Join Group'}
-            </button>
-          )}
+          {/* ✅ UPDATED: Join button component */}
+          <JoinButton group={group} />
         </div>
       </div>
     </div>
@@ -210,8 +236,7 @@ const ExploreGroups = () => {
       <div style={{
         width: 32, height: 32, borderRadius: 10,
         background: `rgba(${color},0.1)`, border: `1px solid rgba(${color},0.2)`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
       }}>{icon}</div>
       <h2 style={{
         color: '#f1f5f9', fontWeight: 800, fontSize: 18,
@@ -220,7 +245,6 @@ const ExploreGroups = () => {
     </div>
   );
 
-  /* ── FILTER ROW ── */
   const selectStyle = {
     width: '100%', padding: '10px 14px',
     background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)',
@@ -236,7 +260,6 @@ const ExploreGroups = () => {
   return (
     <>
       <style>{`
-        @keyframes eg-spin { to { transform:rotate(360deg); } }
         .eg-root { min-height:100vh; background:linear-gradient(135deg,#0f0f1a 0%,#0a0a0f 50%,#0d0d1a 100%); }
       `}</style>
 
@@ -246,7 +269,6 @@ const ExploreGroups = () => {
         <div className="lg:hidden">
           <MobileViewBar />
           <div style={{ maxWidth: 520, margin: '0 auto', padding: '80px 16px 100px' }}>
-
             <div style={{ marginBottom: 24 }}>
               <h1 style={{
                 fontSize: 26, fontWeight: 800, margin: '0 0 4px',
@@ -258,7 +280,6 @@ const ExploreGroups = () => {
                 Discover communities that match your interests
               </p>
             </div>
-
             <GroupContent
               loading={loading} suggested={suggested} popular={popular}
               recentlyActive={recentlyActive} allGroups={allGroups}
@@ -276,7 +297,6 @@ const ExploreGroups = () => {
 
         {/* ── DESKTOP ── */}
         <div className="hidden lg:block">
-          {/* Sidebar toggle — same pattern as AllPost */}
           <button
             onClick={() => setShowSidebar(!showSidebar)}
             style={{
@@ -294,7 +314,6 @@ const ExploreGroups = () => {
             {showSidebar ? <X size={18} /> : <Menu size={18} />}
           </button>
 
-          {/* Sidebar overlay */}
           {showSidebar && (
             <>
               <div
@@ -307,11 +326,8 @@ const ExploreGroups = () => {
             </>
           )}
 
-          {/* Main */}
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <div style={{ width: '100%', maxWidth: 900, padding: '32px 24px' }}>
-
-              {/* Top nav bar */}
               <div style={{
                 marginBottom: 28,
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -332,16 +348,12 @@ const ExploreGroups = () => {
                 >
                   <Home size={16} />Dashboard
                 </button>
-
-                <div>
-                  <span style={{
-                    fontWeight: 800, fontSize: 15,
-                    background: 'linear-gradient(135deg,#60a5fa,#a78bfa)',
-                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                    letterSpacing: '-0.01em',
-                  }}>Explore Groups</span>
-                </div>
-
+                <span style={{
+                  fontWeight: 800, fontSize: 15,
+                  background: 'linear-gradient(135deg,#60a5fa,#a78bfa)',
+                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                  letterSpacing: '-0.01em',
+                }}>Explore Groups</span>
                 <div style={{ width: 80 }} />
               </div>
 
@@ -365,7 +377,7 @@ const ExploreGroups = () => {
 };
 
 /* ─────────────────────────────────────────────
-   SHARED CONTENT (mobile + desktop)
+   SHARED CONTENT
 ───────────────────────────────────────────── */
 const GroupContent = ({
   loading, suggested, popular, recentlyActive, allGroups,
@@ -378,7 +390,7 @@ const GroupContent = ({
 
   return (
     <div>
-      {/* ── FILTER PANEL ── */}
+      {/* FILTER PANEL */}
       <div style={{
         marginBottom: 24,
         background: 'rgba(255,255,255,0.03)',
@@ -412,8 +424,7 @@ const GroupContent = ({
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               fontSize: 11, fontWeight: 700, color: 'rgba(99,102,241,0.7)',
-              letterSpacing: '0.06em', textTransform: 'uppercase',
-              padding: '4px 8px',
+              letterSpacing: '0.06em', textTransform: 'uppercase', padding: '4px 8px',
             }}
           >Reset</button>
         </button>
@@ -433,18 +444,27 @@ const GroupContent = ({
               </div>
               <div>
                 <label style={labelStyle}>Privacy</label>
-                <select value={privacyFilter} onChange={(e) => { setPrivacyFilter(e.target.value); setCurrentPage(1); }} style={selectStyle}>
-                  <option value="all" style={{ background: '#1a1a2e' }}>All Groups</option>
-                  <option value="false" style={{ background: '#1a1a2e' }}>Public Only</option>
-                  <option value="true" style={{ background: '#1a1a2e' }}>Private Only</option>
+                {/* ✅ UPDATED: Now has 3 options matching new privacy field */}
+                <select
+                  value={privacyFilter}
+                  onChange={(e) => { setPrivacyFilter(e.target.value); setCurrentPage(1); }}
+                  style={selectStyle}
+                >
+                  <option value="all"     style={{ background: '#1a1a2e' }}>All Groups</option>
+                  <option value="public"  style={{ background: '#1a1a2e' }}>🌐 Public Only</option>
+                  <option value="private" style={{ background: '#1a1a2e' }}>🔒 Private Only</option>
                 </select>
               </div>
               <div>
                 <label style={labelStyle}>Sort By</label>
-                <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }} style={selectStyle}>
-                  <option value="newest" style={{ background: '#1a1a2e' }}>Newest First</option>
+                <select
+                  value={sortBy}
+                  onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
+                  style={selectStyle}
+                >
+                  <option value="newest"  style={{ background: '#1a1a2e' }}>Newest First</option>
                   <option value="popular" style={{ background: '#1a1a2e' }}>Most Popular</option>
-                  <option value="active" style={{ background: '#1a1a2e' }}>Recently Active</option>
+                  <option value="active"  style={{ background: '#1a1a2e' }}>Recently Active</option>
                 </select>
               </div>
             </div>
@@ -452,7 +472,7 @@ const GroupContent = ({
         )}
       </div>
 
-      {/* ── LOADING ── */}
+      {/* LOADING */}
       {loading && allGroups.length === 0 ? (
         <FindOutLoader />
       ) : (
@@ -490,8 +510,12 @@ const GroupContent = ({
           {/* All Groups */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h2 style={{ color: '#f1f5f9', fontWeight: 800, fontSize: 18, margin: 0, letterSpacing: '-0.02em' }}>All Groups</h2>
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', fontWeight: 600 }}>{allGroups.length} groups</span>
+              <h2 style={{ color: '#f1f5f9', fontWeight: 800, fontSize: 18, margin: 0, letterSpacing: '-0.02em' }}>
+                All Groups
+              </h2>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', fontWeight: 600 }}>
+                {allGroups.length} groups
+              </span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 14 }}>
               {allGroups.map(g => <GroupCard key={g._id} group={g} />)}
@@ -518,7 +542,8 @@ const GroupContent = ({
                 disabled={currentPage === 1}
                 style={{
                   padding: '9px 20px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)',
-                  background: 'rgba(255,255,255,0.03)', color: currentPage === 1 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
+                  background: 'rgba(255,255,255,0.03)',
+                  color: currentPage === 1 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
                   cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
                   fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
                 }}
@@ -527,7 +552,8 @@ const GroupContent = ({
               <span style={{
                 fontSize: 12, color: 'rgba(255,255,255,0.3)', fontWeight: 600,
                 padding: '9px 16px',
-                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
               }}>
                 {currentPage} / {totalPages}
               </span>
@@ -537,7 +563,8 @@ const GroupContent = ({
                 disabled={currentPage === totalPages}
                 style={{
                   padding: '9px 20px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)',
-                  background: 'rgba(255,255,255,0.03)', color: currentPage === totalPages ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
+                  background: 'rgba(255,255,255,0.03)',
+                  color: currentPage === totalPages ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
                   cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
                   fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
                 }}

@@ -24,7 +24,7 @@ const GlobalSearch = async (req, res) => {
     // Search Users
     if (type === 'all' || type === 'users') {
       const users = await UserModel.find({
-        _id: { $ne: userId }, // Exclude current user
+        _id: { $ne: userId },
         $or: [
           { name: searchRegex },
           { email: searchRegex },
@@ -39,23 +39,24 @@ const GlobalSearch = async (req, res) => {
     }
 
     // Search Groups
+    // ✅ UPDATED: Exclude secret groups from search results
     if (type === 'all' || type === 'groups') {
       const groups = await GroupModel.find({
+        privacy: { $ne: 'secret' }, // ✅ Secret groups never appear in search
         $or: [
           { groupName: searchRegex },
           { description: searchRegex },
-          { subject: searchRegex }
+          { subjects: { $in: [searchRegex] } }
         ]
       })
-        .select('groupName description groupPicture members isPrivate subject createdAt')
+        .select('groupName description groupProfile members privacy subjects createdAt')
         .limit(parseInt(limit))
         .lean();
 
-      // Add member count and check if user is member
       results.groups = groups.map(group => ({
         ...group,
         memberCount: group.members?.length || 0,
-        isMember: group.members?.includes(userId)
+        isMember: group.members?.some(m => m.toString() === userId.toString())
       }));
     }
 
@@ -98,34 +99,35 @@ const ExploreGroups = async (req, res) => {
   try {
     const { 
       subject, 
-      isPrivate, 
+      privacy,       // ✅ UPDATED: was isPrivate
       sortBy = 'newest', 
       page = 1, 
       limit = 20 
     } = req.query;
     const userId = req.authenticatedUser.id;
 
-    // Get user's subjects for suggestions
     const user = await UserModel.findById(userId).select('subjects');
     const userSubjects = user?.subjects || [];
 
-    let filter = {};
+    // ✅ UPDATED: Always exclude secret groups from explore
+    let filter = {
+      privacy: { $ne: 'secret' }
+    };
 
-    // Subject filter - search in subjects array
+    // Subject filter
     if (subject && subject !== 'all') {
       filter.subjects = { $in: [new RegExp(subject, 'i')] };
     }
 
-    // Privacy filter
-    if (isPrivate !== undefined && isPrivate !== 'all') {
-      filter.isPrivate = isPrivate === 'true';
+    // ✅ UPDATED: Privacy filter using new field
+    if (privacy && privacy !== 'all') {
+      filter.privacy = privacy; // 'public' or 'private' only (secret already excluded)
     }
 
     // Sorting
     let sort = {};
     switch (sortBy) {
       case 'popular':
-        // Will sort by member count after query
         break;
       case 'active':
         sort = { updatedAt: -1 };
@@ -135,27 +137,23 @@ const ExploreGroups = async (req, res) => {
         sort = { createdAt: -1 };
     }
 
-    // Get all groups
     const allGroups = await GroupModel.find(filter)
-      .populate('groupAdmin', 'name profilePicture') // ✅ Fixed: groupAdmin instead of admin
-      .select('groupName description groupProfile members groupAdmin isPrivate subjects createdAt updatedAt pendingRequests')
+      .populate('groupAdmin', 'name profilePicture')
+      .select('groupName description groupProfile members groupAdmin privacy subjects createdAt updatedAt pendingRequests')
       .sort(sort)
       .lean();
 
-    // Add computed fields
     const groupsWithDetails = allGroups.map(group => {
       const memberCount = group.members?.length || 0;
       const isMember = group.members?.some(m => m.toString() === userId.toString());
       const isAdmin = group.groupAdmin?._id?.toString() === userId.toString();
-      
-      // Check if user has pending request
+
       const hasPendingRequest = group.pendingRequests?.some(
         req => req.userId?.toString() === userId.toString()
       );
 
-      // Calculate suggestion score based on user's subjects
-      const subjectMatch = userSubjects.some(userSubject => 
-        group.subjects?.some(groupSubject => 
+      const subjectMatch = userSubjects.some(userSubject =>
+        group.subjects?.some(groupSubject =>
           groupSubject.toLowerCase().includes(userSubject.toLowerCase())
         )
       );
@@ -164,11 +162,13 @@ const ExploreGroups = async (req, res) => {
         _id: group._id,
         groupName: group.groupName,
         description: group.description,
-        groupPicture: group.groupProfile, // ✅ Map to expected field name
+        groupPicture: group.groupProfile,
         members: group.members,
         groupAdmin: group.groupAdmin,
-        isPrivate: group.isPrivate,
-        subject: group.subjects?.[0] || 'General', // ✅ Use first subject
+        privacy: group.privacy,                    // ✅ NEW field
+        isPrivate: group.privacy === 'private',    // ✅ Keep for frontend compatibility
+        isSecret: group.privacy === 'secret',      // ✅ NEW
+        subject: group.subjects?.[0] || 'General',
         subjects: group.subjects,
         createdAt: group.createdAt,
         updatedAt: group.updatedAt,
@@ -180,28 +180,16 @@ const ExploreGroups = async (req, res) => {
       };
     });
 
-    // Sort by popularity if requested
     if (sortBy === 'popular') {
       groupsWithDetails.sort((a, b) => b.memberCount - a.memberCount);
     }
 
-    // Separate into categories
-    const suggested = groupsWithDetails
-      .filter(g => g.suggested)
-      .slice(0, 6);
+    const suggested = groupsWithDetails.filter(g => g.suggested).slice(0, 6);
+    const popular = [...groupsWithDetails].sort((a, b) => b.memberCount - a.memberCount).slice(0, 10);
+    const recentlyActive = [...groupsWithDetails].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 10);
 
-    const popular = [...groupsWithDetails]
-      .sort((a, b) => b.memberCount - a.memberCount)
-      .slice(0, 10);
-
-    const recentlyActive = [...groupsWithDetails]
-      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-      .slice(0, 10);
-
-    // Paginate all groups
     const startIndex = (parseInt(page) - 1) * parseInt(limit);
-    const endIndex = startIndex + parseInt(limit);
-    const paginatedGroups = groupsWithDetails.slice(startIndex, endIndex);
+    const paginatedGroups = groupsWithDetails.slice(startIndex, startIndex + parseInt(limit));
 
     res.json({
       success: true,
@@ -225,7 +213,7 @@ const ExploreGroups = async (req, res) => {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// GET ALL USERS (For User Discovery)
+// GET ALL USERS
 // ═══════════════════════════════════════════════════════════════
 
 const GetAllUsers = async (req, res) => {
@@ -241,44 +229,19 @@ const GetAllUsers = async (req, res) => {
     } = req.query;
     const userId = req.authenticatedUser.id;
 
-    let filter = {
-      _id: { $ne: userId } // Exclude current user
-    };
+    let filter = { _id: { $ne: userId } };
 
-    // Status filter
-    if (status && status !== 'all') {
-      filter.status = status;
-    }
+    if (status && status !== 'all') filter.status = status;
+    if (subject && subject !== 'all') filter.subjects = subject;
+    if (verified === 'true') filter.isVerified = true;
+    if (online === 'true') filter.isOnline = true;
 
-    // Subject filter
-    if (subject && subject !== 'all') {
-      filter.subjects = subject;
-    }
-
-    // Verified filter
-    if (verified === 'true') {
-      filter.isVerified = true;
-    }
-
-    // Online filter
-    if (online === 'true') {
-      filter.isOnline = true;
-    }
-
-    // Sorting
     let sort = {};
     switch (sortBy) {
-      case 'reputation':
-        sort = { reputation: -1 };
-        break;
-      case 'newest':
-        sort = { createdAt: -1 };
-        break;
-      case 'name':
-        sort = { name: 1 };
-        break;
-      default:
-        sort = { reputation: -1 };
+      case 'reputation': sort = { reputation: -1 }; break;
+      case 'newest':     sort = { createdAt: -1 };  break;
+      case 'name':       sort = { name: 1 };         break;
+      default:           sort = { reputation: -1 };
     }
 
     const users = await UserModel.find(filter)
@@ -308,8 +271,4 @@ const GetAllUsers = async (req, res) => {
   }
 };
 
-module.exports = {
-  GlobalSearch,
-  ExploreGroups,
-  GetAllUsers
-};
+module.exports = { GlobalSearch, ExploreGroups, GetAllUsers };
