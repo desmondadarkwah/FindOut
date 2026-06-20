@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { Heart, MessageCircle, Share2, MoreVertical, User, Clock, BookOpen, Filter, Home, Menu, X, ChevronDown } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreVertical, User, Clock, BookOpen, Filter, Home, ChevronDown, TrendingUp, Plus, Award, Sparkles, Flame, Inbox as InboxIcon, Compass, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../utils/axiosInstance';
-import DashSidebar from '../components/DashSidebar';
 import MobileViewIcons from '../components/MobileViewIcons';
 import MobileViewBar from '../components/MobileViewBar';
 import PostComment from './PostComment';
@@ -28,8 +27,8 @@ const AllPost = () => {
   const [activeCommentModal, setActiveCommentModal] = useState(null);
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [postTypeFilter, setPostTypeFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('recent');
   const [showFilters, setShowFilters] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(false);
   const dropdownRef = useRef(null);
 
   const uniqueSubjects = ['all', ...new Set(posts.map(p => p.subject))];
@@ -41,6 +40,13 @@ const AllPost = () => {
     { value: 'explanation', label: 'Explanations', icon: '💡' },
     { value: 'challenge',   label: 'Challenges',   icon: '🎯' },
     { value: 'general',     label: 'General',      icon: '📋' },
+  ];
+
+  const sortOptions = [
+    { value: 'recent',    label: 'Recent',    icon: Clock },
+    { value: 'viewed',    label: 'Viewed',    icon: Eye },
+    { value: 'discussed', label: 'Discussed', icon: MessageCircle },
+    { value: 'top',       label: 'Top',       icon: Flame },
   ];
 
   useEffect(() => { fetchPosts(); }, []);
@@ -79,17 +85,46 @@ const AllPost = () => {
     } catch (e) { console.error("Error starting chat:", e); alert('Failed to start chat'); }
   };
 
-  const toggleDropdown   = (postId) => setActiveDropdown(activeDropdown === postId ? null : postId);
-  const handleCloseDropdown  = () => setActiveDropdown(null);
-  const handleOpenComments   = (postId) => setActiveCommentModal(postId);
-  const handleCloseComments  = () => setActiveCommentModal(null);
-  const handleRetry          = () => fetchPosts();
+  const toggleDropdown      = (postId) => setActiveDropdown(activeDropdown === postId ? null : postId);
+  const handleCloseDropdown = () => setActiveDropdown(null);
+  const handleOpenComments  = (postId) => setActiveCommentModal(postId);
+  const handleCloseComments = () => setActiveCommentModal(null);
+  const handleRetry         = () => fetchPosts();
 
   const filteredPosts = posts.filter(post => {
     const matchesSubject = subjectFilter === 'all' || post.subject === subjectFilter;
     const matchesType    = postTypeFilter === 'all' || post.postType === postTypeFilter;
     return matchesSubject && matchesType;
   });
+
+  const sortedPosts = [...filteredPosts].sort((a, b) => {
+    if (sortBy === 'viewed')    return (b.viewCount || 0) - (a.viewCount || 0);
+    if (sortBy === 'discussed') return (b.commentCount || 0) - (a.commentCount || 0);
+    if (sortBy === 'top')       return (b.helpfulCount || 0) - (a.helpfulCount || 0);
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  /* ── Right-rail derived data ── */
+  const trendingSubjects = Object.entries(
+    posts.reduce((acc, p) => { if (p.subject) acc[p.subject] = (acc[p.subject] || 0) + 1; return acc; }, {})
+  ).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const topContributors = Object.values(
+    posts.reduce((acc, p) => {
+      const a = p.author;
+      if (!a?._id) return acc;
+      if (!acc[a._id]) acc[a._id] = { ...a, postCount: 0 };
+      acc[a._id].postCount += 1;
+      return acc;
+    }, {})
+  ).sort((a, b) => b.postCount - a.postCount).slice(0, 5);
+
+  const communityStats = {
+    posts:    posts.length,
+    views:    posts.reduce((s, p) => s + (p.viewCount || 0), 0),
+    helpful:  posts.reduce((s, p) => s + (p.helpfulCount || 0), 0),
+    comments: posts.reduce((s, p) => s + (p.commentCount || 0), 0),
+  };
 
   const getPostTypeBadge = (type) => {
     const badges = {
@@ -115,9 +150,49 @@ const AllPost = () => {
     </div>
   );
 
+  /* ── SHARED CARD STYLE ── */
+  const card = {
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.07)',
+    borderRadius: 16,
+    padding: 18,
+  };
+
   /* ── POSTS LIST ── */
   const PostsList = () => (
     <div>
+      {/* Sort Tabs */}
+      <div style={{
+        display: 'flex', gap: 6, marginBottom: 16,
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 14, padding: 6,
+      }}>
+        {sortOptions.map(opt => {
+          const Icon = opt.icon;
+          const active = sortBy === opt.value;
+          return (
+            <button
+              key={opt.value}
+              onClick={() => setSortBy(opt.value)}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '9px 10px', borderRadius: 10, cursor: 'pointer',
+                fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
+                border: 'none',
+                background: active ? 'linear-gradient(135deg,#3b82f6,#6366f1)' : 'transparent',
+                color: active ? '#fff' : 'rgba(255,255,255,0.45)',
+                boxShadow: active ? '0 2px 12px rgba(99,102,241,0.4)' : 'none',
+              }}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}
+            >
+              <Icon size={15} />{opt.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Filter Bar */}
       <div style={{
         marginBottom: 24,
@@ -147,7 +222,7 @@ const AllPost = () => {
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
             <span style={{ fontSize:12, color:'rgba(255,255,255,0.3)', fontWeight:500 }}>
-              {filteredPosts.length} posts
+              {sortedPosts.length} posts
             </span>
             <ChevronDown size={16} style={{ color:'rgba(255,255,255,0.3)', transform: showFilters ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }} />
           </div>
@@ -166,8 +241,7 @@ const AllPost = () => {
                 style={{
                   width:'100%', padding:'10px 14px',
                   background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.08)',
-                  color:'#fff', borderRadius:10, fontSize:13, outline:'none',
-                  cursor:'pointer',
+                  color:'#fff', borderRadius:10, fontSize:13, outline:'none', cursor:'pointer',
                 }}
               >
                 {uniqueSubjects.map(s => (
@@ -206,19 +280,20 @@ const AllPost = () => {
       </div>
 
       {/* Posts Feed */}
-      {filteredPosts.length > 0 ? (
+      {sortedPosts.length > 0 ? (
         <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-          {filteredPosts.map((post) => {
+          {sortedPosts.map((post) => {
             const badge = getPostTypeBadge(post.postType);
             return (
               <article
                 key={post._id}
+                data-post-id={post._id}
                 style={{
                   background: 'rgba(255,255,255,0.03)',
                   border: '1px solid rgba(255,255,255,0.07)',
                   borderRadius: 20,
                   overflow: 'hidden',
-                  transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
+                  transition: 'border-color 0.2s, box-shadow 0.2s',
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)';
@@ -232,7 +307,6 @@ const AllPost = () => {
                 {/* Header */}
                 <div style={{ padding:'14px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                    {/* Avatar */}
                     <div style={{
                       width:42, height:42, borderRadius:'50%',
                       background:'linear-gradient(135deg,#3b82f6,#8b5cf6)',
@@ -296,7 +370,7 @@ const AllPost = () => {
                         color:'rgba(255,255,255,0.35)', transition:'all 0.2s',
                         display:'flex', alignItems:'center',
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.color='#fff'; e.currentTarget.style.borderColor='rgba(255,255,255,0.2)'; }}
+                      onMouseEnter={e => { e.currentTarget.style.color='#fff'; e.currentTarget.style.borderColor='rgba(99,102,241,0.4)'; }}
                       onMouseLeave={e => { e.currentTarget.style.color='rgba(255,255,255,0.35)'; e.currentTarget.style.borderColor='rgba(255,255,255,0.07)'; }}
                     >
                       <MoreVertical size={16} />
@@ -314,8 +388,7 @@ const AllPost = () => {
                   <span style={{
                     fontSize:11, fontWeight:700, letterSpacing:'0.04em',
                     padding:'3px 10px', borderRadius:99,
-                    background: badge.gradient,
-                    color:'#fff',
+                    background: badge.gradient, color:'#fff',
                   }}>{badge.label}</span>
                   <span style={{
                     fontSize:11, fontWeight:600,
@@ -337,7 +410,6 @@ const AllPost = () => {
                     style={{ width:'100%', height:340, objectFit:'cover', display:'block' }}
                     onError={(e) => { e.target.src = 'https://via.placeholder.com/600x400?text=Image+Not+Found'; }}
                   />
-                  {/* subtle gradient overlay at bottom */}
                   <div style={{
                     position:'absolute', bottom:0, left:0, right:0, height:60,
                     background:'linear-gradient(to top, rgba(10,10,20,0.6), transparent)',
@@ -383,6 +455,16 @@ const AllPost = () => {
                       <MessageCircle size={14} />
                       {post.commentCount || 0}
                     </button>
+
+                    {/* Views (read-only) */}
+                    <span style={{
+                      display:'flex', alignItems:'center', gap:6,
+                      padding:'7px 14px', borderRadius:99,
+                      color:'rgba(255,255,255,0.4)', fontSize:12, fontWeight:600,
+                    }}>
+                      <Eye size={14} />
+                      {post.viewCount || 0}
+                    </span>
 
                     {/* Share */}
                     <button
@@ -455,7 +537,7 @@ const AllPost = () => {
   const PageHeader = () => (
     <div style={{ marginBottom:28 }}>
       <h1 style={{
-        fontSize: 28, fontWeight:800, margin:'0 0 4px',
+        fontSize:28, fontWeight:800, margin:'0 0 4px',
         background:'linear-gradient(135deg,#60a5fa,#a78bfa)',
         WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
         letterSpacing:'-0.02em',
@@ -464,6 +546,182 @@ const AllPost = () => {
         Share knowledge · Ask questions · Help others learn
       </p>
     </div>
+  );
+
+  /* ── LEFT RAIL ── */
+  const navItems = [
+    { label: 'Home',    icon: Home,      to: '/dashboard' },
+    { label: 'Feed',    icon: Sparkles,  to: '/feed', active: true },
+    { label: 'Chats',   icon: InboxIcon, to: '/inbox' },
+    { label: 'Explore', icon: Compass,   to: '/explore-groups' },
+  ];
+
+  const LeftRail = () => (
+    <aside className="rail-scroll" style={{ position:'sticky', top:24, maxHeight:'calc(100vh - 48px)', overflowY:'auto', display:'flex', flexDirection:'column', gap:16 }}>
+      {/* Brand */}
+      <div style={{ ...card, paddingTop:20, paddingBottom:20 }}>
+        <h1 style={{
+          fontSize:24, fontWeight:800, margin:'0 0 4px',
+          background:'linear-gradient(135deg,#60a5fa,#a78bfa)',
+          WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+          letterSpacing:'-0.02em',
+        }}>FindOut</h1>
+        <p style={{ fontSize:11.5, color:'rgba(255,255,255,0.3)', margin:0, fontWeight:500, lineHeight:1.5 }}>
+          Share knowledge · Ask questions · Help others learn
+        </p>
+      </div>
+
+      {/* Create Post */}
+      <button
+        onClick={() => navigate('/add-post')}
+        style={{
+          display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+          padding:'14px', borderRadius:14, border:'none', cursor:'pointer',
+          background:'linear-gradient(135deg,#3b82f6,#6366f1)',
+          color:'#fff', fontWeight:700, fontSize:14,
+          boxShadow:'0 4px 16px rgba(99,102,241,0.4)',
+          transition:'transform 0.15s, box-shadow 0.15s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 6px 20px rgba(99,102,241,0.5)'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform='none'; e.currentTarget.style.boxShadow='0 4px 16px rgba(99,102,241,0.4)'; }}
+      >
+        <Plus size={18} /> Create Post
+      </button>
+
+      {/* Nav */}
+      <nav style={{ ...card, padding:8, display:'flex', flexDirection:'column', gap:2 }}>
+        {navItems.map(item => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.label}
+              onClick={() => navigate(item.to)}
+              style={{
+                display:'flex', alignItems:'center', gap:12,
+                padding:'11px 14px', borderRadius:10, cursor:'pointer',
+                background: item.active ? 'rgba(99,102,241,0.15)' : 'transparent',
+                border:'none', width:'100%', textAlign:'left',
+                color: item.active ? '#818cf8' : 'rgba(255,255,255,0.55)',
+                fontSize:14, fontWeight:600, transition:'all 0.15s',
+              }}
+              onMouseEnter={e => { if (!item.active) { e.currentTarget.style.background='rgba(99,102,241,0.08)'; e.currentTarget.style.color='#fff'; } }}
+              onMouseLeave={e => { if (!item.active) { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='rgba(255,255,255,0.55)'; } }}
+            >
+              <Icon size={18} /> {item.label}
+            </button>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+
+  /* ── RIGHT RAIL ── */
+  const statItems = [
+    { label:'Posts',    value: communityStats.posts,    icon: Sparkles,      color:'#60a5fa' },
+    { label:'Views',    value: communityStats.views,    icon: Eye,           color:'#818cf8' },
+    { label:'Helpful',  value: communityStats.helpful,  icon: Heart,         color:'#4ade80' },
+    { label:'Comments', value: communityStats.comments, icon: MessageCircle, color:'#a78bfa' },
+  ];
+
+  const RightRail = () => (
+    <aside className="rail-scroll" style={{ position:'sticky', top:24, maxHeight:'calc(100vh - 48px)', overflowY:'auto', display:'flex', flexDirection:'column', gap:16 }}>
+      {/* Community Pulse */}
+      <div style={card}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+          <TrendingUp size={16} style={{ color:'#818cf8' }} />
+          <span style={{ fontWeight:700, fontSize:13, color:'#f1f5f9', letterSpacing:'0.01em' }}>Community Pulse</span>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+          {statItems.map(s => {
+            const Icon = s.icon;
+            return (
+              <div key={s.label} style={{
+                background:'rgba(99,102,241,0.06)', border:'1px solid rgba(99,102,241,0.12)',
+                borderRadius:12, padding:'12px 14px',
+              }}>
+                <Icon size={15} style={{ color:s.color, marginBottom:6 }} />
+                <div style={{ fontSize:20, fontWeight:800, color:'#fff', lineHeight:1 }}>{s.value}</div>
+                <div style={{ fontSize:11, color:'rgba(255,255,255,0.35)', fontWeight:500, marginTop:3 }}>{s.label}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Trending Subjects */}
+      {trendingSubjects.length > 0 && (
+        <div style={card}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+            <Flame size={16} style={{ color:'#f97316' }} />
+            <span style={{ fontWeight:700, fontSize:13, color:'#f1f5f9' }}>Trending Subjects</span>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+            {trendingSubjects.map(([subject, count], i) => (
+              <button
+                key={subject}
+                onClick={() => setSubjectFilter(subject)}
+                style={{
+                  display:'flex', alignItems:'center', justifyContent:'space-between',
+                  padding:'9px 12px', borderRadius:10, cursor:'pointer', width:'100%',
+                  border:'none', textAlign:'left', transition:'all 0.15s',
+                  background: subjectFilter === subject ? 'rgba(99,102,241,0.15)' : 'transparent',
+                }}
+                onMouseEnter={e => { if (subjectFilter !== subject) e.currentTarget.style.background='rgba(99,102,241,0.06)'; }}
+                onMouseLeave={e => { if (subjectFilter !== subject) e.currentTarget.style.background='transparent'; }}
+              >
+                <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
+                  <span style={{ fontSize:12, fontWeight:800, color:'rgba(255,255,255,0.25)', width:14 }}>{i + 1}</span>
+                  <span style={{ fontSize:13, fontWeight:600, color: subjectFilter === subject ? '#818cf8' : 'rgba(255,255,255,0.7)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>#{subject}</span>
+                </div>
+                <span style={{ fontSize:11, color:'rgba(255,255,255,0.3)', fontWeight:600, flexShrink:0 }}>{count} {count === 1 ? 'post' : 'posts'}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Top Contributors */}
+      {topContributors.length > 0 && (
+        <div style={card}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+            <Award size={16} style={{ color:'#fbbf24' }} />
+            <span style={{ fontWeight:700, fontSize:13, color:'#f1f5f9' }}>Top Contributors</span>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {topContributors.map((c) => (
+              <button
+                key={c._id}
+                onClick={() => handleAuthorClick(c._id, c.name)}
+                style={{
+                  display:'flex', alignItems:'center', gap:12, padding:0,
+                  background:'none', border:'none', cursor:'pointer', width:'100%', textAlign:'left',
+                }}
+              >
+                <div style={{
+                  width:38, height:38, borderRadius:'50%', flexShrink:0, overflow:'hidden',
+                  background:'linear-gradient(135deg,#3b82f6,#8b5cf6)',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow:'0 0 0 2px rgba(99,102,241,0.3)',
+                }}>
+                  {c.profilePicture
+                    ? <img src={`${import.meta.env.VITE_BACKEND_URL}${c.profilePicture}`} alt={c.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    : <User size={16} color="#fff" />}
+                </div>
+                <div style={{ minWidth:0, flex:1 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                    <span style={{ fontSize:13, fontWeight:700, color:'#f1f5f9', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{c.name}</span>
+                    {c.isVerified && <span style={{ fontSize:10, color:'#4ade80' }}>✓</span>}
+                  </div>
+                  <span style={{ fontSize:11, color:'rgba(255,255,255,0.35)', fontWeight:500 }}>
+                    {c.postCount} {c.postCount === 1 ? 'post' : 'posts'}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </aside>
   );
 
   return (
@@ -479,78 +737,25 @@ const AllPost = () => {
         <MobileViewIcons />
       </div>
 
-      {/* ── DESKTOP ── */}
+      {/* ── DESKTOP (3-column) ── */}
       <div className="hidden lg:block">
-        {/* Sidebar toggle */}
-        <button
-          onClick={() => setShowSidebar(!showSidebar)}
-          style={{
-            position:'fixed', top:16, left:16, zIndex:50,
-            display:'flex', alignItems:'center', justifyContent:'center',
-            width:40, height:40,
-            background:'rgba(255,255,255,0.04)',
-            border:'1px solid rgba(255,255,255,0.08)',
-            borderRadius:10, cursor:'pointer', color:'rgba(255,255,255,0.6)',
-            transition:'all 0.2s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.08)'; e.currentTarget.style.color='#fff'; }}
-          onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.04)'; e.currentTarget.style.color='rgba(255,255,255,0.6)'; }}
-        >
-          {showSidebar ? <X size={18} /> : <Menu size={18} />}
-        </button>
-
-        {/* Sidebar overlay */}
-        {showSidebar && (
-          <>
-            <div
-              style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:40, backdropFilter:'blur(4px)' }}
-              onClick={() => setShowSidebar(false)}
-            />
-            <div style={{ position:'fixed', left:0, top:0, height:'100%', width:256, zIndex:50 }}>
-              <DashSidebar />
-            </div>
-          </>
-        )}
-
-        {/* Main */}
-        <div style={{ display:'flex', justifyContent:'center' }}>
-          <div style={{ width:'100%', maxWidth:620, padding:'32px 20px' }}>
-
-            {/* Top nav bar */}
-            <div style={{
-              marginBottom:28,
-              display:'flex', alignItems:'center', justifyContent:'space-between',
-              background:'rgba(255,255,255,0.03)',
-              border:'1px solid rgba(255,255,255,0.07)',
-              borderRadius:14, padding:'10px 16px',
-            }}>
-              <button
-                onClick={() => navigate('/dashboard')}
-                style={{
-                  display:'flex', alignItems:'center', gap:7,
-                  background:'none', border:'none', cursor:'pointer',
-                  color:'rgba(255,255,255,0.4)', fontSize:13, fontWeight:600,
-                  padding:0, transition:'color 0.2s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.color='#fff'}
-                onMouseLeave={e => e.currentTarget.style.color='rgba(255,255,255,0.4)'}
-              >
-                <Home size={16} />
-                Dashboard
-              </button>
-
-              <span style={{
-                fontWeight:800, fontSize:15,
-                background:'linear-gradient(135deg,#60a5fa,#a78bfa)',
-                WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
-                letterSpacing:'-0.01em',
-              }}>FindOut</span>
-
-              <div style={{ width:80 }} />
-            </div>
-
+        <style>{`
+          .rail-scroll { scrollbar-width: thin; scrollbar-color: rgba(99,102,241,0.3) transparent; }
+          .rail-scroll::-webkit-scrollbar { width: 4px; }
+          .rail-scroll::-webkit-scrollbar-track { background: transparent; }
+          .rail-scroll::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); border-radius: 99px; }
+          .rail-scroll::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.5); }
+        `}</style>
+        <div style={{
+          maxWidth:1320, margin:'0 auto', padding:'28px 24px 60px',
+          display:'grid', gridTemplateColumns:'248px minmax(0,1fr) 312px',
+          gap:28, alignItems:'start',
+        }}>
+          <LeftRail />
+          <main style={{ minWidth:0 }}>
             <PostsList />
-          </div>
+          </main>
+          <RightRail />
         </div>
       </div>
 

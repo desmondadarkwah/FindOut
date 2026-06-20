@@ -209,10 +209,10 @@ const Dashboard = () => {
                             </h3>
                             <div className="flex flex-wrap gap-3 text-sm">
                               <span className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full border border-blue-500/30">
-                                👥 {group.members?.length || 0} members
+                                 {group.members?.length || 0} members
                               </span>
                               <span className="bg-green-500/20 text-green-300 px-3 py-1 rounded-full border border-green-500/30">
-                                📚 {group.subjects?.length > 0 ? group.subjects.join(", ") : "General"}
+                                 {group.subjects?.length > 0 ? group.subjects.join(", ") : "General"}
                               </span>
                             </div>
                           </div>
@@ -222,7 +222,7 @@ const Dashboard = () => {
                           <button
                             onClick={() => handleDeleteGroup(group._id, group.groupName)}
                             className="px-4 py-2 text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg hover:bg-red-500/20 hover:border-red-500/50 transition-all duration-200 flex items-center gap-2">
-                            🗑️ Delete
+                             Delete
                           </button>
                           <button
                             onClick={() => handleOpenGroupChat(group._id)}
@@ -438,6 +438,8 @@ const Dashboard = () => {
                 Switch
               </button>
             </div>
+
+
 
             <div className="flex items-center justify-between mb-6">
               <span className="text-sm font-medium text-gray-300">Suggested for you</span>

@@ -163,7 +163,7 @@ const ExploreGroups = () => {
               onClick={() => navigate('/inbox')}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                padding: '9px 0', borderRadius: 10, border: 'none', cursor: 'pointer',
+                padding: '9px 0', borderRadius: 10, cursor: 'pointer',
                 background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)',
                 color: '#60a5fa', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
                 transition: 'all 0.2s',

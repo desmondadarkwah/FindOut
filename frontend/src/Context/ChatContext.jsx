@@ -10,10 +10,13 @@ const ChatContextProvider = ({ children }) => {
   const [barsToHidden, setBarsToHidden] = useState(true);
   const [showChatOptions, setShowChatOptions] = useState(false);
 
-  // ✅ NEW: Fetch userId on mount
   useEffect(() => {
     const fetchUserId = async () => {
       try {
+        // ✅ CHECK TOKEN FIRST - if no token, user is not logged in, stop immediately
+        const token = localStorage.getItem('accessToken');
+        if (!token) return;
+
         // Check if userId is already in localStorage
         const storedUserId = localStorage.getItem('userId');
         if (storedUserId) {

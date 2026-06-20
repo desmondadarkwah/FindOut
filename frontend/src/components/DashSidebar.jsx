@@ -12,8 +12,15 @@ import UserProfile from "./UserProfile";
 import { SettingsContext } from '../Context/SettingsContext';
 
 const DashSidebar = () => {
-  const { setOpenSettings } = useContext(SettingsContext);
+  const { setOpenSettings, openManageUser, setOpenManageUser } = useContext(SettingsContext);
   const [showSearch, setShowSearch] = useState(false);
+
+
+  const handleEditClick = () => {
+    setOpenManageUser(!openManageUser);
+    closeSettings();
+  };
+  const closeSettings = () => setOpenSettings(false);
 
   return (
     <div className="flex">
@@ -42,7 +49,7 @@ const DashSidebar = () => {
           onClick={() => setShowSearch(true)}
           className="flex items-center hover:bg-[#1c1e21] p-2">
           <FiSearch size={25} color="white" />
-          <a href="" className="block px-4 py-2 font-medium text-white">
+          <a className="block px-4 py-2 font-medium text-white cursor-pointer">
             Search
           </a>
         </span>
@@ -64,18 +71,13 @@ const DashSidebar = () => {
             Add a Post
           </a>
         </span>
-        <span className="flex items-center hover:bg-[#1c1e21] p-2">
+        {/* <span className="flex items-center hover:bg-[#1c1e21] p-2">
           <IoMdNotificationsOutline size={25} color="white" />
           <span className="block px-4 py-2 font-medium text-white">
             Notifications
           </span>
-        </span>
-        <span className="flex items-center hover:bg-[#1c1e21] p-2">
-          <UserProfile allowUpload={false} />
-          <span className="block px-4 py-2 font-medium text-white">
-            Profile
-          </span>
-        </span>
+        </span> */}
+
         <span
           onClick={() => setOpenSettings(true)}
           className="flex items-center hover:bg-[#1c1e21] p-2 cursor-pointer"
@@ -85,6 +87,13 @@ const DashSidebar = () => {
             More
           </span>
         </span>
+        
+        <span
+          onClick={() => { handleEditClick(); closeSettings(); }}
+          className="flex items-center hover:bg-[#1c1e21] p-2">
+          <UserProfile allowUpload={false} />
+        </span>
+
         <span className="flex items-center justify-center flex-col text-gray-400 text-xs mt-8 px-4 pb-4">
           Welcome to FindOut! Explore various <a href="#" className="text-blue-500 hover:underline">study groups</a> and resources tailored to your learning needs.
           Join our vibrant community of learners to share knowledge, ask questions, and grow together.

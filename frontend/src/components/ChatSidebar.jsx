@@ -10,9 +10,11 @@ import { MdOutlineKeyboardVoice } from "react-icons/md";
 import moment from 'moment';
 import socket from '../socket/socket';
 
-const ChatSidebar = () => {
+const ChatSidebar = ({ showChatSidebar }) => {
   const [loading, setLoading] = useState(true);
   const [onlineUsers, setOnlineUsers] = useState({});
+  const [searchQuery, setSearchQuery] = useState(''); // ✅ NEW: Search state
+
   const { chats, setChats, setSelectedChat, userId, setUserId, barsToHidden, setBarsToHidden, showChatOptions, setShowChatOptions } = useContext(ChatContext);
 
   useEffect(() => {
@@ -28,7 +30,7 @@ const ChatSidebar = () => {
         setLoading(false);
 
         setUserId(userId);
-        localStorage.setItem('userId', userId); 
+        localStorage.setItem('userId', userId);
 
       } catch (error) {
         console.error("Error fetching chats:", error);
@@ -90,14 +92,12 @@ const ChatSidebar = () => {
     };
   }, [socket, userId]);
 
-  // ✅ NEW: Listen for group member changes
   useEffect(() => {
     if (!socket || !userId) return;
 
     const handleMembersAdded = ({ groupId, newMembers, group }) => {
       console.log('👥 Members added to group:', groupId);
 
-      // Update the group in chat list
       setChats(prevChats =>
         prevChats.map(chat =>
           chat._id === groupId ? { ...chat, members: group.members } : chat
@@ -108,7 +108,6 @@ const ChatSidebar = () => {
     const handleMemberJoined = ({ groupId, newMember, group }) => {
       console.log('👤 New member joined group:', groupId);
 
-      // Update the group in chat list
       setChats(prevChats =>
         prevChats.map(chat =>
           chat._id === groupId ? { ...chat, members: group.members } : chat
@@ -119,7 +118,6 @@ const ChatSidebar = () => {
     const handleAddedToGroup = ({ groupId, groupName, addedBy }) => {
       console.log('✅ You were added to group:', groupName);
 
-      // Fetch updated chat list to include new group
       axiosInstance.get("/api/chats").then(response => {
         setChats(response.data.chats);
       }).catch(error => {
@@ -138,17 +136,14 @@ const ChatSidebar = () => {
     };
   }, [socket, userId, setChats]);
 
-  // ✅ NEW: Listen for FORCED chat removal (when removed/left)
   useEffect(() => {
     if (!socket || !userId) return;
 
     const handleForceRemoveChat = ({ groupId, groupName, reason }) => {
       console.log(`❌ FORCE REMOVING chat ${groupName} - Reason: ${reason}`);
 
-      // ✅ IMMEDIATELY remove from chats
       setChats(prevChats => prevChats.filter(chat => chat._id !== groupId));
 
-      // ✅ If this was the selected chat, clear it
       setSelectedChat(prev => {
         if (prev?._id === groupId) {
           return null;
@@ -156,9 +151,7 @@ const ChatSidebar = () => {
         return prev;
       });
 
-      // ✅ Show toast notification
       if (reason === 'removed') {
-        // You'll need to import toast or create a notification
         console.log(`You were removed from ${groupName}`);
       } else if (reason === 'left') {
         console.log(`You left ${groupName}`);
@@ -173,7 +166,6 @@ const ChatSidebar = () => {
   }, [socket, userId, setChats, setSelectedChat]);
 
   const handleChatClick = (chat) => {
-    // ✅ UPDATED: Always mark as read when clicking
     if (socket) {
       socket.emit('mark-chat-read', {
         chatId: chat._id,
@@ -181,7 +173,6 @@ const ChatSidebar = () => {
       });
     }
 
-    // ✅ Optimistically reset unread count to 0
     setChats(prevChats =>
       prevChats.map(c =>
         c._id === chat._id ? { ...c, unreadCount: 0 } : c
@@ -192,6 +183,21 @@ const ChatSidebar = () => {
     setBarsToHidden(false);
   };
 
+  // ✅ NEW: Filter chats based on search query
+  const filteredChats = chats.filter(chat => {
+    if (!searchQuery.trim()) return true; // Show all if no search
+
+    const query = searchQuery.toLowerCase();
+
+    // Search in group name
+    if (chat.isGroup) {
+      return chat.groupName?.toLowerCase().includes(query);
+    }
+
+    // Search in participant names (for 1-on-1 chats)
+    const otherUser = chat.participants?.find(p => p._id !== userId);
+    return otherUser?.name?.toLowerCase().includes(query);
+  });
 
   if (loading) {
     return (
@@ -204,17 +210,16 @@ const ChatSidebar = () => {
     );
   }
 
-
-
   return (
     <div
       className={`
-        bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 
-        backdrop-blur-xl text-white h-screen overflow-hidden 
-        flex flex-col border-r border-gray-800/50 shadow-2xl
-        ${barsToHidden ? 'w-full fixed inset-0 z-50' : 'hidden'} 
-        md:block md:relative md:w-auto lg:min-w-[33%]
-      `}
+  bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 
+  backdrop-blur-xl text-white h-screen overflow-hidden 
+  flex flex-col border-r border-gray-800/50 shadow-2xl
+  transition-all duration-300
+  ${barsToHidden ? 'w-full fixed inset-0 z-50' : 'hidden'} 
+  ${showChatSidebar ? 'md:flex md:relative md:w-auto lg:min-w-[33%]' : 'md:hidden'}
+`}
       onClick={() => setShowChatOptions(false)}
     >
 
@@ -226,14 +231,26 @@ const ChatSidebar = () => {
         <HiDotsVertical className="lg:hidden text-gray-300 hover:text-white transition-colors cursor-pointer" />
       </div>
 
+      {/* ✅ UPDATED: Search input with functionality */}
       <div className="flex items-center justify-center relative p-4">
         <div className="relative w-full max-w-sm">
           <IoIosSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg z-10" />
           <input
             type="text"
             placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-800/40 backdrop-blur-sm text-white border border-gray-700/30 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-300 placeholder-gray-400"
           />
+          {/* ✅ Clear button when searching */}
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 
@@ -254,9 +271,10 @@ const ChatSidebar = () => {
           }
         `}</style>
 
-        {chats.length > 0 ? (
+        {/* ✅ UPDATED: Use filteredChats instead of chats */}
+        {filteredChats.length > 0 ? (
           <div className="space-y-1 p-2">
-            {chats.map((chat) => {
+            {filteredChats.map((chat) => {
               const otherUser = !chat.isGroup && chat.participants.find(p => p._id !== userId);
               const isUserOnline = otherUser && onlineUsers[otherUser._id]?.isOnline;
 
@@ -322,7 +340,6 @@ const ChatSidebar = () => {
                       </span>
                     </div>
 
-
                     <div className="flex items-center justify-between">
                       <div className="text-xs truncate flex-1 group-hover:text-gray-300 transition-colors">
                         {
@@ -367,7 +384,6 @@ const ChatSidebar = () => {
                         }
                       </div>
 
-                      {/* ✅ UPDATED: Only show unread badge if count > 0 */}
                       {chat.unreadCount > 0 && (
                         <div className="ml-2 flex-shrink-0">
                           <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-indigo-500 text-white text-xs font-bold rounded-full shadow-lg">
@@ -383,12 +399,22 @@ const ChatSidebar = () => {
             })}
           </div>
         ) : (
+          /* ✅ UPDATED: Different message when searching vs no chats */
           <div className="flex flex-col items-center justify-center h-64 text-center px-4">
             <div className="w-16 h-16 bg-gray-800/50 rounded-2xl flex items-center justify-center mb-4">
               <RxAvatar className="w-8 h-8 text-gray-500" />
             </div>
-            <h3 className="text-gray-300 font-medium mb-2">No conversations yet</h3>
-            <p className="text-gray-500 text-sm">Start a new chat to begin messaging</p>
+            {searchQuery ? (
+              <>
+                <h3 className="text-gray-300 font-medium mb-2">No results found</h3>
+                <p className="text-gray-500 text-sm">Try searching with a different name</p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-gray-300 font-medium mb-2">No conversations yet</h3>
+                <p className="text-gray-500 text-sm">Start a new chat to begin messaging</p>
+              </>
+            )}
           </div>
         )}
       </div>

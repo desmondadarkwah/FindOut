@@ -152,9 +152,9 @@ const ManageUser = () => {
                   onChange={(e) => setStatus(e.target.value)}
                   className="w-full p-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-xl border border-gray-600/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 appearance-none cursor-pointer"
                 >
-                  <option value="Later">📅 Later</option>
-                  <option value="Ready To Teach">👨‍🏫 Ready To Teach</option>
-                  <option value="Ready To Learn">🎓 Ready To Learn</option>
+                  <option value="Later">Later</option>
+                  <option value="Ready To Teach">Ready To Teach</option>
+                  <option value="Ready To Learn">Ready To Learn</option>
                 </select>
                 <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
                   <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,7 +174,6 @@ const ManageUser = () => {
           onClick={handleSaveChanges}
           className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl border border-blue-500/30 hover:border-blue-400/50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2"
         >
-          <span>💾</span>
           <span>Save Changes</span>
         </button>
       </div>
