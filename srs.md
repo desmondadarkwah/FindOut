@@ -876,7 +876,7 @@ stateDiagram-v2
     [*] --> NotStarted: subject added to profile
     NotStarted --> InProgress: start quiz (attempt 1)
     InProgress --> Verified: score ≥ 70%
-    InProgress --> InProgress: score < 70% and attempts < 3
+    InProgress --> InProgress: score under 70%, attempts remain
     InProgress --> Locked: 3 attempts exhausted
     Verified --> [*]: badge awarded, subject added to verifiedSubjects
     Locked --> [*]: no further attempts
