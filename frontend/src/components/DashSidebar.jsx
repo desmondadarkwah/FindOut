@@ -1,111 +1,126 @@
-import React, { useContext } from 'react'
-import { MdHome } from "react-icons/md";
+import React, { useContext, useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
+import { MdHome, MdOutlineExplore, MdOutlineAddBox } from "react-icons/md";
 import { FiSearch } from "react-icons/fi";
-import { MdOutlineExploreOff } from "react-icons/md";
 import { BsChatDots } from "react-icons/bs";
-import { MdOutlineAddBox } from "react-icons/md";
-import { IoMdNotificationsOutline } from "react-icons/io";
 import { IoIosMore } from "react-icons/io";
-import { useState } from 'react';
 import GlobalSearch from './GlobalSearch';
 import UserProfile from "./UserProfile";
 import { SettingsContext } from '../Context/SettingsContext';
 
+/* Navigation is data. Adding a destination should not mean copying markup. */
+const NAV_ITEMS = [
+  { to: '/dashboard', label: 'Home',       Icon: MdHome },
+  { to: '/feed',      label: 'FindMore',   Icon: MdOutlineExplore },
+  { to: '/inbox',     label: 'Chats',      Icon: BsChatDots },
+  { to: '/add-post',  label: 'Add a Post', Icon: MdOutlineAddBox },
+];
+
+/* Shared shape for both links and buttons, so a nav row looks identical
+   regardless of which element it is built from. */
+const rowBase =
+  'flex w-full items-center gap-3 rounded-[10px] px-3.5 py-2.5 text-sm font-semibold transition-colors';
+
 const DashSidebar = () => {
   const { setOpenSettings, openManageUser, setOpenManageUser } = useContext(SettingsContext);
   const [showSearch, setShowSearch] = useState(false);
+  const navigate = useNavigate();
 
+  const closeSettings = () => setOpenSettings(false);
 
   const handleEditClick = () => {
     setOpenManageUser(!openManageUser);
     closeSettings();
   };
-  const closeSettings = () => setOpenSettings(false);
 
   return (
-    <div className="flex">
-      <aside className="w-60 border border-gray-900 hidden md:block fixed left-0 top-0 h-full bg-black z-10 overflow-y-auto custom-scrollbar">
-        {/* ✅ Add this style block to hide scrollbar */}
-        <style jsx>{`
-          .custom-scrollbar {
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none; /* IE and Edge */
-          }
-          .custom-scrollbar::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Opera */
-          }
-        `}</style>
-
-        <div className="text-white w-52 ml-4 font-bold flex items-center justify-center mb-10 mt-5 text-4xl">
-          FindOut
+    <>
+      <aside className="scrollbar-slim fixed left-0 top-0 z-dropdown hidden h-full w-60 flex-col gap-4 overflow-y-auto bg-surface-base p-4 md:flex">
+        {/* Wordmark */}
+        <div className="card-glass px-4 py-5">
+          <h1 className="text-gradient-brand text-2xl font-extrabold tracking-tight">
+            FindOut
+          </h1>
+          <p className="mt-1 text-[11.5px] font-medium leading-snug text-content-muted">
+            Share knowledge · Ask questions · Help others learn
+          </p>
         </div>
-        <span className="flex items-center hover:bg-[#1c1e21] p-2">
-          <MdHome size={25} color="white" />
-          <a href="/dashboard" className="block px-4 font-medium text-white rounded-md">
-            Home
-          </a>
-        </span>
-        <span
-          onClick={() => setShowSearch(true)}
-          className="flex items-center hover:bg-[#1c1e21] p-2">
-          <FiSearch size={25} color="white" />
-          <a className="block px-4 py-2 font-medium text-white cursor-pointer">
-            Search
-          </a>
-        </span>
-        <span className="flex items-center hover:bg-[#1c1e21] p-2">
-          <MdOutlineExploreOff size={25} color="white" />
-          <a href="feed" className="block px-4 py-2 font-medium text-white">
-            FindMore
-          </a>
-        </span>
-        <span className="flex items-center hover:bg-[#1c1e21] p-2">
-          <BsChatDots size={25} color="white" />
-          <a href="inbox" className="block px-4 py-2 font-medium text-white">
-            Chats
-          </a>
-        </span>
-        <span className="flex items-center hover:bg-[#1c1e21] p-2">
-          <MdOutlineAddBox size={25} color="white" />
-          <a href="/add-post" className="block px-4 py-2 font-medium text-white">
-            Add a Post
-          </a>
-        </span>
-        {/* <span className="flex items-center hover:bg-[#1c1e21] p-2">
-          <IoMdNotificationsOutline size={25} color="white" />
-          <span className="block px-4 py-2 font-medium text-white">
-            Notifications
-          </span>
-        </span> */}
 
-        <span
-          onClick={() => setOpenSettings(true)}
-          className="flex items-center hover:bg-[#1c1e21] p-2 cursor-pointer"
+        {/* Primary action */}
+        <button
+          type="button"
+          onClick={() => navigate('/add-post')}
+          className="btn-gradient flex items-center justify-center gap-2 rounded-[14px] py-3.5 text-sm font-bold text-white"
         >
-          <IoIosMore size={25} color="white" />
-          <span className="block px-4 py-2 font-medium text-white">
-            More
-          </span>
-        </span>
-        
-        <span
-          onClick={() => { handleEditClick(); closeSettings(); }}
-          className="flex items-center hover:bg-[#1c1e21] p-2">
-          <UserProfile allowUpload={false} />
-        </span>
+          <Plus size={18} aria-hidden="true" /> Create Post
+        </button>
 
-        <span className="flex items-center justify-center flex-col text-gray-400 text-xs mt-8 px-4 pb-4">
-          Welcome to FindOut! Explore various <a href="#" className="text-blue-500 hover:underline">study groups</a> and resources tailored to your learning needs.
-          Join our vibrant community of learners to share knowledge, ask questions, and grow together.
-          <a href="#" className="text-blue-500 hover:underline">Connect with fellow learners</a> and enhance your academic journey today!
-        </span>
+        {/* Primary navigation */}
+        <nav className="card-glass flex flex-col gap-0.5 p-2" aria-label="Main">
+          {/* Search opens a modal rather than navigating, so it is a button. */}
+          <button
+            type="button"
+            onClick={() => setShowSearch(true)}
+            className={`${rowBase} text-content-secondary hover:bg-surface-hover hover:text-content-primary`}
+          >
+            <FiSearch size={20} className="shrink-0" aria-hidden="true" />
+            Search
+          </button>
+
+          {NAV_ITEMS.map(({ to, label, Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `${rowBase} ${
+                  isActive
+                    ? 'nav-active'
+                    : 'text-content-secondary hover:bg-surface-hover hover:text-content-primary'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon size={20} className="shrink-0" aria-hidden="true" />
+                  {label}
+                  {isActive && (
+                    <span
+                      className="ml-auto h-1.5 w-1.5 rounded-full bg-primary-500"
+                      aria-hidden="true"
+                    />
+                  )}
+                </>
+              )}
+            </NavLink>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => setOpenSettings(true)}
+            className={`${rowBase} text-content-secondary hover:bg-surface-hover hover:text-content-primary`}
+          >
+            <IoIosMore size={20} className="shrink-0" aria-hidden="true" />
+            More
+          </button>
+        </nav>
+
+        {/* Account — pushed to the bottom */}
+        <div className="card-glass mt-auto p-2">
+          <button
+            type="button"
+            onClick={handleEditClick}
+            className={`${rowBase} text-content-secondary hover:bg-surface-hover hover:text-content-primary`}
+          >
+            <UserProfile allowUpload={false} />
+            <span className="truncate">My profile</span>
+          </button>
+        </div>
       </aside>
 
-      {/* Global Search Modal */}
       <GlobalSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
+    </>
+  );
+};
 
-    </div>
-  )
-}
-
-export default DashSidebar
+export default DashSidebar;

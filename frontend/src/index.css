@@ -2,17 +2,215 @@
 @tailwind components;
 @tailwind utilities;
 
-@keyframes slide-in {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
+/* ============================================================================
+   FindOut — Design Tokens
+   ----------------------------------------------------------------------------
+   Enterprise dark theme. Three principles:
+     1. ONE accent colour (indigo-blue). Colour signals meaning, not decoration.
+     2. A cool neutral ramp with real elevation steps, so depth comes from
+        surface lightness rather than from gradients and heavy shadows.
+     3. Text contrast meets WCAG AA (4.5:1) against its own surface.
+
+   Values are space-separated RGB channels so Tailwind opacity modifiers work:
+   `bg-surface-raised/60` compiles to rgb(var(--surface-raised) / 0.6).
+   ========================================================================== */
+
+:root {
+  /* --- Neutral surfaces (elevation ladder, darkest → lightest) ------------
+     A violet-tinted neutral rather than pure grey. The slight hue shared with
+     the accent is what makes a dark UI feel composed instead of washed out.
+     Steps are wide enough to separate layers without needing borders. */
+  --surface-sunken:   7   7  11;   /* #07070B  page well, modal scrim      */
+  --surface-base:    12  12  18;   /* #0C0C12  page background             */
+  --surface-raised:  22  22  31;   /* #16161F  cards, panels               */
+  --surface-overlay: 31  31  43;   /* #1F1F2B  modals, popovers            */
+  --surface-input:   16  16  23;   /* #101017  form controls               */
+  --surface-hover:   38  38  52;   /* #262634  hover state                 */
+
+  /* --- Borders ------------------------------------------------------------
+     Used sparingly. Depth comes from surface lightness; a border is for
+     genuine separation, not decoration. */
+  --edge-subtle:   30  30  41;     /* barely-there divider                 */
+  --edge-default:  48  48  64;     /* standard component border            */
+  --edge-strong:   72  72  94;     /* emphasis, focus-adjacent             */
+
+  /* --- Content (text and icons) ------------------------------------------ */
+  --content-primary:   244 244 250;
+  --content-secondary: 176 176 196;
+  --content-muted:     130 130 152;
+  --content-inverse:    12  12  18;
+
+  /* --- Brand accent — indigo through violet ------------------------------ */
+  --primary-300: 165 168 253;
+  --primary-400: 129 132 250;
+  --primary-500:  99 102 241;      /* #6366F1  indigo, the brand colour    */
+  --primary-600:  79  70 229;
+  --primary-700:  67  56 202;
+
+  /* Secondary accent, used only for gradient partners and highlights. */
+  --accent-400:  167 139 250;      /* #A78BFA  violet                      */
+  --accent-500:  139  92 246;      /* #8B5CF6                              */
+
+  /* --- Semantic status --------------------------------------------------- */
+  --success-400:  52 211 153;      /* emerald — "Ready To Teach"           */
+  --success-500:  16 185 129;
+  --warning-400: 251 191  36;      /* amber — "Later"                      */
+  --warning-500: 245 158  11;
+  --danger-400:  251 113 133;      /* rose — destructive                   */
+  --danger-500:  244  63  94;
+
+  /* --- Focus ring -------------------------------------------------------- */
+  --ring: 129 132 250;
+}
+
+/* ============================================================================
+   Base layer
+   ========================================================================== */
+
+@layer base {
+  body {
+    background-color: rgb(var(--surface-base));
+    color: rgb(var(--content-secondary));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-  to {
-    opacity: 1;
-    transform: translateX(0);
+
+  h1, h2, h3, h4, h5, h6 {
+    color: rgb(var(--content-primary));
+  }
+
+  /* One consistent focus ring across the whole application. Shown only for
+     keyboard users, so pointer interaction stays visually clean. */
+  :focus-visible {
+    outline: 2px solid rgb(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Native select options inherit the OS theme unless set explicitly. */
+  select option {
+    background-color: rgb(var(--surface-overlay));
+    color: rgb(var(--content-primary));
   }
 }
 
-.animate-slide-in {
-  animation: slide-in 0.3s ease-out;
+/* ============================================================================
+   Component utilities
+   ========================================================================== */
+
+/* ----------------------------------------------------------------------------
+   Shared surface language.
+
+   These mirror the styles already proven on the Feed page so every screen
+   reads as one product. Defined once here instead of being retyped as inline
+   styles per component.
+   -------------------------------------------------------------------------- */
+@layer components {
+
+  /* Glass card — a translucent white wash over the page rather than a solid
+     fill. Reads as a lifted pane without a heavy outline. */
+  .card-glass {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 16px;
+  }
+  .card-glass-hover {
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .card-glass-hover:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.10);
+  }
+
+  /* Accent tile — used for metrics, where the indigo tint groups the numbers
+     into a single visual family. */
+  .tile-accent {
+    background: rgba(99, 102, 241, 0.06);
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    border-radius: 12px;
+  }
+
+  /* Primary call to action. The glow is what makes it read as the one action
+     on the screen that matters. */
+  .btn-gradient {
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.40);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-gradient:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.50);
+  }
+  .btn-gradient:active {
+    transform: translateY(0);
+  }
+
+  /* Brand wordmark gradient */
+  .text-gradient-brand {
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Selected navigation row */
+  .nav-active {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+  }
+
+  /* Thin, unobtrusive scrollbar for dark panels */
+  .scrollbar-slim {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--edge-strong)) transparent;
+  }
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--edge-default));
+    border-radius: 9999px;
+  }
+  .scrollbar-slim::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--edge-strong));
+  }
+}
+
+/* ============================================================================
+   Motion
+   Animations are short and subtle. Anything longer than ~250ms on a UI
+   transition reads as sluggish rather than polished.
+   ========================================================================== */
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+.animate-slide-in  { animation: slide-in  0.28s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-fade-in   { animation: fade-in   0.16s ease-out; }
+.animate-dialog-in { animation: dialog-in 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* Respect users who have asked the OS to reduce motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

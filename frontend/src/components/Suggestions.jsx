@@ -114,41 +114,86 @@ const Suggestions = () => {
   };
 
   if (loading) {
-    return <span className="ml-28"><BeatLoader color="white" size={10} /></span>;
+    /* Skeleton rows rather than a spinner: the layout does not jump when the
+       real content arrives. */
+    return (
+      <div className="space-y-3" aria-busy="true" aria-label="Loading suggestions">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex animate-pulse items-center gap-3">
+            <div className="h-9 w-9 shrink-0 rounded-full bg-surface-hover" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-2.5 w-24 rounded bg-surface-hover" />
+              <div className="h-2 w-16 rounded bg-surface-hover/60" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   }
 
+  const hasSuggestions = suggestedUsers.length > 0 || suggestedGroups.length > 0;
+
+  if (!hasSuggestions) {
+    return (
+      <p className="py-6 text-center text-xs text-content-muted">
+        No suggestions yet. Add subjects to your profile to get matched.
+      </p>
+    );
+  }
+
+  /* Availability drives the accent colour, so the same meaning is signalled
+     identically here and in the profile panel. */
+  const statusTone = (status) =>
+    status === "Ready To Teach"
+      ? "text-success-400"
+      : status === "Ready To Learn"
+      ? "text-primary-400"
+      : "text-content-muted";
+
   return (
-    <div className="p-2 w-full bg-black">
+    <div className="space-y-1">
 
       {/* ─── USERS ─── */}
       {suggestedUsers.map((user) => (
-        <div key={user._id} className="flex items-center justify-between p-1">
-          <div className="flex items-center gap-2">
-            {user.profilePicture ? (
-              <img
-                src={`${import.meta.env.VITE_BACKEND_URL}${user.profilePicture}`}
-                alt={user.name}
-                className="w-10 h-10 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
-                <RxAvatar size={20} />
-              </div>
-            )}
-            <span className="flex flex-col">
-              <span className="font-semibold text-white truncate block w-32">
-                {user.name}
-              </span>
-              <span className="block text-gray-500 text-sm">{user.status}</span>
+        <div
+          key={user._id}
+          className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-hover"
+        >
+          {user.profilePicture ? (
+            <img
+              src={`${import.meta.env.VITE_BACKEND_URL}${user.profilePicture}`}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-hover text-content-muted">
+              <RxAvatar size={18} />
+            </div>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium text-content-primary">
+              {user.name}
+            </span>
+            <span className={`block truncate text-xs ${statusTone(user.status)}`}>
+              {user.status}
             </span>
           </div>
+
           <button
             onClick={() => handleConnectPrivateChat(user._id)}
-            className="text-blue-500 text-sm hover:text-blue-400 transition">
+            className="shrink-0 cursor-pointer rounded-lg bg-primary-500/15 px-2.5 py-1.5 text-xs font-semibold text-primary-300 ring-1 ring-inset ring-primary-500/30 transition-all hover:bg-primary-500/25 hover:ring-primary-500/50 active:scale-95"
+          >
             Connect
           </button>
         </div>
       ))}
+
+      {suggestedUsers.length > 0 && suggestedGroups.length > 0 && (
+        <p className="px-2 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-content-muted">
+          Groups
+        </p>
+      )}
 
       {/* ─── GROUPS ─── */}
       {suggestedGroups.map((group) => {
@@ -168,48 +213,56 @@ const Suggestions = () => {
         };
 
         return (
-          <div key={groupId} className="flex items-center justify-between p-1">
-            <div className="flex items-center gap-2">
-              {group.groupProfile ? (
-                <img
-                  src={
-                    group.groupProfile.startsWith('/uploads/')
-                      ? `${import.meta.env.VITE_BACKEND_URL}${group.groupProfile}`
-                      : `${import.meta.env.VITE_BACKEND_URL}/uploads/${group.groupProfile}`
-                  }
-                  alt={group.groupName}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
-                  <RxAvatar size={20} />
-                </div>
-              )}
+          <div
+            key={groupId}
+            className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-hover"
+          >
+            {group.groupProfile ? (
+              <img
+                src={
+                  group.groupProfile.startsWith('/uploads/')
+                    ? `${import.meta.env.VITE_BACKEND_URL}${group.groupProfile}`
+                    : `${import.meta.env.VITE_BACKEND_URL}/uploads/${group.groupProfile}`
+                }
+                alt=""
+                className="h-9 w-9 shrink-0 rounded-lg object-cover"
+              />
+            ) : (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-hover text-content-muted">
+                <RxAvatar size={18} />
+              </div>
+            )}
 
-              <span className="flex flex-col">
-                <span className="font-semibold text-white truncate block w-28">
-                  {group.groupName}
-                  {group.isPrivate && (
-                    <MdLock size={12} className="text-gray-400 inline ml-1" />
-                  )}
-                </span>
-                <span className="block text-gray-500 text-xs">
-                  {group.members?.length || 0} members •{' '}
-                  {group.isPrivate ? 'Private' : 'Public'}
-                </span>
+            <div className="min-w-0 flex-1">
+              <span className="flex items-center gap-1 truncate text-sm font-medium text-content-primary">
+                <span className="truncate">{group.groupName}</span>
+                {group.isPrivate && (
+                  <MdLock size={11} className="shrink-0 text-content-muted" aria-label="Private" />
+                )}
+              </span>
+              <span className="block truncate text-xs text-content-muted">
+                {group.members?.length || 0} members ·{' '}
+                {group.isPrivate ? 'Private' : 'Public'}
               </span>
             </div>
 
             {isRequested ? (
-              <span className="text-gray-500 text-xs">Requested</span>
+              /* Not a control — a pending state. Styled flat and unclickable so
+                 it is not mistaken for an action. */
+              <span className="shrink-0 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs font-medium text-content-muted">
+                Pending
+              </span>
             ) : (
               <button
                 onClick={() => handleJoinGroup(group)}
                 disabled={isJoining}
-                className={`text-sm transition disabled:opacity-50 ${isAlreadyMember
-                  ? 'text-green-500 hover:text-green-400'
-                  : 'text-blue-500 hover:text-blue-400'
-                  }`}>
+                className={`shrink-0 cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold ring-1 ring-inset transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
+                  isAlreadyMember
+                    ? 'bg-success-500/15 text-success-400 ring-success-500/30 hover:bg-success-500/25 hover:ring-success-500/50'
+                    : group.isPrivate
+                    ? 'bg-warning-500/15 text-warning-400 ring-warning-500/30 hover:bg-warning-500/25 hover:ring-warning-500/50'
+                    : 'bg-primary-500/15 text-primary-300 ring-primary-500/30 hover:bg-primary-500/25 hover:ring-primary-500/50'
+                }`}>
                 {getButtonLabel()}
               </button>
             )}

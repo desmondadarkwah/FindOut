@@ -404,11 +404,35 @@ const AllPost = () => {
 
                 {/* Image */}
                 <div style={{ position:'relative', overflow:'hidden' }}>
+                  {/* `post.image` is stored root-relative ("/uploads/posts/x.jpg"),
+                      so the base URL is joined without an extra slash — the
+                      previous `${base}/${post.image}` produced a doubled slash
+                      that Express static returns 404 for. The host also comes
+                      from the environment now rather than being hardcoded, so
+                      images resolve outside local development. */}
                   <img
-                    src={`http://localhost:5000/${post.image}`}
-                    alt="Post content"
+                    src={`${import.meta.env.VITE_BACKEND_URL}${post.image}`}
+                    alt={post.caption ? `Post: ${post.caption.slice(0, 60)}` : 'Post content'}
                     style={{ width:'100%', height:340, objectFit:'cover', display:'block' }}
-                    onError={(e) => { e.target.src = 'https://via.placeholder.com/600x400?text=Image+Not+Found'; }}
+                    onError={(e) => {
+                      /* Fall back to an inline placeholder rather than an
+                         external service, which needs network access and fails
+                         silently to a blank area when unavailable. */
+                      e.target.onerror = null;
+                      e.target.style.objectFit = 'contain';
+                      e.target.style.background = 'rgba(255,255,255,0.03)';
+                      e.target.src =
+                        "data:image/svg+xml;charset=UTF-8," +
+                        encodeURIComponent(
+                          `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="340">
+                             <rect width="100%" height="100%" fill="#16161f"/>
+                             <text x="50%" y="50%" fill="#828298" font-family="system-ui,sans-serif"
+                                   font-size="14" text-anchor="middle" dominant-baseline="middle">
+                               Image unavailable
+                             </text>
+                           </svg>`
+                        );
+                    }}
                   />
                   <div style={{
                     position:'absolute', bottom:0, left:0, right:0, height:60,

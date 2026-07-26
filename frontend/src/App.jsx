@@ -1,5 +1,6 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { getAccessToken } from './utils/tokenService';
 import RegisterUser from './Pages/RegisterUser';
 import LoginUser from './Pages/LoginUser';
 import VerifyEmail from './Pages/VerifyEmail';
@@ -26,7 +27,15 @@ function App() {
     <>
       {/* <Router> */}
       <Routes>
-        {/* <Route path="/" element={<Navigate to="/register" replace />} /> Redirect base path */}
+        {/* Root. Send signed-in users to their dashboard and everyone else to
+            login, rather than rendering nothing. `replace` keeps the empty root
+            out of history, so Back does not land the user here again. */}
+        <Route
+          path="/"
+          element={
+            <Navigate to={getAccessToken() ? '/dashboard' : '/login'} replace />
+          }
+        />
         <Route path="register" element={<RegisterUser />} />
         <Route path="login" element={<LoginUser />} />
         <Route path="verify-email" element={<VerifyEmail />} />
@@ -48,6 +57,30 @@ function App() {
         <Route path="/verification" element={<VerificationDashboard />} />
         <Route path="/take-quiz/:subject" element={<TakeQuiz />} />
 
+        {/* Catch-all. Without this, any unknown URL renders a blank page and
+            logs "No routes matched location" with no feedback to the user. */}
+        <Route
+          path="*"
+          element={
+            <div className="flex min-h-screen flex-col items-center justify-center bg-surface-base px-6 text-center">
+              <p className="text-sm font-medium uppercase tracking-wide text-content-muted">
+                404
+              </p>
+              <h1 className="mt-2 text-xl font-semibold text-content-primary">
+                Page not found
+              </h1>
+              <p className="mt-1 text-sm text-content-muted">
+                That link does not lead anywhere.
+              </p>
+              <a
+                href={getAccessToken() ? '/dashboard' : '/login'}
+                className="mt-6 rounded-lg bg-gradient-to-r from-primary-500 to-accent-500 px-4 py-2.5 text-sm font-semibold text-white shadow-elev-2 transition-opacity hover:opacity-90"
+              >
+                {getAccessToken() ? 'Back to dashboard' : 'Go to login'}
+              </a>
+            </div>
+          }
+        />
       </Routes>
       {/* </Router> */}
     </>
