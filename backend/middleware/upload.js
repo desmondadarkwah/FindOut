@@ -1,8 +1,16 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
 // Define the path where uploaded files will be stored
 const uploadPath = path.join(__dirname, '..', 'uploads');
+
+// multer does not create the destination folder. `uploads/` is git-ignored, so
+// it is absent on any fresh clone — and a missing destination makes every
+// upload fail with ENOENT before the controller ever runs.
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath, { recursive: true });
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {

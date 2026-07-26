@@ -41,7 +41,7 @@ const AddPost = async (req, res) => {
       
       const newPost = new PostModel({
         author: userId,
-        image: req.file.path.replace(/\\/g, '/'), 
+        image: `/uploads/posts/${req.file.filename}`,
         caption: caption?.trim() || '',
         postType: postType || 'general',
         subject: subject || 'General',
@@ -94,6 +94,10 @@ const GetAllPost = async (req, res) => {
       .populate('author', 'name profilePicture subjects status reputation isVerified')
       .populate({
         path: 'comments.user',
+        select: 'name profilePicture'
+      })
+      .populate({
+        path: 'comments.replies.user',
         select: 'name profilePicture'
       })
       .sort({ createdAt: -1 })

@@ -1,9 +1,16 @@
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 const { MessageModel } = require("../models/MessageModel");
 
 const uploadPath = path.join(__dirname, "..", "audios");
+
+// Created up front for the same reason as uploads/ — multer will not
+// create it, and it is git-ignored so it is missing on a fresh clone.
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath, { recursive: true });
+}
 
 const storage = multer.diskStorage({
   destination(req, file, cb) {

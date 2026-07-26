@@ -4,7 +4,9 @@ const fs = require('fs');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = 'uploads/posts/';
+    // Absolute, so uploads land in the same folder server.js serves
+    // regardless of the working directory the process was started from.
+    const uploadPath = path.join(__dirname, '..', 'uploads', 'posts');
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }

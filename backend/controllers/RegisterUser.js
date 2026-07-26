@@ -7,7 +7,10 @@ const RegisterUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    const profilePicture = req.file ? req.file.path : null;
+    // multer's `file.path` is a filesystem path, not a URL. The client builds
+    // image URLs as `${BACKEND_URL}${storedValue}`, so store a root-relative
+    // path that matches the static mount in server.js.
+    const profilePicture = req.file ? `/uploads/${req.file.filename}` : null;
 
     const existingUserMail = await UserModel.findOne({ email });
 
