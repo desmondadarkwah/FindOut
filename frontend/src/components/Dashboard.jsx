@@ -158,7 +158,7 @@ const Dashboard = () => {
         <DashSidebar />
 
         {/* Main Content Section */}
-        <main className="mb-5 ml-0 flex-1 p-4 sm:mb-0 md:ml-60 md:p-8">
+        <main className="pb-mobile-nav ml-0 flex-1 p-4 md:ml-60 md:p-8">
           {/* Welcome Section */}
           <section className="card-glass mb-4 p-5">
             <div className="flex items-center gap-4">

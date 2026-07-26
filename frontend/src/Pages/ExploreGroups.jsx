@@ -268,7 +268,7 @@ const ExploreGroups = () => {
         {/* ── MOBILE ── */}
         <div className="lg:hidden">
           <MobileViewBar />
-          <div style={{ maxWidth: 520, margin: '0 auto', padding: '80px 16px 100px' }}>
+          <div style={{ maxWidth: 520, margin: '0 auto', padding: `80px 16px calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px) + 1rem)` }}>
             <div style={{ marginBottom: 24 }}>
               <h1 style={{
                 fontSize: 26, fontWeight: 800, margin: '0 0 4px',

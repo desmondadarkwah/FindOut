@@ -61,6 +61,12 @@
 
   /* --- Focus ring -------------------------------------------------------- */
   --ring: 129 132 250;
+
+  /* Height of the fixed mobile bottom navigation, declared once so page
+     content and the bar itself cannot disagree about it.
+     22px icon + 4px gap + 16px label + 16px button padding + 24px row
+     padding + 1px border ≈ 83px. */
+  --mobile-nav-h: 5.25rem;
 }
 
 /* ============================================================================
@@ -156,6 +162,25 @@
   .nav-active {
     background: rgba(99, 102, 241, 0.15);
     color: #818cf8;
+  }
+
+  /* Clearance for the fixed mobile bottom navigation.
+
+     Without this the bar sits on top of the last item on every page. The
+     previous `mb-5 sm:mb-0` was wrong twice over: 20px is far short of the
+     bar's height, and it was cleared at the `sm` breakpoint (640px) while the
+     bar stays visible until `md` (768px) — so between those widths there was
+     no clearance at all.
+
+     `env(safe-area-inset-bottom)` adds room for the iOS home indicator on
+     notched devices, and resolves to 0 everywhere else. */
+  .pb-mobile-nav {
+    padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
+  }
+  @media (min-width: 768px) {
+    .pb-mobile-nav {
+      padding-bottom: 0;
+    }
   }
 
   /* Thin, unobtrusive scrollbar for dark panels */

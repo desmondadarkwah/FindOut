@@ -23,7 +23,10 @@ const MobileViewIcons = () => {
     <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-black via-gray-900 to-gray-800/50 backdrop-blur-lg border-t border-gray-700/50 md:hidden">
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
 
-      <div className="flex justify-around items-center px-2 py-3">
+      <div
+        className="flex justify-around items-center px-2 py-3"
+        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+      >
         <button
           onClick={() => navigate('/dashboard')}
           className="group flex flex-col items-center space-y-1 p-2 rounded-xl transition-all duration-200 hover:bg-white/5 active:scale-95">
