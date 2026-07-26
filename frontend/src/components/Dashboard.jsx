@@ -13,7 +13,7 @@ import ManageUser from "./ManageUser";
 import { SettingsContext } from "../Context/SettingsContext";
 import MobileViewSuggest from "./MobileViewSuggest";
 import axiosInstance from "../utils/axiosInstance";
-import { FetchAllGroupsContext } from "../Context/fetchAllGroupsContext";
+import { FetchAllGroupsContext } from "../Context/FetchAllGroupsContext";
 import { useDelete } from "../Context/DeleteGroupContext";
 import { ChatContext } from "../Context/ChatContext";
 import { RxAvatar } from "react-icons/rx";

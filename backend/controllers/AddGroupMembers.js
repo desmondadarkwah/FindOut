@@ -1,5 +1,5 @@
 const GroupModel = require('../models/GroupModel');
-const { getIo } = require('../socket/socket');
+const { getIo } = require('../socket/Socket');
 
 const AddGroupMembers = async (req, res) => {
   try {
