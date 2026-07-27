@@ -17,7 +17,7 @@
 > above each. If your department discourages code in the report body, move §4.6 extracts to an
 > appendix and keep the prose.
 >
-> §4.10 lists 25 known defects. Read it before your demonstration.
+> §4.10 lists 27 known defects. Read it before your demonstration.
 
 ---
 
@@ -559,13 +559,13 @@ system as using AI-generated assessment.
 
 **Figure 4.16.** *Verification status for each declared subject.*
 
-> **[SCREENSHOT 4.17]** — A quiz in progress, showing a question with its four options.
->
-> *Caption: **Figure 4.17.** A competency quiz in progress.*
+![Figure 4.17](images/fig-4.17-quiz-in-progress.png)
 
-> **[SCREENSHOT 4.18]** — The result screen showing the score, pass or fail, and per-question feedback.
->
-> *Caption: **Figure 4.18.** Quiz result and awarded badge.*
+**Figure 4.17.** *A competency quiz in progress. The question shown also illustrates defect D-06: it assesses pedagogical approach rather than knowledge of Calculus, because the templates are subject-independent.*
+
+![Figure 4.18](images/fig-4.18-quiz-result.png)
+
+**Figure 4.18.** *Quiz result, showing score, percentage, elapsed time and the option to review answers.*
 
 ### 4.6.5 Real-time messaging
 
@@ -645,9 +645,9 @@ await group.save();
 
 **Figure 4.21.** *Group discovery. Public groups offer Join and private groups offer Request; secret groups do not appear at all.*
 
-> **[SCREENSHOT 4.22]** — The group administrator’s view of a pending join request.
->
-> *Caption: **Figure 4.22.** A pending join request awaiting approval.*
+![Figure 4.22](images/fig-4.22-pending-join-request.png)
+
+**Figure 4.22.** *A pending join request awaiting the group administrator’s decision.*
 
 ### 4.6.7 Learning resource feed
 
@@ -661,9 +661,9 @@ field, the API route and the interface label were all renamed together.
 
 **Figure 4.23.** *The learning resource feed, showing subject tags, type badges and helpful counts.*
 
-> **[SCREENSHOT 4.24]** — A post with its comment thread open, showing a threaded reply.
->
-> *Caption: **Figure 4.24.** Threaded discussion on a post.*
+![Figure 4.24](images/fig-4.24-post-comments.png)
+
+**Figure 4.24.** *A post with its comment thread open, showing a threaded reply.*
 
 ![Figure 4.25](images/fig-4.25-create-post.png)
 
@@ -699,11 +699,13 @@ const topSubjects = await PostModel.aggregate([
 The teach-versus-learn split is the measure with institutional value: it shows which subjects
 generate demand for help that supply is not meeting.
 
-> **[SCREENSHOT 4.26]** — The admin dashboard showing platform statistics.
-> *Caption: **Figure 4.26.** Administrator dashboard.*
+![Figure 4.26](images/fig-4.26-admin-dashboard.png)
 
-> **[SCREENSHOT 4.27]** — The admin user management page.
-> *Caption: **Figure 4.27.** User management and moderation.*
+**Figure 4.26.** *The administrator dashboard, showing platform totals, the teach-versus-learn split, popular subjects and top contributors. Email addresses must be redacted before submission.*
+
+![Figure 4.27](images/fig-4.27-admin-users.png)
+
+**Figure 4.27.** *Administrator user management. Email addresses must be redacted before submission.*
 
 ---
 
@@ -993,6 +995,8 @@ demonstrates more engineering judgement than one that claims none.
 | **D-22** | High | `POST /api/messages` takes `senderId` from the request body rather than the token. | Any authenticated user can send a message appearing to come from someone else. | Use `req.authenticatedUser.id`. |
 | **D-25** | **High** | `DeleteGroup` performs no authorisation check. The controller contains no reference to `groupAdmin` and no comparison against `req.authenticatedUser`. | Any authenticated user can delete any group and its entire message history. Found by functional testing (TC-GRP-05); see Chapter 5 §5.6.1. | Load the group, compare `groupAdmin` to the caller, return 403 when they differ. |
 | **D-26** | **High** | `GetMessages` queries `MessageModel.find({ chatId })` with no check that the caller participates in that conversation. | Any authenticated user can read any private conversation given its identifier — an insecure direct object reference. Found by functional testing (TC-SEC-04); see Chapter 5 §5.6.2. | Confirm the caller appears in the chat's `participants` or the group's `members`. |
+| **D-28** | **High** | The administrator session does not survive a page refresh. `admin` in context is populated only by an in-session login; nothing rehydrates it from the stored token. The dashboard's stats effect is gated on `admin`, and `statsLoading` is initialised `true`, so on a reload it never clears. | The administrator area shows a permanent loading spinner after any refresh or direct navigation, despite a valid token and a successful `/dashboard/stats` response. | Call `checkAuth()` on mount when a token is present, or derive `admin` from the token. |
+| **D-29** | Medium | `StartQuiz` creates the verification record with check-then-act: `findOne`, then `save` if absent. Two concurrent requests both pass the check and the second violates the unique index on `{userId, subject}`. | React StrictMode issues the request twice in development, so the first returns 500 and the client shows "Failed to start quiz" and navigates away, even though the second succeeded. A double-click can reproduce it in production. | Use `findOneAndUpdate` with `upsert: true`, which is atomic. |
 | **D-27** | Low | Multer's rejection of an oversized or wrong-type upload is unhandled, so the server answers 500 rather than 400. | The file is correctly refused, so the security property holds, but a client cannot distinguish "your file was rejected" from "the server failed". | Add error-handling middleware that maps multer errors to 400. |
 | **D-03** | High | Tokens are stored in `localStorage`. | Any injected script can read them, so an XSS flaw becomes full account compromise. | Use `httpOnly`, `Secure`, `SameSite` cookies. |
 | **D-04** | High | No rate limiting. `GET /getallposts` and `POST /messages/audio` have no auth middleware. | Unthrottled password guessing; unauthenticated file upload. | Add `express-rate-limit`; apply auth to both routes. |
@@ -1061,17 +1065,17 @@ Add `--admin-email` and `--admin-password` to include Figures 4.26 and 4.27. Fil
 | **4.14** | **Dashboard with ranked suggestions — most important** | §4.6.3 | ✅ |
 | 4.15 | Suggestion card with a verification badge | §4.6.3 | ✅ |
 | 4.16 | Verification dashboard | §4.6.4 | ✅ |
-| 4.17 | Quiz in progress | §4.6.4 | ☐ |
-| 4.18 | Quiz result | §4.6.4 | ☐ |
+| 4.17 | Quiz in progress | §4.6.4 | ✅ |
+| 4.18 | Quiz result | §4.6.4 | ✅ |
 | 4.19 | Two accounts messaging side by side | §4.6.5 | ✅ |
 | 4.20 | Create group with privacy options | §4.6.6 | ✅ |
 | 4.21 | Explore Groups | §4.6.6 | ✅ |
-| 4.22 | Pending join request (admin view) | §4.6.6 | ☐ |
+| 4.22 | Pending join request (admin view) | §4.6.6 | ✅ |
 | 4.23 | Feed with posts | §4.6.7 | ✅ |
-| 4.24 | Post with comment thread | §4.6.7 | ☐ |
+| 4.24 | Post with comment thread | §4.6.7 | ✅ |
 | 4.25 | Create post form | §4.6.7 | ✅ |
-| 4.26 | Admin dashboard statistics | §4.6.8 | ☐ |
-| 4.27 | Admin user management | §4.6.8 | ☐ |
+| 4.26 | Admin dashboard statistics | §4.6.8 | ✅ |
+| 4.27 | Admin user management | §4.6.8 | ✅ |
 | 4.28 | Dashboard on mobile | §4.7.4 | ✅ |
 | 4.29 | Chat on mobile | §4.7.4 | ✅ |
 
@@ -1109,9 +1113,10 @@ with four independent causes, and an inconsistency in how authorisation is
 applied that only became visible when the API was exercised by an executable
 test suite.
 
-Twenty-five defects were catalogued. Three were found by testing rather than by
-inspection: the matcher's normalisation collapse (D-24) and the two authorisation
-failures (D-25, D-26). These are stated rather than concealed, and are revisited
+Twenty-seven defects were catalogued. Five were found by exercising the system rather than
+by reading it: the matcher's normalisation collapse (D-24), the two authorisation
+failures (D-25, D-26), the administrator session that does not survive a refresh
+(D-28), and a race in quiz creation (D-29). These are stated rather than concealed, and are revisited
 in the discussion.
 
 Chapter 5 presents the testing carried out, the evaluation results, and a discussion of what they
