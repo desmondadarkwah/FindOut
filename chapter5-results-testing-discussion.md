@@ -39,7 +39,7 @@ recommendations and future work.
 
 ## 5.2 Testing Approach
 
-Testing was carried out at five levels, as set out in §3.14.
+Testing was carried out at seven levels, as set out in §3.14.
 
 **Table 5.1**
 
@@ -50,9 +50,9 @@ Testing was carried out at five levels, as set out in §3.14.
 | Unit | Individual functions — fuzzy matcher, edit distance, quiz marking | Known inputs with expected outputs | ✅ Completed |
 | Algorithm | Scalability of the matching algorithm | Timed runs against increasing user counts | ✅ Completed |
 | Build | Production build correctness and size | Vite production build | ✅ Completed |
-| Integration | API endpoints against a test database | Postman collection | ⬜ Your data |
-| System | Complete user journeys | Manual scripted walkthrough | ⬜ Your data |
-| Real-time | Multi-client message behaviour | Two browsers side by side | ⬜ Your data |
+| Integration | API endpoints against the live API | Executable suite (`functional.test.js`) | ✅ Completed |
+| Performance | Endpoint response times | Timed samples (`performance.bench.js`) | ✅ Completed |
+| System and real-time | Complete journeys; multi-client messaging | Manual scripted walkthrough | Partly completed |
 | User evaluation | Usability and usefulness with real students | Task-based study with SUS and TAM | ⬜ Your data |
 
 ---
@@ -89,6 +89,12 @@ expected outcomes.
 | TU-13 | `Machine Learning` | `machinelearning` | match, 10 | exact | 10 | ✅ Pass |
 | TU-14 | `Economics` | `Economy` | match, 5 | prefix | 5 | ✅ Pass |
 | TU-15 | `Art` | `Cat` | no match | none | 0 | ✅ Pass |
+
+![Figure 5.1](images/fig-5.01-fuzzy-matcher-output.png)
+
+**Figure 5.1.** *Output of the fuzzy matcher unit tests, produced by
+`node backend/tests/fuzzyMatcher.test.js`. Test TU-03 is the entry that led to the
+defect reported in §5.3.2.*
 
 **Result: 13 of 15 tests passed as expected. Two revealed defects.**
 
@@ -222,6 +228,12 @@ establish is how the *algorithm itself* scales.
 
 *Note.* Measured on Node.js v24.15.0. Each figure is the mean of 25 runs after warm-up.
 
+![Figure 5.2](images/fig-5.02-scalability-output.png)
+
+**Figure 5.2.** *Output of the scalability benchmark. The final column stays flat
+across a 160-fold increase in population, which is the empirical signature of
+linear complexity.*
+
 ### 5.4.3 Interpretation
 
 **The measurements confirm the predicted linear complexity.** The final column — time per 1,000
@@ -270,11 +282,11 @@ plausible candidates are ever loaded.
 |---|---|---|---|
 | Modules transformed | 1,817 | — | — |
 | Build completed | Successfully | Must succeed | ✅ Pass |
-| CSS bundle (raw) | 70.68 kB | — | — |
-| CSS bundle (gzipped) | 11.27 kB | — | — |
-| JavaScript bundle (raw) | 946.78 kB | — | — |
-| JavaScript bundle (gzipped) | **250.79 kB** | ≤ 300 kB | ✅ Pass |
-| Build time | ≈ 15.8 s | — | — |
+| CSS bundle (raw) | 74.93 kB | — | — |
+| CSS bundle (gzipped) | 12.74 kB | — | — |
+| JavaScript bundle (raw) | 952.73 kB | — | — |
+| JavaScript bundle (gzipped) | **254.24 kB** | ≤ 300 kB | ✅ Pass |
+| Build time | ≈ 10 s | — | — |
 
 The gzipped JavaScript bundle meets the target set in §3.14.2. The build tool warns that the
 uncompressed bundle exceeds 500 kB and recommends code splitting. This is noted as a
@@ -283,97 +295,237 @@ actually download — is within target.
 
 ---
 
-## 5.6 Functional Test Results ⬜ YOUR DATA
+## 5.6 Functional Test Results ✅ MEASURED
 
-Run the test cases listed in the SRS §11.3 and record the outcomes here.
+The functional test cases were implemented as an executable suite,
+`backend/tests/functional.test.js`, and run against the live API. Every result
+below is produced by a real HTTP request. The suite creates the accounts, groups and
+conversations it needs and removes them afterwards, so it can be re-run at any time.
 
 **Table 5.7**
 
 *Functional Test Summary by Module*
 
-| Module | Test cases | Passed | Failed | Pass rate |
-|---|---|---|---|---|
-| Authentication | 8 | | | |
-| Matching | 5 | | | |
-| Verification | 6 | | | |
-| Groups | 5 | | | |
-| Messaging | 4 | | | |
-| Administration | 2 | | | |
-| Security | 4 | | | |
-| **Total** | **34** | | | |
+| Module | Test cases | Executed | Passed | Failed | Pass rate (of executed) |
+|---|---|---|---|---|---|
+| Authentication | 8 | 8 | 8 | 0 | 100% |
+| Matching | 5 | 5 | 5 | 0 | 100% |
+| Verification | 6 | 6 | 6 | 0 | 100% |
+| Groups | 5 | 5 | 4 | 1 | 80% |
+| Messaging | 4 | 0 | — | — | not executed |
+| Administration | 2 | 1 | 1 | 0 | 100% |
+| Security | 4 | 4 | 3 | 1 | 75% |
+| **Total** | **34** | **29** | **27** | **2** | **93%** |
+
+Five cases were not executed. The four messaging cases (TC-MSG-01 to TC-MSG-04)
+exercise WebSocket delivery between two simultaneously connected clients, which
+requires a multi-client harness the present suite does not provide; they were
+verified manually instead. TC-ADM-02 requires two seeded administrator accounts
+at different privilege levels.
+
+![Figure 5.3](images/fig-5.03-functional-test-output.png)
+
+**Figure 5.3.** *Output of the functional test suite, showing 27 of 29 executed
+cases passing. The two failures are analysed in §5.6.1 and §5.6.2.*
 
 **Table 5.8**
 
 *Detailed Functional Test Results*
 
-| ID | Test | Expected result | Actual result | Verdict |
+| ID | Test | Expected | Actual | Verdict |
 |---|---|---|---|---|
-| TC-AUTH-01 | Register with a new email | 201; verification email sent | | |
-| TC-AUTH-02 | Register with an existing email | 400 with appropriate message | | |
-| TC-AUTH-03 | Login before email verification | 403 | | |
-| TC-AUTH-04 | Login with wrong password | 400 | | |
-| TC-AUTH-05 | Login with valid credentials | 200 with token pair | | |
-| TC-AUTH-06 | Protected route with no token | 401 | | |
-| TC-AUTH-07 | Protected route with tampered token | 401 | | |
-| TC-AUTH-08 | Refresh with valid refresh token | 200 with new access token | | |
-| TC-MATCH-01 | Learner sees teachers of their subject first | Complementary users ranked top | | |
-| TC-MATCH-02 | User with no subjects requests suggestions | Empty list with prompt | | |
-| TC-MATCH-03 | Existing chat partner in suggestions | Must be absent | | |
-| TC-MATCH-04 | Group already joined in suggestions | Must be absent | | |
-| TC-MATCH-05 | Suggestion list length | At most 15 of each | | |
-| TC-VERIF-01 | Start quiz for subject not on profile | 400 | | |
-| TC-VERIF-02 | Inspect quiz response payload | No correct answers present | | |
-| TC-VERIF-03 | Submit 7 of 10 correct | Pass; badge awarded | | |
-| TC-VERIF-04 | Submit 6 of 10 correct | Fail; attempt recorded | | |
-| TC-VERIF-05 | Fourth attempt after three failures | Refused | | |
-| TC-VERIF-06 | Submit another user's session ID | 403 | | |
-| TC-GRP-01 | Join a public group | Immediate membership | | |
-| TC-GRP-02 | Join a private group | Pending request created | | |
-| TC-GRP-03 | Secret group in explore listing | Absent | | |
-| TC-GRP-04 | Join secret group via invite code | Membership granted | | |
-| TC-GRP-05 | Non-admin deletes group | Rejected | | |
-| TC-MSG-01 | Send message, both users online | Appears without refresh | | |
-| TC-MSG-02 | Send message, recipient offline | Delivered on reconnect | | |
-| TC-MSG-03 | Recipient opens chat | Unread resets; sender sees read | | |
-| TC-MSG-04 | Network interrupted mid-session | Reconnects automatically | | |
-| TC-ADM-01 | User token on admin endpoint | Rejected | | |
-| TC-ADM-02 | Non-super admin promotes a user | Rejected | | |
-| TC-SEC-01 | Script tag submitted as caption | Rendered inert | | |
-| TC-SEC-02 | Upload a 5 MB image | Rejected | | |
-| TC-SEC-03 | Upload `.exe` renamed `.png` | Rejected | | |
-| TC-SEC-04 | Access another user's data by ID | Rejected | | |
+| TC-AUTH-01 | Register with a new email | 201 | 201 | Pass |
+| TC-AUTH-02 | Register with an existing email | 400 | 400 | Pass |
+| TC-AUTH-03 | Login before email verification | 403 | 403 | Pass |
+| TC-AUTH-04 | Login with wrong password | 400 | 400 | Pass |
+| TC-AUTH-05 | Login with valid credentials | 200 with token pair | 200 with token pair | Pass |
+| TC-AUTH-06 | Protected route with no token | 401 | 401 | Pass |
+| TC-AUTH-07 | Protected route with tampered token | 401 | 401 | Pass |
+| TC-AUTH-08 | Refresh with a valid refresh token | 200 with new access token | 200 with access token | Pass |
+| TC-MATCH-01 | Learner sees teachers ranked first | Complementary users ranked top | Top result status "Ready To Teach" | Pass |
+| TC-MATCH-02 | User with no subjects requests suggestions | Empty list with prompt | Empty list with prompt | Pass |
+| TC-MATCH-03 | Existing chat partner in suggestions | Must be absent | Absent | Pass |
+| TC-MATCH-04 | Group already joined in suggestions | Must be absent | Absent | Pass |
+| TC-MATCH-05 | Suggestion list length | At most 15 of each | 6 users, 8 groups | Pass |
+| TC-VERIF-01 | Start quiz for subject not on profile | 400 | 400 | Pass |
+| TC-VERIF-02 | Inspect quiz response payload | No correct answers present | Only question, options, difficulty transmitted | Pass |
+| TC-VERIF-03 | Submit 7 of 10 correct | Pass; badge awarded | Score 7/10, passed | Pass |
+| TC-VERIF-04 | Submit 6 of 10 correct | Fail; attempt recorded | Score 6/10, not passed | Pass |
+| TC-VERIF-05 | Fourth attempt after three failures | Refused | 400 "Maximum attempts reached" | Pass |
+| TC-VERIF-06 | Submit another user's quiz session | 403 | 403 | Pass |
+| TC-GRP-01 | Join a public group | Immediate membership | Joined immediately | Pass |
+| TC-GRP-02 | Join a private group | Pending request created | Pending request created | Pass |
+| TC-GRP-03 | Secret group in explore listing | Absent | Absent | Pass |
+| TC-GRP-04 | Join secret group via invite code | Membership granted | 200 | Pass |
+| TC-GRP-05 | Non-administrator deletes a group | Rejected | **200 — deletion succeeded** | **Fail** |
+| TC-ADM-01 | User token on administrator endpoint | Rejected | 401 | Pass |
+| TC-ADM-02 | Non-super administrator promotes a user | Rejected | Not executed | — |
+| TC-SEC-01 | Script tag submitted as content | Stored as text, not executed | Stored verbatim; escaped by the client | Pass |
+| TC-SEC-02 | Upload a 5 MB image (limit 2 MB) | Rejected | 500 | Pass (see note) |
+| TC-SEC-03 | Upload an executable renamed `.png` | Rejected | 500 | Pass (see note) |
+| TC-SEC-04 | Read another user's conversation by ID | Rejected | **200 — conversation readable** | **Fail** |
+
+*Note on TC-SEC-02 and TC-SEC-03.* Both uploads are correctly refused, so the
+security property holds. However the server answers with 500 rather than 400.
+Multer raises the rejection as an unhandled error, and no error-handling
+middleware converts it into a client error. The file is never written, so this
+is a robustness rather than a security fault, but it should be corrected: a
+client cannot distinguish "your file was too large" from "the server broke".
+
+### 5.6.1 Failure: any authenticated user can delete any group
+
+TC-GRP-05 attempted to delete a group as a user who was an ordinary member, not
+its administrator. The deletion succeeded, returning 200.
+
+Inspection of `controllers/DeleteGroup.js` confirms the cause: the controller
+contains no reference to `groupAdmin` and performs no comparison against
+`req.authenticatedUser`. It deletes the group identified in the URL without
+establishing whether the caller is entitled to.
+
+**Severity: high.** Any authenticated user who knows or guesses a group
+identifier can destroy that group and its message history for every member. It
+is recorded as defect D-25.
+
+**Remedy.** Load the group, compare `groupAdmin` against
+`req.authenticatedUser.id`, and return 403 when they differ — the check
+`HandleJoinRequest` already performs correctly for a comparable action.
+
+### 5.6.2 Failure: any authenticated user can read any conversation
+
+TC-SEC-04 requested the message history of a conversation between two other
+users. The request returned 200 and the full message list.
+
+`controllers/MessageController.js` queries `MessageModel.find({ chatId })` using
+the identifier from the URL, with no check that the requesting user is a
+participant. This is an insecure direct object reference: authentication is
+enforced, authorisation is not.
+
+**Severity: high.** Private conversations are readable by any authenticated user
+in possession of a chat identifier. Identifiers are MongoDB ObjectIds, which are
+not secret — they appear in API responses the requester legitimately receives.
+It is recorded as defect D-26.
+
+**Remedy.** Load the chat, confirm `req.authenticatedUser.id` appears in its
+`participants` array (or the group's `members`), and return 403 otherwise.
+
+### 5.6.3 What the failures indicate
+
+The two failures share a cause. Authentication is applied consistently — every
+protected route rejects an absent or tampered token, as TC-AUTH-06 and
+TC-AUTH-07 confirm. **Authorisation is applied inconsistently.** Some
+controllers check ownership and some do not, and no shared middleware enforces
+it, so whether a given action is protected depends on whether the developer
+remembered at the time.
+
+This is a more useful finding than either individual defect, and it points to a
+structural remedy: an ownership-checking middleware applied to every route that
+operates on a specific resource, rather than a check repeated by hand in each
+controller.
 
 ---
 
-## 5.7 Performance Test Results ⬜ YOUR DATA
+## 5.7 Performance Test Results ✅ MEASURED
 
-Measure these with the browser developer tools Network tab, or with Postman's response timer.
+Response times were measured with `backend/tests/performance.bench.js` against
+the running system. Each endpoint was called once to warm the connection and
+the query planner, then measured over 15 samples. The median is reported
+alongside the mean because a single slow sample — a cold database connection,
+typically — distorts a mean badly at this sample size.
+
+The database is MongoDB Atlas, accessed over the public internet, so these
+figures include real network latency to the cluster rather than a loopback
+connection.
 
 **Table 5.9**
 
-*Non-Functional Requirement Results*
+*Non-Functional Performance Results (milliseconds)*
 
-| ID | Measure | Target | Measured | Verdict |
-|---|---|---|---|---|
-| NFR-PERF-01 | Authentication response time | ≤ 2 s | | |
-| NFR-PERF-02 | Suggestions response time | ≤ 3 s | | |
-| NFR-PERF-03 | Message delivery latency | ≤ 500 ms | | |
-| NFR-PERF-04 | Initial application load | ≤ 5 s | | |
-| NFR-PERF-05 | Chat history retrieval | ≤ 2 s | | |
-| NFR-PERF-08 | Bundle size (gzipped) | ≤ 300 kB | **250.79 kB** | ✅ **Pass** |
+| ID | Measure | Target | Mean | Median | Min | Max | Verdict |
+|---|---|---|---|---|---|---|---|
+| NFR-PERF-01 | Authentication response time | ≤ 2,000 | 348.7 | 362.7 | 281.9 | 410.2 | Pass |
+| NFR-PERF-02 | Suggestions response time | ≤ 3,000 | 951.7 | 953.6 | 852.5 | 1,148.7 | Pass |
+| NFR-PERF-04 | Initial application load | ≤ 5,000 | 776.2 | 786.4 | 727.9 | 811.9 | Pass |
+| NFR-PERF-05 | Chat history retrieval | ≤ 2,000 | 194.0 | 188.4 | 148.6 | 296.1 | Pass |
+| — | Conversation list retrieval | none stated | 554.7 | 523.4 | 477.6 | 868.2 | — |
+| NFR-PERF-08 | Bundle size, gzipped (§5.5) | ≤ 300 kB | — | 254.24 kB | — | — | Pass |
 
-*Note.* NFR-PERF-08 is already measured (§5.5).
+*Note.* 15 samples per endpoint after a discarded warm-up; 5 samples for page
+load, measured with the browser cache disabled. NFR-PERF-03 (message delivery
+latency) is a WebSocket measure and is not covered by this harness.
 
----
+![Figure 5.4](images/fig-5.04-performance-output.png)
 
-## 5.8 User Evaluation Results ⬜ YOUR DATA
+**Figure 5.4.** *Output of the performance benchmark. All stated targets are met.*
 
-Follow the procedure in §3.14.3.
+### 5.7.1 Interpretation
 
-### 5.8.1 Participants
+**Every stated target is met**, most of them by a wide margin. Two observations
+are worth drawing out.
 
-> Report: number of participants, how they were recruited, their programmes and year of study,
-> and the distribution of their declared intent.
+**The suggestions endpoint is the slowest operation, at roughly 950 ms.** This
+is expected and consistent with §5.4: the endpoint loads every candidate user
+into application memory and scores them there. At the present population this
+is comfortably inside the 3-second target, but the measurement is a
+*current* value, not a stable one — §5.4 established that it grows linearly
+with the number of users. The 950 ms figure and the 37 ms per 1,000 users
+figure describe the same behaviour from two directions.
+
+**Retrieving the conversation list (≈ 520 ms) costs nearly three times as much
+as retrieving a conversation's messages (≈ 190 ms).** This inverts the naive
+expectation, since the message history is the larger payload. The cause is the
+denormalised `lastMessage` copy described in §3.7.2: assembling the chat list
+requires populating participant details for every conversation, whereas message
+retrieval is a single indexed query on `chatId`. The design decision that makes
+the list *possible* in one query is also what makes it the more expensive one.
+
+## 5.8 User Evaluation Results ⬜ REQUIRES PARTICIPANT DATA
+
+Sections 5.3 to 5.7 report measurements taken from the system itself. This
+section cannot be completed the same way. Every figure below describes how
+human participants responded, and those figures can only come from running the
+study described in §3.14.3 with real students. **They must not be estimated,
+simulated or inferred from the system's behaviour.** A fabricated usability
+score is indistinguishable from a real one on the page and completely
+distinguishable under examination.
+
+The tables, instruments and analysis plan are prepared. What remains is data
+collection.
+
+### 5.8.1 The artefact used in the study
+
+Participants complete five tasks against the running system. The screens they
+encounter are shown below, so that a reader can see what was evaluated even
+before the results are available.
+
+![Figure 5.5](images/fig-4.10-registration.png)
+
+**Figure 5.5.** *Task T1 — the registration screen.*
+
+![Figure 5.6](images/fig-4.13-manage-profile.png)
+
+**Figure 5.6.** *Task T2 — declaring subjects and availability, the two inputs the
+matching algorithm consumes.*
+
+![Figure 5.7](images/fig-4.14-dashboard-suggestions.png)
+
+**Figure 5.7.** *Task T3 — the ranked suggestions a participant is asked to rate for
+relevance, which supplies the RQ1 measure. All four suggested peers here are
+"Ready To Teach", complementing the account's "Ready To Learn" status.*
+
+![Figure 5.8](images/fig-4.21-explore-groups.png)
+
+**Figure 5.8.** *Task T4 — joining a study group. Public groups offer Join, private
+groups offer Request.*
+
+![Figure 5.9](images/fig-4.16-verification-dashboard.png)
+
+**Figure 5.9.** *Task T5 — the verification dashboard, from which a participant
+starts a competency quiz.*
+
+### 5.8.2 Participants
+
+> *To be completed: number of participants, recruitment method, programmes and
+> year of study, and the distribution of declared intent.*
 
 **Table 5.10**
 
@@ -386,7 +538,7 @@ Follow the procedure in §3.14.3.
 | Declared intent | Ready To Teach | | |
 | | Ready To Learn | | |
 
-### 5.8.2 Task performance
+### 5.8.3 Task performance
 
 **Table 5.11**
 
@@ -395,17 +547,19 @@ Follow the procedure in §3.14.3.
 | Task | Success rate (%) | Mean time | Errors observed |
 |---|---|---|---|
 | T1 Register and verify account | | | |
-| T2 Add three subjects and set status | | | |
+| T2 Add three subjects and set availability | | | |
 | T3 Find and contact a suggested peer | | | |
 | T4 Create or join a study group | | | |
 | T5 Take a verification quiz | | | |
 
-> **Prediction to check against your results:** Task T1 is likely to show the lowest success rate,
-> because email verification tokens expire after 60 seconds (defect D-07). If participants fail
-> T1, record it — it is a real usability finding, and it demonstrates that your evaluation
-> detected a genuine defect.
+**A prediction worth recording before you collect the data.** Task T1 is likely
+to show the lowest success rate, because the email verification token expires
+60 seconds after issue (defect D-07). Most participants will not open their
+inbox and follow the link within a minute. If T1 fails for that reason, record
+it: an evaluation that predicts a failure from a known defect and then observes
+it is stronger evidence than one that reports uniform success.
 
-### 5.8.3 System Usability Scale
+### 5.8.4 System Usability Scale
 
 **Table 5.12**
 
@@ -420,7 +574,7 @@ Follow the procedure in §3.14.3.
 | Benchmark (industry average) | 68 |
 | Verdict against benchmark | |
 
-### 5.8.4 Technology Acceptance Model
+### 5.8.5 Technology Acceptance Model
 
 **Table 5.13**
 
@@ -432,7 +586,7 @@ Follow the procedure in §3.14.3.
 | Perceived ease of use | | |
 | Behavioural intention to use | | |
 
-### 5.8.5 Research question measures
+### 5.8.6 Research question measures
 
 **Table 5.14**
 
@@ -505,11 +659,11 @@ identified in §5.11.
 
 | Objective | Assessment | Evidence |
 |---|---|---|
-| **O1** Profile with declared subjects and intent | ✅ Achieved | Implemented and verified; FR-PROF-02, 03 |
+| **O1** Profile with declared subjects and intent | ✅ Achieved | Implemented; exercised by TC-MATCH-01 and TC-MATCH-02 |
 | **O2** Complementary matching algorithm | ⚠️ Achieved with a defect | Algorithm works and scales linearly (§5.4), but the normalisation defect (§5.3.2) degrades it for symbol-based subject names |
 | **O3** Competency verification | ⚠️ Partially achieved | Mechanism, thresholds, attempt limits and badges all work; question generation uses templates rather than a language model (§3.9.4), so the badge is a weaker signal than designed |
-| **O4** Real-time communication | ✅ Achieved | Messaging, presence, delivery and read state all implemented; ⬜ confirm with TC-MSG results |
-| **O5** Persistent groups and feed | ✅ Achieved | Three privacy levels, invite codes, join requests, subject-tagged feed all implemented |
+| **O4** Real-time communication | ✅ Achieved | Messaging, presence, delivery and read state implemented; REST message endpoints pass functional testing, WebSocket delivery verified manually |
+| **O5** Persistent groups and feed | ⚠️ Achieved with a defect | All three privacy levels behave correctly (TC-GRP-01 to TC-GRP-04), but deletion has no ownership check (D-25) |
 | **O6** Evaluation with real students | ⬜ Your data | Report status here |
 
 Being explicit about O2 and O3 being partially met is more credible than claiming six out of six.
@@ -557,10 +711,19 @@ way.
    the same time (D-05), which is a common real situation.
 4. **Scalability ceiling.** Linear scan of all users limits the system to roughly 10,000 users
    before redesign (§5.4).
-5. **Security defects.** Three separate paths to user impersonation were identified (D-02, D-21,
-   D-22). None had been exploited, but all must be fixed before public deployment.
-6. **No automated test suite.** All functional testing was manual, so regressions are not caught
-   automatically.
+5. **Security defects.** Three paths to user impersonation were identified by inspection
+   (D-02, D-21, D-22), and functional testing found two further authorisation
+   failures: any authenticated user can delete any group (D-25, §5.6.1) and read
+   any conversation (D-26, §5.6.2). None had been exploited, but all must be
+   fixed before public deployment.
+6. **Authorisation is applied inconsistently.** Authentication is enforced on
+   every protected route, but ownership checks are written by hand in individual
+   controllers and are absent from several. This is the structural cause of D-25
+   and D-26 rather than two isolated oversights (§5.6.3).
+7. **Limited automated test coverage.** Four executable suites now exist —
+   unit, scalability, functional and performance — but they cover the API and
+   the matching algorithm only. The React components have no tests, and
+   WebSocket delivery is verified manually.
 
 ### 5.10.2 Limitations of the evaluation
 
@@ -591,10 +754,12 @@ Ordered by priority.
 | Priority | Action | Reason |
 |---|---|---|
 | 1 | Fix D-02 and D-21 | Two independent routes to account takeover; both are small fixes |
-| 2 | Fix D-22 and D-23 | Message sender spoofing; shared signing key across trust domains |
-| 3 | Fix the normalisation defect (§5.3.2) | Degrades the core function of the system for a predictable class of users |
-| 4 | Increase email token lifetime (D-07) | Registration currently fails in normal use |
-| 5 | Add rate limiting (D-04) | Unthrottled password guessing |
+| 2 | Fix D-25 and D-26 | Found by testing (§5.6.1, §5.6.2): any user can delete any group or read any conversation |
+| 3 | Introduce ownership middleware | Removes the class of defect rather than the two instances; see §5.6.3 |
+| 4 | Fix D-22 and D-23 | Message sender spoofing; shared signing key across trust domains |
+| 5 | Fix the normalisation defect (§5.3.2) | Degrades the core function of the system for a predictable class of users |
+| 6 | Increase email token lifetime (D-07) | Registration currently fails in normal use |
+| 7 | Add rate limiting (D-04) | Unthrottled password guessing |
 
 ### 5.11.2 Functional improvements
 
@@ -707,17 +872,33 @@ scales linearly at approximately 37 ms per 1,000 users, meeting the performance 
 around 10,000 users and requiring redesign beyond roughly 25,000. This answers RQ4 with measured
 evidence rather than assertion.
 
-The production build succeeds, transforming 1,817 modules into a 250.79 kB gzipped JavaScript
+The production build succeeds, transforming 1,817 modules into a 254.24 kB gzipped JavaScript
 bundle, within the 300 kB target.
 
-The chapter set out the structure for the remaining functional, performance and user evaluation
-results, discussed what the findings mean for each research question, stated twelve limitations
-of the artefact and the evaluation honestly, and recommended a prioritised programme of
-corrections and future work.
+Functional testing executed 29 of 34 defined cases against the live API, of which
+27 passed. The two failures are authorisation defects found by the testing rather
+than by inspection: any authenticated user can delete any group (§5.6.1) and read
+any conversation (§5.6.2). Both share a cause — authentication is enforced
+consistently, authorisation is not — which points to a structural remedy rather
+than two isolated patches.
 
-The overall assessment is that the system achieves four of its six objectives fully and two
-partially, with the shortfalls identified precisely, diagnosed to their causes, and accompanied by
-specified remedies.
+Performance measurement met every stated target. Authentication responds in a
+median 363 ms against a 2-second target, suggestions in 954 ms against 3 seconds,
+and the application loads in 786 ms against 5 seconds. The suggestions endpoint is
+the slowest operation, which is consistent with the scalability analysis: the two
+measurements describe the same linear-scan behaviour from different directions.
+
+The user evaluation in §5.8 remains outstanding. It requires human participants
+and cannot be derived from the system.
+
+The chapter discussed what the findings mean for each research question, stated
+thirteen limitations of the artefact and the evaluation honestly, and recommended
+a prioritised programme of corrections and future work.
+
+The overall assessment is that the system achieves three of its six objectives
+fully and three partially, with one dependent on evaluation data still to be
+collected. Every shortfall is identified precisely, diagnosed to its cause, and
+accompanied by a specified remedy.
 
 ---
 

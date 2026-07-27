@@ -17,7 +17,7 @@
 > above each. If your department discourages code in the report body, move §4.6 extracts to an
 > appendix and keep the prose.
 >
-> §4.10 lists 22 known defects. Read it before your demonstration.
+> §4.10 lists 25 known defects. Read it before your demonstration.
 
 ---
 
@@ -89,7 +89,7 @@ FindOut/
 │   ├── socket/
 │   │   └── Socket.js            All real-time event handlers
 │   ├── migration/               11 one-off data scripts
-│   ├── tests/                   Matcher unit tests, scalability benchmark
+│   ├── tests/                   4 suites: unit, scalability, functional, performance
 │   ├── uploads/                 Images (git-ignored, created at runtime)
 │   └── audios/                  Voice messages (git-ignored)
 └── frontend/
@@ -814,25 +814,34 @@ enhancement.
 
 *Quantitative Summary of the Implemented System*
 
+All figures below are produced by `scripts/project-metrics.js`, which counts them
+from the source tree rather than by hand, so the table can be regenerated after
+any change.
+
 | Metric | Value |
 |---|---|
-| Total application code | ≈ 19,000 lines |
-| Backend controllers | 33 |
+| Backend code | 8,316 lines across 69 files |
+| Frontend code | 13,639 lines across 64 files |
+| **Total application code** | **21,955 lines** |
+| Controllers | 32 |
 | Database models / collections | 7 files, 8 collections |
 | Express routers | 4 |
 | Middleware modules | 5 |
-| REST endpoints | 58 |
-| Documented API operations | 58 (100%) |
-| OpenAPI schema definitions | 10 |
-| Socket events (client → server) | 10 |
-| Socket events (server → client) | 8 |
-| React pages | 13 |
-| React components | 25 |
-| Context providers | 13 |
+| Services | 1 |
 | Migration scripts | 11 |
-| Test scripts | 2 |
+| Test and benchmark scripts | 4 |
+| REST endpoints | 58 |
+| Documented API operations | 58 (100% coverage) |
+| OpenAPI schema definitions | 10, across 9 tags |
+| Socket events (client to server) | 10, including `disconnect` |
+| Socket events (server to client) | 8 |
+| React pages | 13 |
+| React components | 28 (24 general, 4 feed) |
+| Context providers | 13 |
 | Modules transformed at build | 1,817 |
-| Production bundle (gzipped) | 252 kB |
+| JavaScript bundle | 952.73 kB raw, **254.24 kB gzipped** |
+| CSS bundle | 74.93 kB raw, 12.74 kB gzipped |
+| Production build time | ≈ 10 s |
 
 **Table 4.4**
 
@@ -850,13 +859,21 @@ enhancement.
 | M8 Administration | 11 | 0 | 1 |
 | **Total** | **98** | **5** | **10** |
 
-Approximately **87%** of specified requirements are fully implemented.
+These figures are not estimates. They are counted from the status column of the
+Software Requirements Specification, which records a status against each of its
+113 numbered requirements; the three totals reconcile exactly
+(98 + 5 + 10 = 113).
+
+Approximately **87%** of specified requirements are fully implemented. The
+remaining 13% is concentrated in three areas, all documented in §4.10: question
+generation using a language model, per-subject availability, and feed
+pagination.
 
 ---
 
 ## 4.9 Development Challenges and Solutions
 
-Six substantial problems were encountered. The problem-solving process is part of what this
+Seven substantial problems were encountered. The problem-solving process is part of what this
 chapter should evidence, so each is described with its cause and resolution.
 
 ### 4.9.1 Case-sensitive file paths
@@ -923,7 +940,31 @@ command.
 **Lesson.** Verify periodically that a clean copy builds; reproducibility failures are invisible
 from inside a working environment.
 
-### 4.9.6 Matching weight calibration
+### 4.9.6 Authorisation applied inconsistently
+
+**Problem.** Functional testing (Chapter 5, §5.6) found that any authenticated
+user could delete any group and read any private conversation.
+
+**Cause.** Not two isolated oversights but one structural gap. Authentication is
+enforced by a single middleware applied to every protected route, so it is
+uniform. **Authorisation is written by hand inside individual controllers**, so
+whether a given action checks ownership depends on whether it was remembered at
+the time. `HandleJoinRequest` checks correctly; `DeleteGroup` and `GetMessages`
+do not.
+
+**Why inspection missed it.** Reading a controller that *does* check ownership
+gives no signal that a sibling controller does not. The gap is only visible when
+the behaviour is exercised, which is what the executable functional suite did.
+
+**Remedy.** Recorded as D-25 and D-26, with the structural fix — ownership
+middleware applied to every route operating on a specific resource — recommended
+in Chapter 5, §5.11.
+
+**Lesson.** A cross-cutting concern implemented per-controller will eventually be
+omitted from one. Uniformity is a property of the mechanism, not of the
+developer's memory.
+
+### 4.9.7 Matching weight calibration
 
 **Problem.** The scoring weights had to be chosen with no ground-truth data indicating what a
 correct match looks like.
@@ -950,6 +991,9 @@ demonstrates more engineering judgement than one that claims none.
 | **D-02** | **Critical** | The refresh-token secret is read from `JWT_REFRESH_SECRET` but `.env` defines `REFRESH_TOKEN_SECRET`, so the lookup falls back to a literal written in the source. | Refresh tokens are signed with a key visible in the code. Anyone reading it can forge a token for any user. | Rename to match and remove the fallback so the server refuses to start without a real secret. |
 | **D-21** | **Critical** | Socket.IO connections are unauthenticated. `user-online` accepts any user id from the client; `send-message` takes the sender from the payload. | A client can impersonate any user, join their private rooms, read their messages and send as them. | Verify a JWT in the connection handshake; take identity from the token. |
 | **D-22** | High | `POST /api/messages` takes `senderId` from the request body rather than the token. | Any authenticated user can send a message appearing to come from someone else. | Use `req.authenticatedUser.id`. |
+| **D-25** | **High** | `DeleteGroup` performs no authorisation check. The controller contains no reference to `groupAdmin` and no comparison against `req.authenticatedUser`. | Any authenticated user can delete any group and its entire message history. Found by functional testing (TC-GRP-05); see Chapter 5 §5.6.1. | Load the group, compare `groupAdmin` to the caller, return 403 when they differ. |
+| **D-26** | **High** | `GetMessages` queries `MessageModel.find({ chatId })` with no check that the caller participates in that conversation. | Any authenticated user can read any private conversation given its identifier — an insecure direct object reference. Found by functional testing (TC-SEC-04); see Chapter 5 §5.6.2. | Confirm the caller appears in the chat's `participants` or the group's `members`. |
+| **D-27** | Low | Multer's rejection of an oversized or wrong-type upload is unhandled, so the server answers 500 rather than 400. | The file is correctly refused, so the security property holds, but a client cannot distinguish "your file was rejected" from "the server failed". | Add error-handling middleware that maps multer errors to 400. |
 | **D-03** | High | Tokens are stored in `localStorage`. | Any injected script can read them, so an XSS flaw becomes full account compromise. | Use `httpOnly`, `Secure`, `SameSite` cookies. |
 | **D-04** | High | No rate limiting. `GET /getallposts` and `POST /messages/audio` have no auth middleware. | Unthrottled password guessing; unauthenticated file upload. | Add `express-rate-limit`; apply auth to both routes. |
 | **D-23** | Medium | Admin tokens are signed with the same secret as user tokens. | The two trust domains are not cryptographically separated. | Use a separate `ADMIN_JWT_SECRET`. |
@@ -968,17 +1012,18 @@ demonstrates more engineering judgement than one that claims none.
 | **D-16** | Low | The substring rule matches `Java` inside `JavaScript`. | Occasional irrelevant suggestion. | Same remedy as D-24. |
 | **D-17** | Low | Uploads are written to local disk. | Files are destroyed when a hosting platform redeploys. | Use object storage. |
 | **D-18** | Low | `isVerified` means two different things: email confirmed, and quiz passed. | Passing a quiz marks the account email-verified; an admin "unverify" can lock a user out of login. | Split into `isEmailVerified` and derive subject verification from `verifiedSubjects`. |
-| **D-19** | Low | No automated test suite beyond the two scripts in `backend/tests/`. | Regressions are caught only by manual testing. | Add Jest and Supertest. |
+| **D-19** | Low | Automated coverage is limited to the four suites in `backend/tests/`, which exercise the API and the matching algorithm. | React components have no tests, and WebSocket delivery is verified manually. | Add a component test runner and a multi-client socket harness. |
 | **D-20** | Low | Dependency vulnerabilities reported by `npm audit`. | Mostly transitive denial-of-service advisories. | Run `npm audit fix` and retest. |
 
 ### 4.10.1 Priority order for remaining work
 
 1. **D-02 and D-21** — both permit account takeover. Fix before any public demonstration.
-2. **D-22 and D-23** — identity spoofing and weak trust separation.
-3. **D-24** — degrades the core feature for a predictable class of users.
-4. **D-07** — registration is currently unusable in normal conditions.
-5. **D-04, D-03** — authentication hardening.
-6. **D-05** — per-subject intent, the highest-value functional improvement.
+2. **D-25 and D-26** — found by functional testing rather than inspection; any user can delete any group or read any conversation.
+3. **D-22 and D-23** — identity spoofing and weak trust separation.
+4. **D-24** — degrades the core feature for a predictable class of users.
+5. **D-07** — registration is currently unusable in normal conditions.
+6. **D-04, D-03** — authentication hardening.
+7. **D-05** — per-subject intent, the highest-value functional improvement.
 
 ---
 
@@ -1041,10 +1086,12 @@ figures, use the browser's device toolbar rather than photographing a phone.
 
 This chapter presented the system as built.
 
-The implementation comprises approximately 19,000 lines of code across two packages: a Node.js and
-Express backend with 33 controllers, 8 collections and 58 REST endpoints, and a React frontend
-with 13 pages, 25 components and 13 state providers. Real-time features are delivered over
-Socket.IO using 18 distinct events.
+The implementation comprises 21,955 lines of code across two packages: a Node.js
+and Express backend of 8,316 lines with 32 controllers, 8 collections and 58 REST
+endpoints, and a React frontend of 13,639 lines with 13 pages, 28 components and
+13 state providers. Real-time features are delivered over Socket.IO using 18
+distinct events. Every figure is counted by `scripts/project-metrics.js` rather
+than estimated.
 
 The API is fully documented in OpenAPI 3.0 and served as interactive documentation at `/api-docs`,
 covering all 58 operations across nine functional areas with 10 reusable schema definitions and
@@ -1055,13 +1102,17 @@ running interface, screenshots of the database as created, and screenshots of th
 documentation and testing tools. Quantitative measures put completion at approximately 87% of
 specified requirements.
 
-Six development challenges were described with their causes and resolutions, including a
-filesystem case-sensitivity failure that appeared only on deployment, a privacy model that had to
-be redesigned mid-project, and an image-upload failure with four independent causes.
+Seven development challenges were described with their causes and resolutions,
+including a filesystem case-sensitivity failure that appeared only on deployment,
+a privacy model that had to be redesigned mid-project, an image-upload failure
+with four independent causes, and an inconsistency in how authorisation is
+applied that only became visible when the API was exercised by an executable
+test suite.
 
-Twenty-two defects were catalogued, including two critical authentication weaknesses and one
-matching defect found by the unit testing reported in Chapter 5. These are stated rather than
-concealed, and are revisited in the discussion.
+Twenty-five defects were catalogued. Three were found by testing rather than by
+inspection: the matcher's normalisation collapse (D-24) and the two authorisation
+failures (D-25, D-26). These are stated rather than concealed, and are revisited
+in the discussion.
 
 Chapter 5 presents the testing carried out, the evaluation results, and a discussion of what they
 mean.
