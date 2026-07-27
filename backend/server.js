@@ -30,6 +30,28 @@ app.use(
   })
 );
 
+// ── API documentation ────────────────────────────────────────────────────
+// Interactive Swagger UI at /api-docs, raw specification at /api-docs.json.
+// Mounted before the routers so the documentation is reachable even if a
+// route module fails to load.
+const swaggerUi = require('swagger-ui-express');
+const openapiSpec = require('./docs/openapi');
+
+app.get('/api-docs.json', (req, res) => res.json(openapiSpec));
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(openapiSpec, {
+    customSiteTitle: 'FindOut API',
+    swaggerOptions: {
+      persistAuthorization: true, // keeps the bearer token across page reloads
+      docExpansion: 'none',       // collapse tags, so the index is readable
+      filter: true,               // search box over operations
+      tryItOutEnabled: true,
+    },
+  })
+);
+
 app.use('/api', router);
 app.use('/api/admin', adminRoutes);
 app.use('/api', searchRoutes);
