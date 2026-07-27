@@ -20,3 +20,10 @@ audios/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Thesis build artefacts
+FindOut-Thesis.md
+.thesis-combined.md
+
+# LibreOffice / Word lock files
+.~lock.*#
