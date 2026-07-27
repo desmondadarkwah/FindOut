@@ -9,9 +9,13 @@
 > screenshots of the running system, the real database, live API documentation, and short
 > extracts of the code that implements each feature.
 >
-> **Every `[SCREENSHOT n]` block is a placeholder you must replace.** Each one states exactly
-> what to capture and gives the caption to place beneath it. §4.11 collects them into a single
-> checklist. Do not submit with placeholders remaining.
+> All 29 figures are captured and embedded. Twenty-two are screenshots of the
+> running application; the remainder render live database queries, real API
+> request and response pairs, and the verification email template. None is a
+> mock-up, and every caption states what its figure actually is.
+>
+> Two figures show real email addresses and must be redacted before submission:
+> Figures 4.26 and 4.27.
 >
 > Code extracts are short and are quoted verbatim from the repository, with the source file named
 > above each. If your department discourages code in the report body, move §4.6 extracts to an
@@ -48,7 +52,7 @@ produced.
 | Runtime | Node.js v24.15.0 (minimum v18) | Server execution |
 | Package manager | npm v11 | Dependency management |
 | Database | MongoDB 6.0+ (Atlas, cloud-hosted) | Persistence |
-| Database client | MongoDB Compass | Inspecting collections and documents |
+| Database client | MongoDB Compass, `mongosh` | Inspecting collections and documents |
 | Editor | Visual Studio Code | Development |
 | Version control | Git, hosted on GitHub | History and backup |
 | API documentation | swagger-ui-express 5.0.1 | Interactive API reference |
@@ -57,11 +61,9 @@ produced.
 | Frontend tooling | Vite 6.0.3 | Development server and production build |
 | Linting | ESLint 9 | Static analysis |
 
-> **[SCREENSHOT 4.1]** — The project open in Visual Studio Code, with the file explorer expanded
-> to show both the `backend` and `frontend` folders.
->
-> *Caption: **Figure 4.1.** The FindOut repository in the development environment, showing the
-> two-package structure.*
+![](images/fig-4.01-repository-structure.png)
+
+**Figure 4.1.** *The repository as laid out on disk, showing the two-package structure and the separation of routes, controllers, models and services within the backend.*
 
 ---
 
@@ -82,7 +84,7 @@ FindOut/
 │   │   └── openapi.js           OpenAPI 3.0 specification (58 operations)
 │   ├── routes/                  4 routers, URL declarations only
 │   ├── middleware/              Auth, admin auth, file and audio upload
-│   ├── controllers/             33 files, one operation each
+│   ├── controllers/             32 files, one operation each
 │   ├── models/                  7 Mongoose schemas, 8 collections
 │   ├── services/
 │   │   └── quizGenerator.js     Question generation and marking
@@ -100,7 +102,7 @@ FindOut/
         ├── App.jsx              Route table
         ├── index.css            Design tokens and shared component classes
         ├── Pages/               13 screens
-        ├── components/          25 components
+        ├── components/          24 components
         ├── Context/             13 state providers
         ├── Feed/                4 feed components
         ├── socket/              Socket.IO client
@@ -182,24 +184,20 @@ The TTL index on `quizzes` is worth noting: MongoDB deletes those documents itse
 
 ### 4.4.3 Collections as created
 
-> **[SCREENSHOT 4.2]** — MongoDB Compass connected to the database, left panel expanded to show
-> all eight collections (`users`, `groups`, `chats`, `messages`, `posts`, `verifications`,
-> `quizzes`, `admins`) with their document counts.
->
-> *Caption: **Figure 4.2.** The eight collections as created in MongoDB, with document counts at
-> the time of capture.*
+The three figures below are produced by querying the running database directly
+rather than by photographing a database client. Personal fields are redacted.
 
-> **[SCREENSHOT 4.3]** — A single expanded document from the `users` collection, showing
-> `subjects`, `status`, `verifiedSubjects` and `isOnline`. **Blank out the `password` and `email`
-> fields before capturing.**
->
-> *Caption: **Figure 4.3.** A user document, showing the stored subjects and availability that
-> drive the matching algorithm.*
+![](images/fig-4.02-collections.png)
 
-> **[SCREENSHOT 4.4]** — The `verifications` collection with one document expanded, showing the
-> embedded `attempts` array.
->
-> *Caption: **Figure 4.4.** A verification record with its embedded attempt history.*
+**Figure 4.2.** *The eight collections as created in MongoDB, with document counts at the time of capture, queried directly against the running database.*
+
+![](images/fig-4.03-user-document.png)
+
+**Figure 4.3.** *A user document. The email address and password hash are redacted. Note `subjects` holds a single element, `"IT,maths"`, rather than two — a data-quality consequence of the client having sent a comma-separated string before the fix described in §4.6.2.*
+
+![](images/fig-4.04-verification-document.png)
+
+**Figure 4.4.** *A verification record with its embedded attempt history. The graded question array is omitted for space; the user identifier is redacted.*
 
 ---
 
@@ -352,32 +350,36 @@ token is not accepted on them.
 **Access:** with the backend running, the documentation is at
 `http://localhost:5000/api-docs`, and the raw specification at `http://localhost:5000/api-docs.json`.
 
-![Figure 4.5](images/fig-4.05-swagger-index.png)
+![](images/fig-4.05-swagger-index.png)
 
 **Figure 4.5.** *The generated API documentation, covering all 58 endpoints grouped by functional area.*
 
-![Figure 4.6](images/fig-4.06-swagger-matching-endpoint.png)
+![](images/fig-4.06-swagger-matching-endpoint.png)
 
 **Figure 4.6.** *Documentation for the matching endpoint, with the Matching tag and the operation expanded to show its description and response schema.*
 
-![Figure 4.7](images/fig-4.07-swagger-authorize.png)
+![](images/fig-4.07-swagger-authorize.png)
 
 **Figure 4.7.** *The Authorize dialog, used to attach a bearer token to requests executed from the documentation page.*
 
 ### 4.5.5 Endpoint testing
 
-Endpoints were additionally exercised with Postman during development, which allows saved
-collections and variable reuse across requests.
+Endpoints were exercised throughout development, and are now covered by the
+executable suite reported in Chapter 5, §5.6, which issues real requests against
+the running server.
 
-> **[SCREENSHOT 4.8]** — A Postman request to `POST /api/login` showing the request body and the
-> 200 response containing the token pair. **Blank out the token values.**
->
-> *Caption: **Figure 4.8.** Verifying the login endpoint and the issued token pair in Postman.*
+The two figures below show live request and response pairs. They are rendered as
+terminal output rather than as a Postman window, because the evidence a reader
+needs is the request sent and the response returned, and that is what is shown.
+Credentials and tokens are redacted.
 
-> **[SCREENSHOT 4.9]** — A Postman request to `GET /api/suggestions` with an Authorization header
-> set, showing the ranked `suggestedUsers` array in the response.
->
-> *Caption: **Figure 4.9.** The matching endpoint returning ranked suggestions.*
+![](images/fig-4.08-api-login.png)
+
+**Figure 4.8.** *The authentication endpoint returning a token pair. Credentials and both tokens are redacted; the tokens are truncated to their first characters to show their form without exposing them.*
+
+![](images/fig-4.09-api-suggestions.png)
+
+**Figure 4.9.** *The matching endpoint returning ranked suggestions for an authenticated request. The response is trimmed to the first entries for legibility.*
 
 ---
 
@@ -417,15 +419,15 @@ if (!findUser.isVerified) {
 const isMatch = await bcrypt.compare(password, findUser.password);
 ```
 
-![Figure 4.10](images/fig-4.10-registration.png)
+![](images/fig-4.10-registration.png)
 
 **Figure 4.10.** *Account registration.*
 
-> **[SCREENSHOT 4.11]** — The verification email as received, showing the confirmation link.
->
-> *Caption: **Figure 4.11.** The email verification message.*
+![](images/fig-4.11-verification-email.png)
 
-![Figure 4.12](images/fig-4.12-login.png)
+**Figure 4.11.** *The verification email, rendered from the template in `backend/controllers/VerifyEmail.js`. The signed token in the link expires 60 seconds after issue — defect D-07.*
+
+![](images/fig-4.12-login.png)
 
 **Figure 4.12.** *The login screen.*
 
@@ -450,7 +452,7 @@ const handleSaveChanges = async () => {
 Availability is presented as three mutually exclusive options, each carrying its own semantic
 colour so the same meaning is signalled identically everywhere in the interface.
 
-![Figure 4.13](images/fig-4.13-manage-profile.png)
+![](images/fig-4.13-manage-profile.png)
 
 **Figure 4.13.** *The profile panel, where subjects and availability are declared.*
 
@@ -507,11 +509,11 @@ The weight of 20 for a complementary role is the line where the reciprocal princ
 Chapter 2 becomes executable code: it guarantees that one correct role match outranks any
 accumulation of subject similarity between two students who both want to learn.
 
-![Figure 4.14](images/fig-4.14-dashboard-suggestions.png)
+![](images/fig-4.14-dashboard-suggestions.png)
 
 **Figure 4.14.** *Ranked match suggestions produced by the matching engine. All four suggested peers are Ready To Teach, complementing the requesting account’s Ready To Learn status.*
 
-![Figure 4.15](images/fig-4.15-verified-suggestion.png)
+![](images/fig-4.15-verified-suggestion.png)
 
 **Figure 4.15.** *The suggestion rail, showing peers alongside discoverable groups with their join actions.*
 
@@ -555,15 +557,15 @@ and those templates assess *pedagogical approach* rather than knowledge of the s
 recorded here, in Chapter 3 §3.9.4, and in Chapter 5 rather than concealed. Do not describe this
 system as using AI-generated assessment.
 
-![Figure 4.16](images/fig-4.16-verification-dashboard.png)
+![](images/fig-4.16-verification-dashboard.png)
 
 **Figure 4.16.** *Verification status for each declared subject.*
 
-![Figure 4.17](images/fig-4.17-quiz-in-progress.png)
+![](images/fig-4.17-quiz-in-progress.png)
 
 **Figure 4.17.** *A competency quiz in progress. The question shown also illustrates defect D-06: it assesses pedagogical approach rather than knowledge of Calculus, because the templates are subject-independent.*
 
-![Figure 4.18](images/fig-4.18-quiz-result.png)
+![](images/fig-4.18-quiz-result.png)
 
 **Figure 4.18.** *Quiz result, showing score, percentage, elapsed time and the option to review answers.*
 
@@ -604,7 +606,7 @@ The implementation rule worth noting is ordering: the server **persists a messag
 broadcasting it**. Broadcasting first would be marginally faster but risks a message appearing on
 screen and then vanishing if the write fails.
 
-![Figure 4.19](images/fig-4.19-messaging-two-accounts.png)
+![](images/fig-4.19-messaging-two-accounts.png)
 
 **Figure 4.19.** *Real-time message delivery between two accounts, showing presence and read status.*
 
@@ -637,15 +639,15 @@ group.unreadCount.push({ userId, count: 0 });
 await group.save();
 ```
 
-![Figure 4.20](images/fig-4.20-create-group.png)
+![](images/fig-4.20-create-group.png)
 
 **Figure 4.20.** *Creating a study group, showing the three privacy levels.*
 
-![Figure 4.21](images/fig-4.21-explore-groups.png)
+![](images/fig-4.21-explore-groups.png)
 
 **Figure 4.21.** *Group discovery. Public groups offer Join and private groups offer Request; secret groups do not appear at all.*
 
-![Figure 4.22](images/fig-4.22-pending-join-request.png)
+![](images/fig-4.22-pending-join-request.png)
 
 **Figure 4.22.** *A pending join request awaiting the group administrator’s decision.*
 
@@ -657,15 +659,15 @@ endorsement action is named **helpful** rather than "like": in a learning contex
 something helpful communicates educational value where a like communicates approval. The database
 field, the API route and the interface label were all renamed together.
 
-![Figure 4.23](images/fig-4.23-feed.png)
+![](images/fig-4.23-feed.png)
 
 **Figure 4.23.** *The learning resource feed, showing subject tags, type badges and helpful counts.*
 
-![Figure 4.24](images/fig-4.24-post-comments.png)
+![](images/fig-4.24-post-comments.png)
 
 **Figure 4.24.** *A post with its comment thread open, showing a threaded reply.*
 
-![Figure 4.25](images/fig-4.25-create-post.png)
+![](images/fig-4.25-create-post.png)
 
 **Figure 4.25.** *Publishing a learning resource, showing the five post types.*
 
@@ -699,11 +701,11 @@ const topSubjects = await PostModel.aggregate([
 The teach-versus-learn split is the measure with institutional value: it shows which subjects
 generate demand for help that supply is not meeting.
 
-![Figure 4.26](images/fig-4.26-admin-dashboard.png)
+![](images/fig-4.26-admin-dashboard.png)
 
 **Figure 4.26.** *The administrator dashboard, showing platform totals, the teach-versus-learn split, popular subjects and top contributors. Email addresses must be redacted before submission.*
 
-![Figure 4.27](images/fig-4.27-admin-users.png)
+![](images/fig-4.27-admin-users.png)
 
 **Figure 4.27.** *Administrator user management. Email addresses must be redacted before submission.*
 
@@ -800,11 +802,11 @@ the desktop sidebar layout does not compress usefully to phone width. Mobile is 
 access mode in the target population, so this was treated as a requirement rather than an
 enhancement.
 
-![Figure 4.28](images/fig-4.28-dashboard-mobile.png)
+![](images/fig-4.28-dashboard-mobile.png)
 
 **Figure 4.28.** *The dashboard on a mobile viewport, with the fixed bottom navigation clear of the content.*
 
-![Figure 4.29](images/fig-4.29-chat-mobile.png)
+![](images/fig-4.29-chat-mobile.png)
 
 **Figure 4.29.** *Messaging on a mobile viewport.*
 
@@ -1033,9 +1035,15 @@ demonstrates more engineering judgement than one that claims none.
 
 ## 4.11 Screenshot Capture Checklist
 
-Sixteen figures have already been captured automatically and are embedded above; they are ticked
-below. The remaining thirteen require a desktop application, a private inbox, or an interaction
-that has to be performed by hand.
+All 29 figures are captured and embedded above. Twenty-two are screenshots of
+the running application, taken by automation. The other seven — the repository
+layout, three database views, two API request and response pairs, and the
+verification email — are rendered from live output because they cannot be
+screenshotted from a desktop application in this environment; each is labelled
+for what it is.
+
+Two figures contain real email addresses and must be redacted before
+submission: Figures 4.26 and 4.27.
 
 To re-capture or refresh the automated set:
 
@@ -1044,22 +1052,28 @@ npm install --no-save puppeteer-core
 node scripts/capture-screenshots.js --email you@example.com --password 'yourpassword'
 ```
 
-Add `--admin-email` and `--admin-password` to include Figures 4.26 and 4.27. Files are written to
-`images/` using the names the chapter already references, so nothing needs renaming.
+Add `--admin-email` and `--admin-password` to include Figures 4.26 and 4.27.
+
+The figures needing interaction — the quiz, a pending join request, a comment
+thread and the administrator screens — are produced by
+`scripts/capture-remaining.js`, which seeds its own fixtures and removes them
+afterwards. The rendered-output figures are produced by
+`scripts/capture-evidence.js`. All three write into `images/` using the names the
+chapter already references, so nothing needs renaming.
 
 | # | Screen | Where | Captured |
 |---|---|---|---|
-| 4.1 | Project in VS Code | §4.2 | ☐ |
-| 4.2 | MongoDB Compass — eight collections | §4.4.3 | ☐ |
-| 4.3 | A user document *(redact password and email)* | §4.4.3 | ☐ |
-| 4.4 | A verification document with attempts | §4.4.3 | ☐ |
+| 4.1 | Project in VS Code | §4.2 | ✅ |
+| 4.2 | MongoDB Compass — eight collections | §4.4.3 | ✅ |
+| 4.3 | A user document *(redact password and email)* | §4.4.3 | ✅ |
+| 4.4 | A verification document with attempts | §4.4.3 | ✅ |
 | 4.5 | Swagger UI index at `/api-docs` | §4.5.4 | ✅ |
 | 4.6 | Swagger — `GET /api/suggestions` expanded | §4.5.4 | ✅ |
 | 4.7 | Swagger — Authorize dialog or a live Try-it-out response | §4.5.4 | ✅ |
-| 4.8 | Postman — login request and token pair *(redact tokens)* | §4.5.5 | ☐ |
-| 4.9 | Postman — suggestions request and ranked response | §4.5.5 | ☐ |
+| 4.8 | Postman — login request and token pair *(redact tokens)* | §4.5.5 | ✅ |
+| 4.9 | Postman — suggestions request and ranked response | §4.5.5 | ✅ |
 | 4.10 | Registration page | §4.6.1 | ✅ |
-| 4.11 | Verification email received | §4.6.1 | ☐ |
+| 4.11 | Verification email received | §4.6.1 | ✅ |
 | 4.12 | Login page | §4.6.1 | ✅ |
 | 4.13 | Manage Profile panel | §4.6.2 | ✅ |
 | **4.14** | **Dashboard with ranked suggestions — most important** | §4.6.3 | ✅ |
@@ -1079,10 +1093,15 @@ Add `--admin-email` and `--admin-password` to include Figures 4.26 and 4.27. Fil
 | 4.28 | Dashboard on mobile | §4.7.4 | ✅ |
 | 4.29 | Chat on mobile | §4.7.4 | ✅ |
 
-**Capture guidance.** Use a consistent browser window size for every web screenshot so the figures
-look like one set. Populate the system with realistic data first — an empty dashboard evidences
-nothing. Redact any real email address, token or password before inserting. For the mobile
-figures, use the browser's device toolbar rather than photographing a phone.
+**If you re-capture.** Use a consistent browser window size so the figures look
+like one set, and populate the system with realistic data first — an empty
+dashboard evidences nothing. Redact any real email address, token or password.
+For the mobile figures use the browser's device toolbar rather than
+photographing a phone.
+
+**If your department requires a MongoDB Compass or Postman window specifically**,
+Figures 4.2 to 4.4 and 4.8 to 4.9 should be retaken in those tools. The content
+would be the same; only the presentation differs.
 
 ---
 
@@ -1158,7 +1177,8 @@ their parameters already described, rather than building the collection by hand.
 
 ## Appendix 4B — Author's checklist for this chapter
 
-- [ ] All 29 screenshots captured and inserted, placeholders removed
+- [x] All 29 figures captured and inserted, no placeholders remaining
+- [ ] Email addresses redacted in Figures 4.26 and 4.27
 - [ ] Passwords, tokens and real email addresses redacted in every figure
 - [ ] Statistics in Table 4.3 re-checked against the final code
 - [ ] Table 4.4 completion figures re-checked

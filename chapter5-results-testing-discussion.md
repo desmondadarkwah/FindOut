@@ -90,7 +90,7 @@ expected outcomes.
 | TU-14 | `Economics` | `Economy` | match, 5 | prefix | 5 | ✅ Pass |
 | TU-15 | `Art` | `Cat` | no match | none | 0 | ✅ Pass |
 
-![Figure 5.1](images/fig-5.01-fuzzy-matcher-output.png)
+![](images/fig-5.01-fuzzy-matcher-output.png)
 
 **Figure 5.1.** *Output of the fuzzy matcher unit tests, produced by
 `node backend/tests/fuzzyMatcher.test.js`. Test TU-03 is the entry that led to the
@@ -228,7 +228,7 @@ establish is how the *algorithm itself* scales.
 
 *Note.* Measured on Node.js v24.15.0. Each figure is the mean of 25 runs after warm-up.
 
-![Figure 5.2](images/fig-5.02-scalability-output.png)
+![](images/fig-5.02-scalability-output.png)
 
 **Figure 5.2.** *Output of the scalability benchmark. The final column stays flat
 across a 160-fold increase in population, which is the empirical signature of
@@ -323,7 +323,7 @@ requires a multi-client harness the present suite does not provide; they were
 verified manually instead. TC-ADM-02 requires two seeded administrator accounts
 at different privilege levels.
 
-![Figure 5.3](images/fig-5.03-functional-test-output.png)
+![](images/fig-5.03-functional-test-output.png)
 
 **Figure 5.3.** *Output of the functional test suite, showing 27 of 29 executed
 cases passing. The two failures are analysed in §5.6.1 and §5.6.2.*
@@ -453,7 +453,7 @@ connection.
 load, measured with the browser cache disabled. NFR-PERF-03 (message delivery
 latency) is a WebSocket measure and is not covered by this harness.
 
-![Figure 5.4](images/fig-5.04-performance-output.png)
+![](images/fig-5.04-performance-output.png)
 
 **Figure 5.4.** *Output of the performance benchmark. All stated targets are met.*
 
@@ -497,27 +497,27 @@ Participants complete five tasks against the running system. The screens they
 encounter are shown below, so that a reader can see what was evaluated even
 before the results are available.
 
-![Figure 5.5](images/fig-4.10-registration.png)
+![](images/fig-4.10-registration.png)
 
 **Figure 5.5.** *Task T1 — the registration screen.*
 
-![Figure 5.6](images/fig-4.13-manage-profile.png)
+![](images/fig-4.13-manage-profile.png)
 
 **Figure 5.6.** *Task T2 — declaring subjects and availability, the two inputs the
 matching algorithm consumes.*
 
-![Figure 5.7](images/fig-4.14-dashboard-suggestions.png)
+![](images/fig-4.14-dashboard-suggestions.png)
 
 **Figure 5.7.** *Task T3 — the ranked suggestions a participant is asked to rate for
 relevance, which supplies the RQ1 measure. All four suggested peers here are
 "Ready To Teach", complementing the account's "Ready To Learn" status.*
 
-![Figure 5.8](images/fig-4.21-explore-groups.png)
+![](images/fig-4.21-explore-groups.png)
 
 **Figure 5.8.** *Task T4 — joining a study group. Public groups offer Join, private
 groups offer Request.*
 
-![Figure 5.9](images/fig-4.16-verification-dashboard.png)
+![](images/fig-4.16-verification-dashboard.png)
 
 **Figure 5.9.** *Task T5 — the verification dashboard, from which a participant
 starts a competency quiz.*
