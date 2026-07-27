@@ -30,12 +30,35 @@ development method, the technology choices and why they were made, the design of
 design of the matching algorithm, and the method used to evaluate the finished platform.
 
 The chapter is organised as follows. Section 3.2 states the research approach. Section 3.3
-explains the software development method. Section 3.4 describes how requirements were gathered.
-Section 3.5 justifies the technology choices. Sections 3.6 and 3.7 present the system and
-database design. Section 3.8 gives the full specification of the matching algorithm, which is
-the central technical contribution. Sections 3.9 to 3.12 cover the verification, messaging,
-security and privacy designs. Section 3.13 lists the tools used. Section 3.14 sets out the
-evaluation method. Section 3.15 gives the steps needed to reproduce the system.
+explains the software development method. Section 3.4 describes how requirements were gathered
+and presents the use case model. Section 3.5 justifies the technology choices. Sections 3.6 and
+3.7 present the system architecture and the database design as an entity relationship model and
+a class model. Section 3.8 gives the full specification of the matching algorithm — the central
+technical contribution — as a formal definition, an activity model and a sequence model. Sections
+3.9 to 3.12 cover the verification, messaging, security and privacy designs. Section 3.13 lists
+the tools used. Section 3.14 sets out the evaluation method. Section 3.15 gives the steps needed
+to reproduce the system.
+
+**Table 3.0** lists the design models presented in this chapter.
+
+**Table 3.0**
+
+*Design Models Presented in Chapter Three*
+
+| Figure | Model | Section | What it establishes |
+|---|---|---|---|
+| 3.1 | Use case diagram | §3.4.1 | Actors and the functional scope agreed for the system |
+| 3.2 | System architecture | §3.6.1 | Tiers, components and the two communication channels |
+| 3.3 | Entity relationship diagram | §3.7.1 | Entities, relationships and cardinality |
+| 3.4 | Class diagram | §3.7.2 | Model and service classes with attributes and operations |
+| 3.5 | Activity diagram | §3.8.10 | The matching process as a control flow |
+| 3.6 | Sequence diagram | §3.8.11 | Component interaction from discovery to a read message |
+| 3.7 | State diagram | §3.9.3 | Lifecycle of subject verification |
+
+These are **design** models: they state what was intended before and during construction.
+Chapter 4 presents the corresponding **as-built** views, which differ in places — those
+differences are exactly what the incremental method in §3.3 was expected to produce, and are
+identified where they occur.
 
 ---
 
@@ -194,6 +217,70 @@ The complete requirements produced by this process are documented in the Softwar
 Specification, which records 113 numbered requirements across eight modules, each with a
 priority and a status.
 
+### 3.4.1 Use case model
+
+The requirements were consolidated into a use case model identifying two human actors — the
+Student and the Administrator — and one external system actor, the email service used to confirm
+account ownership.
+
+```mermaid
+flowchart LR
+    student["Student"]
+    admin["Administrator"]
+    mail["Email Service"]
+
+    subgraph SYS["FindOut Platform"]
+        direction TB
+        UC1(["Register account"])
+        UC2(["Verify email address"])
+        UC3(["Manage profile:<br/>subjects and availability"])
+        UC4(["Take competency quiz"])
+        UC5(["View suggested peers<br/>and groups"])
+        UC6(["Start a conversation"])
+        UC7(["Exchange messages<br/>in real time"])
+        UC8(["Create a study group"])
+        UC9(["Join a study group"])
+        UC10(["Approve or reject<br/>join requests"])
+        UC11(["Share a learning resource"])
+        UC12(["Search students and groups"])
+        UC13(["Moderate posts"])
+        UC14(["Manage user accounts"])
+        UC15(["View platform analytics"])
+    end
+
+    student --- UC1
+    student --- UC3
+    student --- UC4
+    student --- UC5
+    student --- UC6
+    student --- UC8
+    student --- UC9
+    student --- UC11
+    student --- UC12
+    UC8 -.-> UC10
+    admin --- UC13
+    admin --- UC14
+    admin --- UC15
+    UC1 -.->|includes| UC2
+    UC2 --- mail
+    UC6 -.->|includes| UC7
+    UC5 -.->|extends| UC6
+```
+
+**Figure 3.1.** *Use case diagram. Solid lines are actor associations; dashed lines are
+`include` and `extend` relationships between use cases. Group administration (UC10) is performed
+by the Student who created the group, not by a platform Administrator — group ownership and
+platform administration are separate privileges.*
+
+Three relationships in the model are worth noting because they shaped the design:
+
+- **Register account *includes* Verify email address.** Registration is not complete until
+  ownership of the address is proven, which is why login is gated on the verified flag.
+- **View suggestions *extends* Start a conversation.** Discovery is the entry point to
+  communication, so both must live in the same artefact — the argument made in §2.8, Gap 3.
+- **Take competency quiz** is available to any student but is only meaningful for those offering
+  to teach, which is why it is optional rather than a precondition of any other case.
+
 ---
 
 ## 3.5 Technology Selection
@@ -271,6 +358,10 @@ graph TB
     CT --> SM
 ```
 
+**Figure 3.2.** *System architecture. Three tiers with two distinct communication channels
+between the client and the application tier: request-response over HTTPS for user-initiated
+operations, and a persistent WebSocket for server-initiated events.*
+
 ### 3.6.2 Why two communication channels
 
 The system uses REST over HTTP for most operations and WebSocket for messaging. This is a
@@ -338,11 +429,236 @@ that tokens expire.
 The database holds eight collections: `users`, `groups`, `chats`, `messages`, `posts`,
 `verifications`, `quizzes` and `admins`.
 
-The full entity-relationship diagram, all field definitions and all validation rules are given in
-the SRS, §9. This section explains the **design decisions** behind that structure, since those are
-what a methodology chapter must justify.
+Figure 3.3 shows the conceptual data model. It is the **design-level** view: entities, their
+relationships and cardinality. The as-built physical schema, with every field and validation
+rule, is given in Chapter 4, Figure 4.3, and in the SRS §9.
 
-### 3.7.2 Embedding versus referencing
+```mermaid
+erDiagram
+    USER ||--o{ GROUP : "creates and administers"
+    USER }o--o{ GROUP : "is a member of"
+    USER ||--o{ VERIFICATION : "earns"
+    USER ||--o{ POST : "authors"
+    USER ||--o{ MESSAGE : "sends"
+    USER }o--o{ CHAT : "participates in"
+    CHAT ||--o{ MESSAGE : "contains"
+    GROUP ||--o{ MESSAGE : "contains"
+    GROUP ||--o{ JOIN_REQUEST : "receives"
+    USER ||--o{ JOIN_REQUEST : "submits"
+    QUIZ ||--o{ VERIFICATION : "is assessed by"
+    POST ||--o{ COMMENT : "contains"
+    COMMENT ||--o{ REPLY : "contains"
+    USER ||--o{ COMMENT : "writes"
+    ADMIN ||--o{ ADMIN : "promotes"
+
+    USER {
+        ObjectId id PK
+        string name
+        string email UK
+        string passwordHash
+        array subjects "free text"
+        enum status "Teach|Learn|Later"
+        boolean isVerified
+        array verifiedSubjects
+        number reputation
+        boolean isOnline
+    }
+    GROUP {
+        ObjectId id PK
+        string groupName
+        array subjects
+        ObjectId groupAdmin FK
+        enum privacy "public|private|secret"
+        string inviteCode UK
+    }
+    JOIN_REQUEST {
+        ObjectId userId FK
+        date requestedAt
+    }
+    CHAT {
+        ObjectId id PK
+        boolean isGroup
+        array participants FK
+    }
+    MESSAGE {
+        ObjectId id PK
+        ObjectId chatId FK
+        ObjectId senderId FK
+        string content
+        enum type "text|audio|system"
+        enum status "sending|sent|delivered|read"
+    }
+    POST {
+        ObjectId id PK
+        ObjectId author FK
+        string subject
+        enum postType "resource|help|explanation|challenge|general"
+        number helpfulCount
+    }
+    COMMENT {
+        ObjectId userId FK
+        string text
+    }
+    REPLY {
+        ObjectId userId FK
+        string text
+    }
+    VERIFICATION {
+        ObjectId id PK
+        ObjectId userId FK
+        string subject
+        boolean isVerified
+        number bestScore
+        number totalAttempts
+    }
+    QUIZ {
+        ObjectId id PK
+        string subject
+        array questions
+        date expiresAt "TTL"
+    }
+    ADMIN {
+        ObjectId id PK
+        string email UK
+        boolean isSuperAdmin
+    }
+```
+
+**Figure 3.3.** *Entity relationship diagram (conceptual). `||--o{` denotes one-to-many and
+`}o--o{` many-to-many. COMMENT, REPLY and JOIN_REQUEST are modelled as separate entities here for
+clarity, but are physically embedded within their parent documents — the reasoning is given in
+§3.7.2.*
+
+Two relationships deserve comment. A USER has **two distinct associations with GROUP**: one as
+creator and administrator, and one as an ordinary member. Separating them is what allows group
+administration to be a per-group privilege rather than a platform-wide role. Second, both CHAT and
+GROUP own MESSAGE records, because a group conversation and a direct conversation carry the same
+message structure and are addressed by the same identifier at the socket layer.
+
+### 3.7.2 The design as classes
+
+The system uses Mongoose, which represents each collection as a model class carrying both schema
+and behaviour. Figure 3.4 shows those classes together with the two service classes that hold
+logic used by more than one controller.
+
+```mermaid
+classDiagram
+    class User {
+        +String name
+        +String email
+        +String password
+        +String[] subjects
+        +String status
+        +Boolean isVerified
+        +Object[] verifiedSubjects
+        +Number reputation
+        +Boolean isOnline
+        +Date lastSeen
+    }
+
+    class Group {
+        +String groupName
+        +String[] subjects
+        +ObjectId groupAdmin
+        +ObjectId[] members
+        +String privacy
+        +String inviteCode
+        +Object[] pendingRequests
+    }
+
+    class Chat {
+        +Boolean isGroup
+        +ObjectId[] participants
+        +Object lastMessage
+        +Object[] unreadCount
+    }
+
+    class Message {
+        +ObjectId chatId
+        +ObjectId senderId
+        +String content
+        +String type
+        +String status
+        +Object[] readBy
+    }
+
+    class Post {
+        +ObjectId author
+        +String image
+        +String subject
+        +String postType
+        +Object[] comments
+        +Number helpfulCount
+        +engagementCount() Number
+    }
+
+    class Verification {
+        +ObjectId userId
+        +String subject
+        +Object[] attempts
+        +Boolean isVerified
+        +Number bestScore
+        +Number maxAttempts
+        +addAttempt(data) void
+        +canTakeQuiz() Boolean
+        +getLatestAttempt() Object
+    }
+
+    class Quiz {
+        +String subject
+        +Object[] questions
+        +Number timesUsed
+        +Date expiresAt
+    }
+
+    class Admin {
+        +String email
+        +Boolean isSuperAdmin
+        +ObjectId createdBy
+    }
+
+    class MatchingService {
+        <<service>>
+        +fuzzyMatch(s1, s2) Result
+        +levenshteinDistance(s1, s2) Number
+        +complementaryStatus(status) String[]
+        +scoreUser(user, candidate) Number
+        +scoreGroup(user, group) Number
+        +rankAndTruncate(list) Object[]
+    }
+
+    class QuizGenerator {
+        <<service>>
+        +generateQuiz(subject) Question[]
+        +generateMockQuestions(subject) Question[]
+        +gradeQuiz(questions, answers) Result
+    }
+
+    User "1" --> "*" Group : administers
+    User "*" --> "*" Group : member of
+    User "1" --> "*" Post : authors
+    User "1" --> "*" Message : sends
+    User "*" --> "*" Chat : participates in
+    User "1" --> "*" Verification : holds
+    Chat "1" --> "*" Message : contains
+    Group "1" --> "*" Message : contains
+    Quiz "1" --> "*" Verification : assessed by
+    MatchingService ..> User : reads
+    MatchingService ..> Group : reads
+    QuizGenerator ..> Quiz : caches
+    Verification ..> QuizGenerator : graded by
+```
+
+**Figure 3.4.** *Class diagram. Solid arrows are associations with cardinality; dashed arrows are
+dependencies. `MatchingService` and `QuizGenerator` are stereotyped as services: they hold
+behaviour rather than state, and are the only classes containing algorithmic logic.*
+
+Note that `MatchingService` **reads** User and Group but owns no data of its own. This is
+deliberate: the matching algorithm is a pure function of the profile data, which is what makes it
+independently testable — the property exploited by the unit tests in Chapter 5, §5.3, where the
+functions were extracted and run in isolation without a database.
+
+### 3.7.3 Embedding versus referencing
 
 MongoDB allows related data either to be stored inside a parent document (*embedding*) or stored
 separately and linked by an identifier (*referencing*). The choice affects performance. The
@@ -359,7 +675,7 @@ decisions made here were:
 The last decision is a deliberate trade of write complexity for read speed, which is appropriate
 because a chat list is read far more often than a message is sent.
 
-### 3.7.3 Indexes
+### 3.7.4 Indexes
 
 An index is a data structure that lets the database find records without scanning every one.
 Indexes were added where queries are frequent.
@@ -552,7 +868,123 @@ then by most recent activity. Ties among groups are broken by newest first.
 Both lists are cut to the **top 15**. This limit exists for interface reasons: a student
 presented with 200 suggestions will act on none of them.
 
-### 3.8.10 Worked example
+### 3.8.10 Activity model of the matching process
+
+Figure 3.5 shows the process as an activity diagram, from the point a student completes their
+profile to the point a suggestion becomes a conversation. The two swim lanes separate what the
+student does from what the system does.
+
+```mermaid
+flowchart TD
+    Start([Student opens dashboard]) --> A1[Load requesting user profile]
+    A1 --> D1{Has declared<br/>subjects?}
+    D1 -->|No| E1[Return empty list with<br/>prompt to add subjects]
+    E1 --> End1([End])
+
+    D1 -->|Yes| A2[Determine complementary status<br/>Learn to Teach, Teach to Learn]
+    A2 --> A3[Load all candidates<br/>who declare subjects]
+    A3 --> A4[Build exclusion set:<br/>self, existing chats,<br/>joined groups, pending requests]
+
+    A4 --> LOOP[/For each candidate/]
+    LOOP --> D2{Excluded?}
+    D2 -->|Yes| LOOP
+    D2 -->|No| A5[score = 0]
+    A5 --> D3{Status is<br/>complementary?}
+    D3 -->|Yes| A6[score += 20]
+    D3 -->|No| A7[Compare subject sets<br/>with fuzzy matcher]
+    A6 --> A7
+    A7 --> A8[Add best match score<br/>per requester subject]
+    A8 --> D4{Candidate<br/>online?}
+    D4 -->|Yes| A9[score += 3]
+    D4 -->|No| D5{More than one<br/>subject matched?}
+    A9 --> D5
+    D5 -->|Yes| A10[score += 2 per match]
+    D5 -->|No| D6{"score greater than 0?"}
+    A10 --> D6
+    D6 -->|No| LOOP
+    D6 -->|Yes| A11[Retain candidate]
+    A11 --> LOOP
+
+    LOOP -->|All evaluated| A12[Sort by score descending<br/>tie-break: online, then recency]
+    A12 --> A13[Truncate to top 15]
+    A13 --> A14[Render ranked suggestions]
+    A14 --> D7{Student acts on<br/>a suggestion?}
+    D7 -->|Connect| A15[Create or open direct chat]
+    D7 -->|Join group| A16[Apply group privacy rules]
+    D7 -->|No action| End2([End])
+    A15 --> End3([Conversation begins])
+    A16 --> End3
+```
+
+**Figure 3.5.** *Activity diagram of the matching process. Diamonds are decision points;
+the loop node iterates over every candidate. The exclusion step precedes scoring so that
+computation is not spent on candidates that will be discarded.*
+
+### 3.8.11 Sequence model of discovery to conversation
+
+Figure 3.6 shows the same process as an interaction between components, which makes the division
+of responsibility explicit — in particular that scoring happens in the application tier, not in
+the database.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor S as Student
+    participant C as React Client
+    participant A as Express API
+    participant M as MatchingService
+    participant D as MongoDB
+    participant W as Socket.IO
+    actor P as Matched Peer
+
+    Note over S,P: DISCOVERY
+    S->>C: Open dashboard
+    C->>A: GET /api/suggestions (Bearer token)
+    A->>A: Verify JWT, extract user id
+    A->>D: Find requesting user
+    D-->>A: Profile: subjects, status
+    alt no subjects declared
+        A-->>C: Empty lists + prompt
+    else subjects present
+        A->>D: Find existing direct chats
+        D-->>A: Connected user ids
+        A->>D: Find all users with subjects
+        D-->>A: Candidate set
+        A->>M: Score each candidate
+        M->>M: complementaryStatus()
+        M->>M: fuzzyMatch() per subject pair
+        M->>M: Apply online and multi-subject bonuses
+        M-->>A: Ranked list
+        A->>A: Sort, tie-break, truncate to 15
+        A-->>C: Suggested users and groups
+        C-->>S: Render ranked suggestion cards
+    end
+
+    Note over S,P: CONVERSATION
+    S->>C: Click Connect on a suggestion
+    C->>A: POST /api/start-new-chat
+    A->>D: Find or create chat document
+    D-->>A: Chat
+    A-->>C: Chat id
+    C->>W: join-chat (chatId)
+    S->>C: Type and send message
+    C->>W: send-message
+    W->>D: Persist message (status = sent)
+    Note right of W: Saved before broadcast, so nothing<br/>appears on screen that was not stored
+    W->>D: Update chat lastMessage, unread count
+    W-->>P: message-received
+    W-->>C: message-confirmed
+    P->>W: mark-messages-read
+    W->>D: status = read
+    W-->>C: messages-read
+```
+
+**Figure 3.6.** *Sequence diagram from discovery through to a delivered and read message. The
+`alt` fragment shows the cold-start branch for a student who has declared no subjects. Steps 12
+to 15 occur entirely in the application tier — the scalability consequence is analysed in
+§3.8.13.*
+
+### 3.8.12 Worked example
 
 To make the algorithm concrete, consider:
 
@@ -578,7 +1010,7 @@ To make the algorithm concrete, consider:
 Kwame is ranked first. This is the correct outcome: Ama needs someone who can teach, and Efua
 needs the same help Ama does.
 
-### 3.8.11 Complexity analysis
+### 3.8.13 Complexity analysis
 
 Let $n$ be the number of candidate students, $|S|$ the average number of subjects per student, and
 $\ell$ the average length of a subject name.
@@ -640,6 +1072,10 @@ stateDiagram-v2
     Verified --> [*]: badge awarded
     Locked --> [*]: no further attempts
 ```
+
+**Figure 3.7.** *State diagram for competency verification of a single subject. Verification is
+per subject, so a student holds one independent instance of this machine for each subject they
+declare.*
 
 ### 3.9.4 Question generation — accurate statement of the approach
 
@@ -944,7 +1380,7 @@ node backend/migration/createSuperAdmin.js
 ### 3.15.4 Reproducing the algorithm results
 
 The matching algorithm is fully specified in §3.8, including all weights, thresholds, exclusion
-rules and the tie-breaking order. The worked example in §3.8.10 provides a test case with a known
+rules and the tie-breaking order. The worked example in §3.8.12 provides a test case with a known
 correct answer, which an implementer can use to check their reimplementation.
 
 ---
@@ -966,8 +1402,14 @@ requirements.
 
 Section 3.8 gave the complete specification of the matching algorithm: the complementary status
 function, the four-tier fuzzy subject matcher, the scoring functions for students and groups, all
-weights with their justifications, the exclusion rules, a worked example, and an honest complexity
-analysis identifying the point at which the approach would need redesigning.
+weights with their justifications, the exclusion rules, an activity model (Figure 3.5), a
+sequence model (Figure 3.6), a worked example, and an honest complexity analysis identifying the
+point at which the approach would need redesigning.
+
+Seven design models were presented in total — use case, architecture, entity relationship, class,
+activity, sequence and state — listed in Table 3.0. Together they satisfy the reproducibility
+requirement from two directions: the diagrams fix the structure and the interactions, while the
+formal specification in §3.8 fixes the behaviour.
 
 Sections 3.9 to 3.12 covered the verification, real-time, security and privacy designs, including
 an accurate statement that question generation currently uses templates rather than a language
@@ -1004,12 +1446,31 @@ Sommerville, I. (2016). *Software engineering* (10th ed.). Pearson.
 
 ---
 
+## 3.17 Note on Diagram Formats
+
+All seven diagrams are written in **Mermaid**, a text-based diagram format. They render
+automatically on GitHub, GitLab, Notion, Obsidian, and in VS Code with the Markdown Preview
+Mermaid Support extension.
+
+**To export as images for Microsoft Word:**
+
+1. Open <https://mermaid.live>.
+2. Paste the diagram source (everything between the ` ```mermaid ` markers).
+3. Choose **Actions → SVG** if your department accepts vector images, since these stay sharp
+   when printed, or **PNG** otherwise.
+4. Insert the image and place the caption beneath it, keeping the figure numbers exactly as
+   given here so the cross-references in the text remain correct.
+
+---
+
 ## Appendix 3A — Author's checklist for this chapter
 
 - [ ] `[YOUR DATA]` in §3.4 replaced with your survey results
 - [ ] `[YOUR DATA]` in §3.14.3 replaced with your actual participant details
-- [ ] Worked example in §3.8.10 verified by running it against your own system
+- [ ] Worked example in §3.8.12 verified by running it against your own system
 - [ ] Ethics approval confirmed with supervisor before data collection
 - [ ] Weights in Table 3.5 checked against the current code
 - [ ] Tools table (3.9) updated if you used anything else
-- [ ] Diagrams exported as images if your department does not accept Mermaid source
+- [ ] All seven diagrams exported as images if your department requires Word format
+- [ ] Figure numbers in Table 3.0 match your final List of Figures
+- [ ] Use case diagram checked against the final feature set

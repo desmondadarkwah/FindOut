@@ -5,856 +5,836 @@
 
 > **Note to author.**
 >
-> This chapter describes what was **actually built**, not what was planned. Every statement here
-> was checked against the source code. Where the built system differs from the design in Chapter
-> 3, the difference is stated.
+> Chapter 3 presented the **design** as models. This chapter presents the **build** as evidence:
+> screenshots of the running system, the real database, live API documentation, and short
+> extracts of the code that implements each feature.
 >
-> **All diagrams are written in Mermaid.** They render automatically on GitHub, GitLab, Notion,
-> Obsidian, and VS Code with the Markdown Preview Mermaid extension. If your department requires
-> Microsoft Word, see §4.19 for how to export each diagram as an image.
+> **Every `[SCREENSHOT n]` block is a placeholder you must replace.** Each one states exactly
+> what to capture and gives the caption to place beneath it. §4.11 collects them into a single
+> checklist. Do not submit with placeholders remaining.
 >
-> Figures are numbered in academic style (Figure 4.1, 4.2, …) with captions below each, so they
-> can be referenced from your text and listed in a List of Figures.
+> Code extracts are short and are quoted verbatim from the repository, with the source file named
+> above each. If your department discourages code in the report body, move §4.6 extracts to an
+> appendix and keep the prose.
 >
-> **§4.17 contains two security defects found while writing this chapter.** Read it before your
-> demonstration.
+> §4.10 lists 22 known defects. Read it before your demonstration.
 
 ---
 
 ## 4.1 Introduction
 
-Chapter 3 explained how the system was designed. This chapter describes how it was built.
+Chapter 3 explained how the system was designed. This chapter shows what was actually built.
 
-It covers the structure of the code, how each major feature was implemented, the diagrams that
-describe the working system, the statistics of what was produced, the problems encountered during
-development, and an honest account of what was completed and what was not.
+It documents the development environment, the structure of the code, how the database was
+created, how the API was implemented and documented, how each functional module works, and what
+the finished interface looks like. It closes with the statistics of the build, the problems
+encountered during development, and an honest account of the defects that remain.
 
-The chapter follows the system from the outside in: first the overall structure (§4.2–§4.4), then
-the backend (§4.5–§4.11), then the frontend (§4.12–§4.13), then security (§4.14), and finally the
-results of the build (§4.15–§4.18).
-
----
-
-## 4.2 Deployment Architecture
-
-The system runs as two separate applications that communicate over a network, plus a database and
-an email service.
-
-```mermaid
-graph TB
-    subgraph browser["USER'S DEVICE"]
-        B["Web Browser<br/>Chrome · Firefox · Safari · Edge"]
-    end
-
-    subgraph client["CLIENT APPLICATION"]
-        V["Vite Dev Server / Static Build<br/>Port 5173"]
-        RA["React 18 Single-Page Application"]
-        V --- RA
-    end
-
-    subgraph server["SERVER APPLICATION — Node.js, Port 5000"]
-        HTTP["Express 4<br/>HTTP REST API"]
-        WSS["Socket.IO Server<br/>WebSocket"]
-        STATIC["Static File Server<br/>/uploads · /audios"]
-    end
-
-    subgraph data["DATA STORES"]
-        MDB[("MongoDB<br/>8 collections")]
-        DISK["Local Filesystem<br/>images · audio"]
-    end
-
-    SMTP["Gmail SMTP<br/>verification email"]
-
-    B -->|loads app| V
-    RA -->|"REST + JSON<br/>Bearer token"| HTTP
-    RA <-->|"persistent WebSocket"| WSS
-    RA -->|"image/audio requests"| STATIC
-    HTTP --> MDB
-    WSS --> MDB
-    STATIC --> DISK
-    HTTP --> DISK
-    HTTP -->|"registration"| SMTP
-    SMTP -->|"verification link"| B
-```
-
-**Figure 4.1.** *Deployment architecture of the implemented system, showing the two applications,
-their communication channels, and external dependencies.*
-
-The important feature of this architecture is the **two separate channels** between the client
-and the server. The REST API handles operations the user starts. The WebSocket handles messages
-that arrive without being requested. Section 3.6.2 explained why both are needed.
+The evidence in this chapter takes four forms: screenshots of the running system, screenshots of
+the database and API tooling, short verbatim code extracts, and quantitative measures of what was
+produced.
 
 ---
 
-## 4.3 Code Organisation
+## 4.2 Development Environment
 
-The project is a single repository containing two independent packages.
+**Table 4.1**
 
-```mermaid
-graph LR
-    ROOT["FindOut/<br/>root package.json"]
+*Development Environment*
 
-    subgraph BE["backend/"]
-        S["server.js<br/>entry point"]
-        CFG["config/<br/>connectDB · upload"]
-        RT["routes/<br/>4 routers"]
-        MW["middleware/<br/>5 files"]
-        CTL["controllers/<br/>33 files"]
-        MOD["models/<br/>7 schemas"]
-        SVC["services/<br/>quizGenerator"]
-        SOK["socket/<br/>Socket.js"]
-        MIG["migration/<br/>10 scripts"]
-    end
-
-    subgraph FE["frontend/src/"]
-        MN["main.jsx<br/>entry point"]
-        APP["App.jsx<br/>route table"]
-        PG["Pages/<br/>13 screens"]
-        CMP["components/<br/>25 components"]
-        CTX["Context/<br/>13 providers"]
-        FD["Feed/<br/>4 components"]
-        UTL["utils/<br/>axios · tokens"]
-        SKT["socket/<br/>client"]
-    end
-
-    ROOT --> BE
-    ROOT --> FE
-```
-
-**Figure 4.2.** *Package and folder structure of the implemented codebase.*
-
-Each backend folder holds one kind of thing, and nothing else:
-
-| Folder | Contains | Rule followed |
+| Component | Version / Tool | Purpose |
 |---|---|---|
-| `routes/` | URL definitions | Declares paths only; contains no business logic |
-| `middleware/` | Functions that run before handlers | Cross-cutting concerns only: authentication, file upload |
-| `controllers/` | Request handlers | One file per operation |
-| `models/` | Mongoose schemas | Data shape and validation only |
-| `services/` | Shared logic | Code used by more than one controller |
-| `socket/` | Real-time event handlers | All WebSocket behaviour |
-| `migration/` | One-off data scripts | Run manually when a schema changes |
+| Operating system | Linux (kernel 6.19) | Development host |
+| Runtime | Node.js v24.15.0 (minimum v18) | Server execution |
+| Package manager | npm v11 | Dependency management |
+| Database | MongoDB 6.0+ (Atlas, cloud-hosted) | Persistence |
+| Database client | MongoDB Compass | Inspecting collections and documents |
+| Editor | Visual Studio Code | Development |
+| Version control | Git, hosted on GitHub | History and backup |
+| API documentation | swagger-ui-express 5.0.1 | Interactive API reference |
+| API testing | Postman | Manual endpoint verification |
+| Server reloading | nodemon 3.1.9 | Restart on file change |
+| Frontend tooling | Vite 6.0.3 | Development server and production build |
+| Linting | ESLint 9 | Static analysis |
 
-This separation means that changing a URL touches only `routes/`, and changing a validation rule
-touches only `models/`.
+> **[SCREENSHOT 4.1]** — The project open in Visual Studio Code, with the file explorer expanded
+> to show both the `backend` and `frontend` folders.
+>
+> *Caption: **Figure 4.1.** The FindOut repository in the development environment, showing the
+> two-package structure.*
+
+---
+
+## 4.3 Project Structure
+
+The repository is a single project containing two independently installable packages. A root
+manifest installs both.
+
+```
+FindOut/
+├── package.json                 Root manifest; installs both packages
+├── backend/
+│   ├── server.js                Entry point: HTTP server, Socket.IO, routers
+│   ├── config/
+│   │   ├── connectDB.js         Database connection and lifecycle
+│   │   └── upload.js            Multer storage for post images
+│   ├── docs/
+│   │   └── openapi.js           OpenAPI 3.0 specification (58 operations)
+│   ├── routes/                  4 routers, URL declarations only
+│   ├── middleware/              Auth, admin auth, file and audio upload
+│   ├── controllers/             33 files, one operation each
+│   ├── models/                  7 Mongoose schemas, 8 collections
+│   ├── services/
+│   │   └── quizGenerator.js     Question generation and marking
+│   ├── socket/
+│   │   └── Socket.js            All real-time event handlers
+│   ├── migration/               11 one-off data scripts
+│   ├── tests/                   Matcher unit tests, scalability benchmark
+│   ├── uploads/                 Images (git-ignored, created at runtime)
+│   └── audios/                  Voice messages (git-ignored)
+└── frontend/
+    ├── index.html
+    ├── tailwind.config.js       Design token to utility mapping
+    └── src/
+        ├── main.jsx             Entry: Router → Providers → App
+        ├── App.jsx              Route table
+        ├── index.css            Design tokens and shared component classes
+        ├── Pages/               13 screens
+        ├── components/          25 components
+        ├── Context/             13 state providers
+        ├── Feed/                4 feed components
+        ├── socket/              Socket.IO client
+        └── utils/               Axios instance, token service
+```
+
+Each backend folder holds one kind of thing. A change to a URL touches only `routes/`; a change
+to a validation rule touches only `models/`.
 
 ---
 
 ## 4.4 Database Implementation
 
-### 4.4.1 Entity relationship diagram
+### 4.4.1 Schema definition
 
-```mermaid
-erDiagram
-    USER ||--o{ GROUP : "administers"
-    USER }o--o{ GROUP : "is member of"
-    USER ||--o{ POST : "authors"
-    USER ||--o{ MESSAGE : "sends"
-    USER }o--o{ CHAT : "participates in"
-    USER ||--o{ VERIFICATION : "holds"
-    CHAT ||--o{ MESSAGE : "contains"
-    GROUP ||--o{ MESSAGE : "contains"
-    QUIZ ||--o{ VERIFICATION : "assessed by"
-    ADMIN ||--o{ ADMIN : "promotes"
+Collections are defined as Mongoose schemas, which enforce structure and validation at the
+application layer. The user schema is the central one, since matching depends on it.
 
-    USER {
-        ObjectId _id PK
-        string name
-        string email UK "unique index"
-        string password "bcrypt hash"
-        string profilePicture
-        array subjects "free text"
-        enum status "Teach|Learn|Later"
-        string freetime
-        boolean isVerified
-        array verifiedSubjects
-        number reputation
-        boolean isOnline
-        date lastSeen
-        string socketId
+*Source: `backend/models/UserModel.js`*
+
+```javascript
+const userSchema = new mongoose.Schema({
+  name:     { type: String, required: true },
+  email:    { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  profilePicture: { type: String },
+
+  // Matching inputs
+  subjects: { type: [String], default: [] },
+  status: {
+    type: String,
+    enum: ["Ready To Teach", "Ready To Learn", "Later"],
+    default: "Later",
+  },
+  freetime: { type: String },
+
+  // Trust signals
+  isVerified: { type: Boolean, default: false },
+  verifiedSubjects: [{
+    subject:    { type: String, required: true },
+    verifiedAt: { type: Date,   required: true },
+  }],
+  reputation: { type: Number, default: 0 },
+
+  // Presence
+  isOnline: { type: Boolean, default: false },
+  lastSeen: { type: Date, default: Date.now },
+  socketId: { type: String, default: null },
+}, { timestamps: true });
+```
+
+The `enum` on `status` is what makes complementary matching possible: because the field can hold
+only three known values, the algorithm can map any value to its complement without defensive
+checks.
+
+### 4.4.2 Indexes
+
+Indexes were declared on the fields that queries filter by.
+
+*Source: `backend/models/VerificationModel.js`, `QuizModel.js`, `PostModel.js`*
+
+```javascript
+// One verification record per user per subject — enforced, not assumed
+verificationSchema.index({ userId: 1, subject: 1 }, { unique: true });
+verificationSchema.index({ userId: 1, isVerified: 1 });
+
+// Cached quizzes expire without a scheduled cleanup job
+quizSchema.index({ subject: 1, expiresAt: 1 });
+quizSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+// Feed queries
+postSchema.index({ author: 1, createdAt: -1 });
+postSchema.index({ subject: 1 });
+postSchema.index({ postType: 1 });
+```
+
+The TTL index on `quizzes` is worth noting: MongoDB deletes those documents itself once
+`expiresAt` passes, so no background job was needed.
+
+### 4.4.3 Collections as created
+
+> **[SCREENSHOT 4.2]** — MongoDB Compass connected to the database, left panel expanded to show
+> all eight collections (`users`, `groups`, `chats`, `messages`, `posts`, `verifications`,
+> `quizzes`, `admins`) with their document counts.
+>
+> *Caption: **Figure 4.2.** The eight collections as created in MongoDB, with document counts at
+> the time of capture.*
+
+> **[SCREENSHOT 4.3]** — A single expanded document from the `users` collection, showing
+> `subjects`, `status`, `verifiedSubjects` and `isOnline`. **Blank out the `password` and `email`
+> fields before capturing.**
+>
+> *Caption: **Figure 4.3.** A user document, showing the stored subjects and availability that
+> drive the matching algorithm.*
+
+> **[SCREENSHOT 4.4]** — The `verifications` collection with one document expanded, showing the
+> embedded `attempts` array.
+>
+> *Caption: **Figure 4.4.** A verification record with its embedded attempt history.*
+
+---
+
+## 4.5 API Implementation
+
+### 4.5.1 Server composition
+
+*Source: `backend/server.js`*
+
+```javascript
+const app = express();
+const httpServer = createServer(app);
+
+initializeSocket(httpServer);          // WebSocket shares the HTTP server
+app.use(express.json());
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/audios',  express.static(path.join(__dirname, 'audios')));
+
+app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+
+app.use('/api',       router);          // 40 user endpoints
+app.use('/api/admin', adminRoutes);     // 11 admin endpoints
+app.use('/api',       searchRoutes);    // 3 search endpoints
+app.use('/api',       verificationRoutes); // 4 verification endpoints
+
+connectDB()
+  .then(() => httpServer.listen(PORT, () => { /* ... */ }))
+  .catch((error) => { /* report and exit 1 */ });
+```
+
+Two decisions are visible here. The WebSocket server is attached to the **same** HTTP server
+rather than a second port, so one origin serves both channels. And the server refuses to start
+if the database is unreachable — an earlier version listened anyway, which produced a server that
+accepted requests and failed every one of them ten seconds later.
+
+### 4.5.2 Authentication middleware
+
+Every protected route passes through one 20-line function.
+
+*Source: `backend/middleware/authMiddleware.js`*
+
+```javascript
+const authMiddleware = (req, res, next) => {
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+
+  if (!token) {
+    return res.status(401).json({ message: 'No token, authorization denied' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.authenticatedUser = decoded;   // controllers read the identity from here
+    next();
+  } catch (error) {
+    res.status(401).json({ message: 'Token is not valid' });
+  }
+};
+```
+
+Because the decoded identity is attached to the request, no controller parses a token itself.
+This is also why the defects in §4.10 that take a user id from the request *body* rather than
+from `req.authenticatedUser` are security-relevant: they bypass this single point of trust.
+
+### 4.5.3 Endpoint catalogue
+
+The API exposes **58 endpoints** across nine functional areas.
+
+**Table 4.2**
+
+*REST Endpoints by Module*
+
+| Module | Endpoints | Representative routes |
+|---|---|---|
+| Authentication | 7 | `POST /api/register`, `POST /api/login`, `GET /api/verify-email`, `POST /api/refresh-token` |
+| Profile | 3 | `GET /api/user-details`, `PUT /api/edit-user`, `POST /api/profile-picture` |
+| Matching | 1 | `GET /api/suggestions` |
+| Verification | 4 | `GET /api/verification/status`, `POST /api/verification/start-quiz`, `POST /api/verification/submit-quiz` |
+| Groups | 12 | `POST /api/creategroup`, `POST /api/join-group`, `GET /api/join/:inviteCode`, `PUT /api/groups/update-privacy` |
+| Messaging | 5 | `GET /api/chats`, `GET /api/messages/:chatId`, `POST /api/start-new-chat` |
+| Feed | 9 | `POST /api/add-post`, `GET /api/getallposts`, `POST /api/posts/:postId/helpful` |
+| Search | 4 | `GET /api/search`, `GET /api/explore/groups` |
+| Administration | 11 | `POST /api/admin/login`, `GET /api/admin/dashboard/stats`, `DELETE /api/admin/users/:userId` |
+| **Total** | **58** | |
+
+The single endpoint under Matching is deliberate. `GET /api/suggestions` performs the entire
+matching operation server-side and returns a ranked result, so the client holds no matching logic
+and cannot produce a different ranking.
+
+### 4.5.4 API documentation with Swagger
+
+The API is documented using **OpenAPI 3.0**, served as an interactive page through
+`swagger-ui-express`. This gives three things a written endpoint table cannot: a machine-readable
+contract, request and response schemas for every operation, and the ability to execute real
+requests from the browser.
+
+The specification is maintained as a single module rather than as annotations spread across 33
+controllers, so it can be read as a contract independently of the implementation.
+
+*Source: `backend/server.js`*
+
+```javascript
+const swaggerUi   = require('swagger-ui-express');
+const openapiSpec = require('./docs/openapi');
+
+app.get('/api-docs.json', (req, res) => res.json(openapiSpec));
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiSpec, {
+  customSiteTitle: 'FindOut API',
+  swaggerOptions: {
+    persistAuthorization: true,  // bearer token survives a page reload
+    docExpansion: 'none',        // collapse tags so the index stays readable
+    filter: true,                // search box over operations
+    tryItOutEnabled: true,
+  },
+}));
+```
+
+*Source: `backend/docs/openapi.js` — excerpt showing how the core endpoint is described*
+
+```javascript
+'/api/suggestions': {
+  get: {
+    tags: ['Matching'],
+    summary: 'Get ranked peer and group suggestions',
+    description: `Returns up to 15 users and 15 groups, ranked by match score.
+      Complementary availability scores 20; exact subject match 10; ...`,
+    responses: {
+      200: ok('Ranked suggestions', {
+        type: 'object',
+        properties: {
+          suggestedUsers:  { type: 'array', items: { $ref: '#/components/schemas/SuggestedUser' } },
+          suggestedGroups: { type: 'array', items: { $ref: '#/components/schemas/SuggestedGroup' } },
+        },
+      }),
+      401: Unauthorized,
+    },
+  },
+},
+```
+
+The documentation covers all 58 operations, grouped under nine tags, with 10 reusable schema
+definitions (`User`, `Group`, `Message`, `Post`, `QuizQuestion`, `QuizResult`, `TokenPair` and
+others) so response shapes are defined once and referenced.
+
+Two security schemes are declared, `bearerAuth` and `adminAuth`, which documents an important
+property of the system: administrator endpoints require a **different** identity, and a user
+token is not accepted on them.
+
+**Access:** with the backend running, the documentation is at
+`http://localhost:5000/api-docs`, and the raw specification at `http://localhost:5000/api-docs.json`.
+
+![Figure 4.5](images/fig-4.05-swagger-index.png)
+
+**Figure 4.5.** *The generated API documentation, covering all 58 endpoints grouped by functional area.*
+
+![Figure 4.6](images/fig-4.06-swagger-matching-endpoint.png)
+
+**Figure 4.6.** *Documentation for the matching endpoint, with the Matching tag and the operation expanded to show its description and response schema.*
+
+![Figure 4.7](images/fig-4.07-swagger-authorize.png)
+
+**Figure 4.7.** *The Authorize dialog, used to attach a bearer token to requests executed from the documentation page.*
+
+### 4.5.5 Endpoint testing
+
+Endpoints were additionally exercised with Postman during development, which allows saved
+collections and variable reuse across requests.
+
+> **[SCREENSHOT 4.8]** — A Postman request to `POST /api/login` showing the request body and the
+> 200 response containing the token pair. **Blank out the token values.**
+>
+> *Caption: **Figure 4.8.** Verifying the login endpoint and the issued token pair in Postman.*
+
+> **[SCREENSHOT 4.9]** — A Postman request to `GET /api/suggestions` with an Authorization header
+> set, showing the ranked `suggestedUsers` array in the response.
+>
+> *Caption: **Figure 4.9.** The matching endpoint returning ranked suggestions.*
+
+---
+
+## 4.6 Module Implementation
+
+### 4.6.1 Authentication and email verification
+
+Registration hashes the password with bcrypt at cost factor 10, stores the account as unverified,
+and sends a signed confirmation link. Login is refused until the address is confirmed.
+
+*Source: `backend/controllers/RegisterUser.js`*
+
+```javascript
+const hashedPassword = await bcrypt.hash(password, 10);
+
+// multer's file.path is a filesystem path; the client builds URLs as
+// `${BACKEND_URL}${storedValue}`, so store a root-relative path instead.
+const profilePicture = req.file ? `/uploads/${req.file.filename}` : null;
+
+const newUser = new UserModel({ name, email, password: hashedPassword,
+                                profilePicture, isVerified: false });
+await newUser.save();
+await sendVerificationEmail(email);
+```
+
+*Source: `backend/controllers/LoginUser.js`*
+
+```javascript
+const generateTokens = (userId) => ({
+  accessToken:  jwt.sign({ id: userId }, ACCESS_TOKEN_SECRET,  { expiresIn: '15m' }),
+  refreshToken: jwt.sign({ id: userId }, REFRESH_TOKEN_SECRET, { expiresIn: '7d' }),
+});
+
+if (!findUser.isVerified) {
+  return res.status(403).json({ message: 'Please verify your email before logging in.' });
+}
+const isMatch = await bcrypt.compare(password, findUser.password);
+```
+
+![Figure 4.10](images/fig-4.10-registration.png)
+
+**Figure 4.10.** *Account registration.*
+
+> **[SCREENSHOT 4.11]** — The verification email as received, showing the confirmation link.
+>
+> *Caption: **Figure 4.11.** The email verification message.*
+
+![Figure 4.12](images/fig-4.12-login.png)
+
+**Figure 4.12.** *The login screen.*
+
+### 4.6.2 Profile and availability
+
+The profile panel is where a student declares the two inputs the matching algorithm consumes:
+their subjects, and whether they are ready to teach or to learn.
+
+*Source: `frontend/src/components/ManageUser.jsx`*
+
+```javascript
+// subjects is a string array on the server; it is edited here as a single
+// comma-separated field and converted back on save.
+const handleSaveChanges = async () => {
+  const subjectList = subjects.split(',').map(s => s.trim()).filter(Boolean);
+  await editUserDetails({ subjects: subjectList, status });
+  await fetchUserDetails();
+  setOpenManageUser(false);
+};
+```
+
+Availability is presented as three mutually exclusive options, each carrying its own semantic
+colour so the same meaning is signalled identically everywhere in the interface.
+
+![Figure 4.13](images/fig-4.13-manage-profile.png)
+
+**Figure 4.13.** *The profile panel, where subjects and availability are declared.*
+
+### 4.6.3 The matching engine
+
+This is the central feature. The implementation lives in one controller and has no dependencies
+beyond the two models it reads, which is what allowed it to be unit-tested in isolation
+(Chapter 5, §5.3).
+
+*Source: `backend/controllers/Suggestions.js` — the four-tier subject matcher*
+
+```javascript
+const fuzzyMatch = (str1, str2) => {
+  const normalize = (str) => str.toLowerCase().replace(/[+#.\-_\s]/g, '').trim();
+  const n1 = normalize(str1);
+  const n2 = normalize(str2);
+
+  if (n1 === n2) return { match: true, score: 10 };                    // exact
+  if (n1.includes(n2) || n2.includes(n1)) return { match: true, score: 7 };  // substring
+  if (n1.length >= 3 && n2.length >= 3 && n1.substring(0, 3) === n2.substring(0, 3)) {
+    return { match: true, score: 5 };                                  // shared prefix
+  }
+
+  const distance   = levenshteinDistance(n1, n2);                      // edit distance
+  const similarity = 1 - distance / Math.max(n1.length, n2.length);
+  if (similarity >= 0.7) return { match: true, score: Math.floor(similarity * 5) };
+
+  return { match: false, score: 0 };
+};
+```
+
+*Source: same file — complementary status and scoring*
+
+```javascript
+let targetStatus = [];
+if (user.status === "Ready To Learn")      targetStatus.push("Ready To Teach");
+else if (user.status === "Ready To Teach") targetStatus.push("Ready To Learn");
+
+// ... per candidate:
+if (targetStatus.length > 0 && targetStatus.includes(otherUser.status)) {
+  matchScore += 20;                       // complementary role dominates
+}
+for (const userSubject of user.subjects) {
+  for (const otherSubject of otherUser.subjects || []) {
+    const result = fuzzyMatch(userSubject, otherSubject);
+    if (result.match) { matchScore += result.score; matchedSubjects.push(/* ... */); break; }
+  }
+}
+if (otherUser.isOnline) matchScore += 3;
+if (matchedSubjects.length > 1) matchScore += matchedSubjects.length * 2;
+```
+
+The weight of 20 for a complementary role is the line where the reciprocal principle from
+Chapter 2 becomes executable code: it guarantees that one correct role match outranks any
+accumulation of subject similarity between two students who both want to learn.
+
+![Figure 4.14](images/fig-4.14-dashboard-suggestions.png)
+
+**Figure 4.14.** *Ranked match suggestions produced by the matching engine. All four suggested peers are Ready To Teach, complementing the requesting account’s Ready To Learn status.*
+
+![Figure 4.15](images/fig-4.15-verified-suggestion.png)
+
+**Figure 4.15.** *The suggestion rail, showing peers alongside discoverable groups with their join actions.*
+
+### 4.6.4 Competency verification
+
+The quiz mechanism awards a per-subject badge. Its most important implementation property is that
+correct answers never leave the server.
+
+*Source: `backend/controllers/verificationController.js`*
+
+```javascript
+const questions = await quizGenerator.generateQuiz(subject);
+
+// Strip the answers before responding
+const questionsForClient = questions.map(q => ({
+  question:   q.question,
+  options:    q.options,
+  difficulty: q.difficulty,
+}));
+
+// Retain the full set server-side, keyed by session, for marking
+global.activeQuizSessions[quizSessionId] = {
+  questions, startTime: Date.now(), subject, userId,
+};
+```
+
+```javascript
+// Marking, and the ownership check that prevents submitting another user's session
+if (session.userId !== userId) {
+  return res.status(403).json({ success: false, message: 'Unauthorized' });
+}
+const result = quizGenerator.gradeQuiz(session.questions, answers);
+verification.addAttempt({ score: result.score, passed: result.passed, /* ... */ });
+```
+
+**An accurate statement of question generation.** The design intent was to generate
+subject-specific questions with a large language model, and provision was made for it — the API
+key is configured and the client library installed. The implemented build does **not** use it.
+Question generation uses a fixed bank of ten templates into which the subject name is inserted,
+and those templates assess *pedagogical approach* rather than knowledge of the subject. This is
+recorded here, in Chapter 3 §3.9.4, and in Chapter 5 rather than concealed. Do not describe this
+system as using AI-generated assessment.
+
+![Figure 4.16](images/fig-4.16-verification-dashboard.png)
+
+**Figure 4.16.** *Verification status for each declared subject.*
+
+> **[SCREENSHOT 4.17]** — A quiz in progress, showing a question with its four options.
+>
+> *Caption: **Figure 4.17.** A competency quiz in progress.*
+
+> **[SCREENSHOT 4.18]** — The result screen showing the score, pass or fail, and per-question feedback.
+>
+> *Caption: **Figure 4.18.** Quiz result and awarded badge.*
+
+### 4.6.5 Real-time messaging
+
+Messaging uses Socket.IO rooms: one room per conversation, named by its identifier. A message
+sent to a room reaches exactly its participants, with no manual recipient list.
+
+*Source: `backend/socket/Socket.js`*
+
+```javascript
+socket.on('user-online', async (userId) => {
+  socket.join(userId);                                   // personal notification room
+  await User.findByIdAndUpdate(userId, {
+    isOnline: true, lastSeen: new Date(), socketId: socket.id,
+  });
+
+  const [chats, groups] = await Promise.all([
+    ChatModel.find({ participants: userId }).lean(),
+    GroupModel.find({ members: userId }).lean(),
+  ]);
+  const allChatIds = [...chats.map(c => c._id.toString()),
+                      ...groups.map(g => g._id.toString())];
+
+  allChatIds.forEach(chatId => socket.join(chatId));     // join every conversation
+
+  // Messages that arrived while offline become 'delivered' on reconnect
+  await MessageModel.updateMany(
+    { chatId: { $in: allChatIds }, senderId: { $ne: userId }, status: 'sent' },
+    { $set: { status: 'delivered', deliveredAt: new Date() } }
+  );
+
+  socket.broadcast.emit('user-status-changed', { userId, isOnline: true });
+});
+```
+
+The implementation rule worth noting is ordering: the server **persists a message before
+broadcasting it**. Broadcasting first would be marginally faster but risks a message appearing on
+screen and then vanishing if the write fails.
+
+![Figure 4.19](images/fig-4.19-messaging-two-accounts.png)
+
+**Figure 4.19.** *Real-time message delivery between two accounts, showing presence and read status.*
+
+### 4.6.6 Groups and privacy
+
+The three privacy levels produce three different join paths from a single request.
+
+*Source: `backend/controllers/JoinGroup.js`*
+
+```javascript
+// SECRET: not joinable by request at all
+if (group.privacy === 'secret') {
+  return res.status(403).json({
+    success: false,
+    message: 'This group is secret. You can only join via an invite link.',
+  });
+}
+
+// PRIVATE: create a pending request and notify the administrator
+if (group.privacy === 'private') {
+  group.pendingRequests.push({ userId, requestedAt: new Date() });
+  await group.save();
+  getIo().to(group.groupAdmin._id.toString()).emit('new-join-request', { /* ... */ });
+  return res.status(200).json({ success: true, isPending: true, /* ... */ });
+}
+
+// PUBLIC: join immediately
+group.members.push(userId);
+group.unreadCount.push({ userId, count: 0 });
+await group.save();
+```
+
+![Figure 4.20](images/fig-4.20-create-group.png)
+
+**Figure 4.20.** *Creating a study group, showing the three privacy levels.*
+
+![Figure 4.21](images/fig-4.21-explore-groups.png)
+
+**Figure 4.21.** *Group discovery. Public groups offer Join and private groups offer Request; secret groups do not appear at all.*
+
+> **[SCREENSHOT 4.22]** — The group administrator’s view of a pending join request.
+>
+> *Caption: **Figure 4.22.** A pending join request awaiting approval.*
+
+### 4.6.7 Learning resource feed
+
+Posts carry a subject tag and a type classification (`resource`, `help`, `explanation`,
+`challenge`, `general`) so a shared resource is distinguishable from a request for help. The
+endorsement action is named **helpful** rather than "like": in a learning context, marking
+something helpful communicates educational value where a like communicates approval. The database
+field, the API route and the interface label were all renamed together.
+
+![Figure 4.23](images/fig-4.23-feed.png)
+
+**Figure 4.23.** *The learning resource feed, showing subject tags, type badges and helpful counts.*
+
+> **[SCREENSHOT 4.24]** — A post with its comment thread open, showing a threaded reply.
+>
+> *Caption: **Figure 4.24.** Threaded discussion on a post.*
+
+![Figure 4.25](images/fig-4.25-create-post.png)
+
+**Figure 4.25.** *Publishing a learning resource, showing the five post types.*
+
+### 4.6.8 Administration
+
+Administration uses a completely separate identity system: a different collection, a different
+login endpoint and different middleware. A user account cannot be escalated through any
+user-facing route, and the first super administrator is created by running a script directly on
+the server.
+
+*Source: `backend/controllers/adminController.js` — statistics by aggregation*
+
+```javascript
+const [totalUsers, totalPosts, totalGroups, onlineUsers, teacherCount, learnerCount] =
+  await Promise.all([
+    UserModel.countDocuments(),
+    PostModel.countDocuments(),
+    GroupModel.countDocuments(),
+    UserModel.countDocuments({ isOnline: true }),
+    UserModel.countDocuments({ status: 'Ready To Teach' }),
+    UserModel.countDocuments({ status: 'Ready To Learn' }),
+  ]);
+
+const topSubjects = await PostModel.aggregate([
+  { $group: { _id: '$subject', count: { $sum: 1 } } },
+  { $sort: { count: -1 } },
+  { $limit: 10 },
+]);
+```
+
+The teach-versus-learn split is the measure with institutional value: it shows which subjects
+generate demand for help that supply is not meeting.
+
+> **[SCREENSHOT 4.26]** — The admin dashboard showing platform statistics.
+> *Caption: **Figure 4.26.** Administrator dashboard.*
+
+> **[SCREENSHOT 4.27]** — The admin user management page.
+> *Caption: **Figure 4.27.** User management and moderation.*
+
+---
+
+## 4.7 Frontend Implementation
+
+### 4.7.1 Application composition
+
+*Source: `frontend/src/main.jsx`*
+
+```javascript
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <Router>
+      <Provider>        {/* 13 nested context providers */}
+        <App />
+        <ToastContainer />
+      </Provider>
+    </Router>
+  </StrictMode>
+);
+```
+
+Shared state is held in React Context providers rather than passed manually between components.
+Nesting order matters: `ToastProvider` is outermost so a notification can be raised from anywhere.
+
+### 4.7.2 Transparent token renewal
+
+Access tokens expire after 15 minutes. Rather than forcing the user to log in again, an Axios
+interceptor renews them invisibly.
+
+*Source: `frontend/src/utils/axiosInstance.js`*
+
+```javascript
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;                      // retry once only
+      try {
+        const refreshToken = getRefreshToken();
+        const { data } = await axios.post(`${BASE}/api/refresh-token`, { refreshToken });
+        setTokens(data);
+        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        return axiosInstance(originalRequest);             // replay the original call
+      } catch (refreshError) {
+        clearTokens();
+        window.location.href = '/login';
+      }
     }
-
-    GROUP {
-        ObjectId _id PK
-        string groupName
-        array subjects
-        string description "max 500"
-        string meetingTime
-        ObjectId groupAdmin FK
-        array members FK
-        string inviteCode UK "16 hex chars"
-        enum privacy "public|private|secret"
-        array pendingRequests
-        object lastMessage "denormalised"
-        array unreadCount "per user"
-    }
-
-    CHAT {
-        ObjectId _id PK
-        boolean isGroup
-        array participants FK
-        object lastMessage "denormalised"
-        array unreadCount "per user"
-    }
-
-    MESSAGE {
-        ObjectId _id PK
-        ObjectId chatId FK
-        ObjectId senderId FK
-        string content
-        string type "text|audio|system"
-        enum status "sending|sent|delivered|read"
-        array readBy
-        date deliveredAt
-    }
-
-    POST {
-        ObjectId _id PK
-        ObjectId author FK
-        string image "required"
-        string caption "max 500"
-        enum postType "resource|help|explanation|challenge|general"
-        string subject
-        array helpful
-        array comments "embedded"
-        number helpfulCount
-        number commentCount
-    }
-
-    VERIFICATION {
-        ObjectId _id PK
-        ObjectId userId FK
-        string subject
-        array attempts "embedded history"
-        boolean isVerified
-        date verifiedAt
-        number bestScore
-        number totalAttempts
-        number maxAttempts "3"
-        boolean canRetake
-    }
-
-    QUIZ {
-        ObjectId _id PK
-        string subject
-        array questions
-        number timesUsed
-        date expiresAt "TTL 7 days"
-    }
-
-    ADMIN {
-        ObjectId _id PK
-        string name
-        string email UK
-        string password
-        boolean isSuperAdmin
-        ObjectId createdBy FK
-        date lastLogin
-    }
+    return Promise.reject(error);
+  }
+);
 ```
 
-**Figure 4.3.** *Entity relationship diagram of the implemented database, showing all eight
-collections, their fields, and the relationships between them.*
+The result is that no component contains token-handling code, and no component is aware that
+tokens expire.
 
-### 4.4.2 The nested comment structure
+### 4.7.3 Design token system
 
-Posts embed their entire discussion. This is worth showing separately because it is three levels
-deep.
+The interface is built on a token layer rather than ad-hoc colours, so a change to the palette is
+a change to one file.
 
-```mermaid
-graph TD
-    P["POST<br/>author · image · caption<br/>subject · postType"]
-    H["helpful[]<br/>user · createdAt"]
-    C["comments[]<br/>user · text (max 300)<br/>likeCount · replyCount"]
-    CL["comment likes[]<br/>user · createdAt"]
-    R["replies[]<br/>user · text (max 300)<br/>likeCount"]
-    RL["reply likes[]<br/>user · createdAt"]
+*Source: `frontend/src/index.css`*
 
-    P --> H
-    P --> C
-    C --> CL
-    C --> R
-    R --> RL
+```css
+:root {
+  /* Surfaces — an elevation ladder, darkest to lightest */
+  --surface-base:    12  12  18;
+  --surface-raised:  22  22  31;
+  --surface-overlay: 31  31  43;
+
+  /* One accent family */
+  --primary-500:  99 102 241;   /* indigo  */
+  --accent-500:  139  92 246;   /* violet  */
+
+  /* Semantic status, matching the availability values */
+  --success-400:  52 211 153;   /* Ready To Teach  */
+  --warning-400: 251 191  36;   /* Later           */
+}
 ```
 
-**Figure 4.4.** *Embedded document structure of a post. The entire discussion thread is stored
-inside the post document, so retrieving a post with all its comments and replies requires a
-single database read.*
+Values are stored as RGB channels so Tailwind opacity modifiers still work
+(`bg-surface-raised/60`). Colour is used to signal meaning, not decoration: availability status
+carries the same colour on every screen.
 
-The benefit is speed: one read returns everything needed to display a post. The cost is that a
-MongoDB document cannot exceed 16 MB, which places an upper limit on how many comments a single
-post can hold. For the expected usage this limit is not reached, but it is a real ceiling and is
-noted in §4.17.
+### 4.7.4 Responsive behaviour
+
+The interface adapts to screen width. Separate components exist for mobile navigation, because
+the desktop sidebar layout does not compress usefully to phone width. Mobile is the dominant
+access mode in the target population, so this was treated as a requirement rather than an
+enhancement.
+
+![Figure 4.28](images/fig-4.28-dashboard-mobile.png)
+
+**Figure 4.28.** *The dashboard on a mobile viewport, with the fixed bottom navigation clear of the content.*
+
+![Figure 4.29](images/fig-4.29-chat-mobile.png)
+
+**Figure 4.29.** *Messaging on a mobile viewport.*
 
 ---
 
-## 4.5 Request Processing Pipeline
+## 4.8 Implementation Statistics
 
-Every HTTP request passes through the same sequence of stages before reaching the code that
-answers it.
-
-```mermaid
-graph LR
-    A["Incoming<br/>HTTP Request"] --> B["express.json()<br/>parse JSON body"]
-    B --> C["CORS check<br/>origin allowed?"]
-    C -->|"rejected"| X1["Blocked"]
-    C -->|"allowed"| D["Router match<br/>/api · /api/admin"]
-    D --> E{"Route<br/>protected?"}
-    E -->|"no"| H["Controller"]
-    E -->|"yes"| F["authMiddleware<br/>verify Bearer token"]
-    F -->|"invalid"| X2["401 Unauthorized"]
-    F -->|"valid"| G{"File<br/>upload?"}
-    G -->|"yes"| G1["Multer<br/>type + size check"]
-    G1 --> H
-    G -->|"no"| H
-    H --> I["Mongoose Model"]
-    I --> J[("MongoDB")]
-    J --> K["JSON Response"]
-```
-
-**Figure 4.5.** *Request processing pipeline showing the middleware chain applied to every
-incoming HTTP request.*
-
-The authentication middleware is only 20 lines of code but is the single point through which all
-protected access passes. It extracts the token from the `Authorization` header, verifies the
-signature, and attaches the decoded user identity to the request object. If verification fails it
-returns 401 and the controller never runs.
-
----
-
-## 4.6 Authentication Implementation
-
-### 4.6.1 Registration and login flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as User
-    participant F as React Client
-    participant A as Express API
-    participant D as MongoDB
-    participant M as SMTP Server
-
-    Note over U,M: REGISTRATION
-    U->>F: Fill registration form
-    F->>A: POST /api/register (multipart)
-    A->>D: Check if email exists
-    alt email already registered
-        D-->>A: user found
-        A-->>F: 400 with reason
-    else email is new
-        A->>A: bcrypt.hash(password, 10)
-        A->>D: Save user (isVerified = false)
-        A->>M: Send verification email
-        M-->>U: Email with signed link
-        A-->>F: 201 Registered
-    end
-
-    Note over U,M: EMAIL VERIFICATION
-    U->>F: Click link in email
-    F->>A: GET /api/verify-email?token=...
-    A->>A: jwt.verify(token)
-    A->>D: Set isVerified = true
-    A-->>F: Verified
-
-    Note over U,M: LOGIN
-    U->>F: Enter credentials
-    F->>A: POST /api/login
-    A->>D: Find user by email
-    alt not verified
-        A-->>F: 403 Verify your email first
-    else verified
-        A->>A: bcrypt.compare(password, hash)
-        alt password wrong
-            A-->>F: 400 Invalid credentials
-        else password correct
-            A->>A: Sign access token (15 min)
-            A->>A: Sign refresh token (7 days)
-            A-->>F: 200 with both tokens
-            F->>F: Store tokens in localStorage
-        end
-    end
-```
-
-**Figure 4.6.** *Sequence diagram of registration, email verification, and login.*
-
-### 4.6.2 Automatic token renewal
-
-The access token expires after 15 minutes. Rather than forcing the user to log in again, the
-frontend renews it automatically. This is implemented in `utils/axiosInstance.js` using an Axios
-*interceptor* — a function that inspects every response before the application sees it.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant C as Component
-    participant AX as Axios Interceptor
-    participant A as API
-
-    C->>AX: Request data
-    AX->>AX: Attach access token
-    AX->>A: GET /api/... with Bearer token
-    A-->>AX: 401 Token expired
-
-    Note over AX: Interceptor catches the 401<br/>Component is not yet aware
-
-    AX->>A: POST /api/refresh-token (refresh token)
-    alt refresh token still valid
-        A-->>AX: New access token
-        AX->>AX: Store new token
-        AX->>A: Retry original request
-        A-->>AX: 200 with data
-        AX-->>C: Data returned
-        Note over C: Component never saw the failure
-    else refresh token expired
-        A-->>AX: 401
-        AX->>AX: Clear stored tokens
-        AX-->>C: Redirect to /login
-    end
-```
-
-**Figure 4.7.** *Automatic access-token renewal. The interceptor handles expiry transparently, so
-no component contains token-handling code.*
-
-This design means token expiry is invisible to the rest of the application. No component needs to
-know that tokens exist.
-
----
-
-## 4.7 Matching Algorithm Implementation
-
-The algorithm specified in §3.8 is implemented in `controllers/Suggestions.js`. Figure 4.8 shows
-the executed flow.
-
-```mermaid
-graph TD
-    A["GET /api/suggestions<br/>authenticated"] --> B["Load requesting user"]
-    B --> C{"Has any<br/>subjects?"}
-    C -->|"no"| D["Return empty lists<br/>+ prompt to add subjects"]
-    C -->|"yes"| E["Find existing direct chats"]
-    E --> F["Build exclusion set<br/>of already-connected users"]
-    F --> G["Determine complementary status<br/>Learn → Teach, Teach → Learn"]
-    G --> H["Load all users who have subjects"]
-
-    H --> I["FOR EACH candidate"]
-    I --> J{"Already<br/>connected?"}
-    J -->|"yes"| I
-    J -->|"no"| K["score = 0"]
-    K --> L{"Status is<br/>complementary?"}
-    L -->|"yes"| M["score += 20"]
-    L -->|"no"| N["Compare subjects"]
-    M --> N
-    N --> O["For each of my subjects,<br/>find best fuzzy match<br/>and add its score"]
-    O --> P{"Candidate<br/>online?"}
-    P -->|"yes"| Q["score += 3"]
-    P -->|"no"| R{"More than one<br/>subject matched?"}
-    Q --> R
-    R -->|"yes"| S["score += 2 × matches"]
-    R -->|"no"| T{"score > 0?"}
-    S --> T
-    T -->|"no"| I
-    T -->|"yes"| U["Keep candidate"]
-    U --> I
-
-    I -->|"all done"| V["Sort by score descending<br/>tie-break: online, then recent"]
-    V --> W["Take top 15"]
-    W --> X["Repeat scoring for groups"]
-    X --> Y["Return users + groups"]
-```
-
-**Figure 4.8.** *Execution flow of the peer matching algorithm.*
-
-### 4.7.1 The fuzzy subject matcher
-
-```mermaid
-graph TD
-    A["fuzzyMatch(s1, s2)"] --> B["Normalise both:<br/>lowercase, remove + # . - _ and spaces"]
-    B --> C{"Identical?"}
-    C -->|"yes"| C1["MATCH — score 10"]
-    C -->|"no"| D{"One contains<br/>the other?"}
-    D -->|"yes"| D1["MATCH — score 7"]
-    D -->|"no"| E{"Both ≥ 3 chars and<br/>first 3 identical?"}
-    E -->|"yes"| E1["MATCH — score 5"]
-    E -->|"no"| F["Compute Levenshtein distance"]
-    F --> G["similarity = 1 − distance / longer length"]
-    G --> H{"similarity ≥ 0.7?"}
-    H -->|"yes"| H1["MATCH — score floor(5 × sim)"]
-    H -->|"no"| H2["NO MATCH — score 0"]
-```
-
-**Figure 4.9.** *Four-tier decision flow of the fuzzy subject matcher. Evaluation stops at the
-first tier that matches, so the expensive Levenshtein calculation runs only when the cheaper
-tests fail.*
-
-The tiers are ordered by confidence and by computational cost together, which is why the cheapest
-and most confident test comes first.
-
----
-
-## 4.8 Verification Module Implementation
-
-### 4.8.1 Quiz lifecycle
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as Student
-    participant F as React Client
-    participant A as API
-    participant Q as Quiz Generator
-    participant D as MongoDB
-    participant S as Server Memory
-
-    U->>F: Open verification dashboard
-    F->>A: GET /api/verification/status
-    A->>D: Load user subjects + verification records
-    A-->>F: Per-subject state and attempts left
-
-    U->>F: Start quiz for a subject
-    F->>A: POST /api/verification/start-quiz
-    A->>D: Check subject is on profile
-    A->>D: Check attempts remaining
-    alt not eligible
-        A-->>F: 400 with reason
-    else eligible
-        A->>Q: generateQuiz(subject)
-        Q->>D: Look for cached quiz (< 7 days old)
-        alt cache hit
-            D-->>Q: Cached questions
-        else cache miss
-            Q->>Q: Build 10 questions from templates
-            Q->>D: Save to cache with 7-day expiry
-        end
-        Q-->>A: 10 questions with answers
-        A->>S: Store full questions under session ID
-        A->>A: REMOVE correct answers
-        A-->>F: Questions WITHOUT answers
-    end
-
-    U->>F: Answer questions and submit
-    F->>A: POST /api/verification/submit-quiz
-    A->>S: Retrieve session
-    alt session missing or belongs to another user
-        A-->>F: 404 / 403
-    else session valid
-        A->>A: Mark answers server-side
-        A->>A: percentage = correct / 10 × 100
-        A->>D: Append attempt to history
-        alt percentage ≥ 70
-            A->>D: Add subject to verifiedSubjects
-            A-->>F: PASSED — badge awarded
-        else percentage < 70
-            A->>D: Decrement attempts remaining
-            A-->>F: FAILED — attempts left shown
-        end
-        A->>S: Delete session
-    end
-```
-
-**Figure 4.10.** *Complete quiz lifecycle, showing that correct answers are removed before
-transmission and that all marking occurs on the server.*
-
-The critical security property visible in this diagram is that **the correct answers never leave
-the server**. They are stripped from the response before it is sent, and marking happens
-server-side only. A student inspecting the page source cannot find the answers.
-
-### 4.8.2 Verification state machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> NotStarted: subject added to profile
-    NotStarted --> InProgress: attempt 1 started
-    InProgress --> Verified: score ≥ 70%
-    InProgress --> InProgress: score under 70%, attempts remain
-    InProgress --> Locked: 3 attempts used, none passed
-    Verified --> [*]: badge shown on profile
-    Locked --> [*]: no further attempts permitted
-
-    note right of Verified
-        Subject added to verifiedSubjects
-        with timestamp
-    end note
-
-    note right of Locked
-        canRetake set to false
-    end note
-```
-
-**Figure 4.11.** *Verification state machine for a single subject.*
-
----
-
-## 4.9 Real-Time Messaging Implementation
-
-### 4.9.1 Room membership model
-
-Socket.IO *rooms* are named groups of connections. Understanding the room model is necessary to
-understand how messages reach the right people.
-
-```mermaid
-graph TB
-    subgraph conn["When a user connects and emits 'user-online'"]
-        S["User's socket connection"]
-    end
-
-    subgraph rooms["Rooms the socket automatically joins"]
-        PR["Personal room<br/>named by userId<br/>(for notifications)"]
-        C1["Chat room 1<br/>named by chatId"]
-        C2["Chat room 2<br/>named by chatId"]
-        G1["Group room 1<br/>named by groupId"]
-        G2["Group room 2<br/>named by groupId"]
-    end
-
-    S --> PR
-    S --> C1
-    S --> C2
-    S --> G1
-    S --> G2
-```
-
-**Figure 4.12.** *Socket room membership. On connection the server finds every chat and group the
-user belongs to and joins the socket to the corresponding rooms, plus a personal room used for
-direct notifications such as join requests.*
-
-Sending a message to a room reaches exactly the participants of that conversation. No manual
-recipient list is needed.
-
-### 4.9.2 Message delivery sequence
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant S as Sender
-    participant IO as Socket.IO Server
-    participant D as MongoDB
-    participant R as Recipient
-
-    Note over S,R: CONNECTION AND PRESENCE
-    S->>IO: connect
-    S->>IO: 'user-online' (userId)
-    IO->>D: isOnline = true, store socketId
-    IO->>D: Find all chats and groups for user
-    IO->>IO: Join personal room + all chat rooms
-    IO->>D: Mark pending 'sent' messages as 'delivered'
-    IO-->>S: 'messages-delivered'
-    IO-->>R: broadcast 'user-status-changed'
-
-    Note over S,R: SENDING A MESSAGE
-    S->>IO: 'send-message' {chatId, content, type}
-    IO->>D: Save message (status = 'sent')
-    IO->>D: Update chat lastMessage
-    IO->>D: Increment recipient unread count
-    IO-->>R: 'message-received'
-    IO-->>S: 'message-confirmed'
-
-    Note over S,R: READ RECEIPTS
-    R->>IO: 'mark-messages-read' {chatId}
-    IO->>D: status = 'read', append to readBy[]
-    IO->>D: Reset unread count to 0
-    IO-->>S: 'messages-read'
-
-    Note over S,R: DISCONNECTION
-    R->>IO: disconnect
-    IO->>D: isOnline = false, lastSeen = now
-    IO-->>S: broadcast 'user-status-changed'
-```
-
-**Figure 4.13.** *Real-time message delivery sequence, from connection through to disconnection.*
-
-An important implementation rule is visible at step 8: the message is **saved to the database
-before it is broadcast**. Broadcasting first would be marginally faster but risks a message
-appearing on screen and then disappearing if the save fails.
-
-### 4.9.3 Message status state machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> sending: user presses send
-    sending --> sent: server saved to database
-    sent --> delivered: recipient's client received it
-    delivered --> read: recipient opened the conversation
-    read --> [*]
-
-    note right of sent
-        Recipient offline —
-        message waits in this state
-    end note
-
-    note right of delivered
-        For group chats, readBy[]
-        records each reader separately
-    end note
-```
-
-**Figure 4.14.** *Message status state machine. In group chats, "read" is not a single event, so
-the system records which specific users have read each message.*
-
----
-
-## 4.10 Group Management Implementation
-
-The three privacy levels produce three different join paths. Figure 4.15 shows how the same
-request is handled differently depending on the group's privacy setting.
-
-```mermaid
-graph TD
-    A["User requests to join a group"] --> B["Load group from database"]
-    B --> C{"Privacy<br/>level?"}
-
-    C -->|"secret"| D["403 Rejected<br/>'Join via invite link only'"]
-
-    C -->|"public"| E{"Already a<br/>member?"}
-    E -->|"yes"| F["Return: already a member"]
-    E -->|"no"| G["Add to members[]"]
-    G --> H["Create unread counter"]
-    H --> I["Save system message<br/>'joined the group'"]
-    I --> J["Emit 'member-joined' to group room"]
-    J --> K["Joined successfully"]
-
-    C -->|"private"| L{"Request already<br/>pending?"}
-    L -->|"yes"| M["Return: request pending"]
-    L -->|"no"| N["Append to pendingRequests[]"]
-    N --> O["Emit 'new-join-request'<br/>to admin's personal room"]
-    O --> P["Awaiting approval"]
-    P --> Q{"Admin<br/>decision"}
-    Q -->|"approve"| G
-    Q -->|"reject"| R["Remove from pendingRequests[]"]
-
-    S["User opens /join/:inviteCode"] --> T["Look up group by invite code"]
-    T --> U{"Code<br/>valid?"}
-    U -->|"no"| V["Error: invalid link"]
-    U -->|"yes"| G
-```
-
-**Figure 4.15.** *Group join flow. The privacy level determines which of three paths a join
-request follows. The invite-code path (bottom) bypasses privacy checks entirely, which is how
-secret groups are joined.*
-
-This diagram makes clear why the boolean design of increment I5 was inadequate. A boolean can
-express "open" and "hidden" but cannot express the middle path — visible in search, but requiring
-approval — which is what the `private` level provides.
-
----
-
-## 4.11 Feed and Administration Modules
-
-### 4.11.1 Feed
-
-The feed implements posts with a subject tag and a type classification. The type values
-(`resource`, `help`, `explanation`, `challenge`, `general`) exist so that the feed can distinguish
-a shared resource from a request for help.
-
-The endorsement action is named **helpful** rather than "like". This was a deliberate rename
-during increment I6: in a learning context, marking something helpful communicates educational
-value, while a "like" communicates approval. The database field, the API endpoint and the
-interface label were all changed together.
-
-Comments support one level of threaded replies, and both comments and replies can be liked
-independently.
-
-### 4.11.2 Administration
-
-The administration module uses a **completely separate identity system**: a different collection
-(`admins`), a different login endpoint, and different middleware. An ordinary user account cannot
-be escalated to administrator through any user-facing route.
-
-Two levels exist. A standard administrator can view statistics, manage users and remove posts. A
-super administrator can additionally promote a user to administrator. The first super
-administrator is created by running a script directly on the server, which means the privilege
-cannot be obtained through the web interface at all.
-
-The dashboard computes its statistics using MongoDB aggregation, including counts by user status,
-posts grouped by type, and the ten subjects with the most posts.
-
----
-
-## 4.12 Frontend Implementation
-
-### 4.12.1 Application structure
-
-```mermaid
-graph TD
-    M["main.jsx<br/>application entry"]
-    R["BrowserRouter"]
-    P["Provider<br/>13 nested context providers"]
-    A["App.jsx<br/>route table"]
-    T["ToastContainer<br/>notifications"]
-
-    M --> R
-    R --> P
-    P --> A
-    P --> T
-
-    A --> PUB["PUBLIC ROUTES<br/>register · login<br/>verify-email"]
-    A --> USR["USER ROUTES<br/>dashboard · inbox · feed<br/>explore-groups · creategroup<br/>verification · take-quiz"]
-    A --> ADM["ADMIN ROUTES<br/>admin-login · admin-dashboard<br/>admin-users · admin-posts<br/>admin-analytics"]
-```
-
-**Figure 4.16.** *Frontend application structure showing the provider tree wrapping the router and
-the three groups of routes.*
-
-### 4.12.2 State management
-
-Shared state is held in React Context providers rather than passed between components manually. A
-Context provider makes a value available to every component beneath it in the tree.
-
-```mermaid
-graph TD
-    T["ToastProvider — notifications, outermost so alerts appear above everything"]
-    S["SettingsProvider"]
-    P["ProfileProvider — logged-in user"]
-    E["EditUserProvider"]
-    AD["AdminContextProvider"]
-    C["ChatContextProvider — chats and messages"]
-    SU["SuggestionsProvider — matching results"]
-    F["FetchAllGroupsProvider — user's groups"]
-    D["DeleteGroupProvider"]
-    G["GroupProfileProvider"]
-    V["VerificationProvider — quiz state"]
-    PO["PostContextProvider — feed"]
-    CM["CommentContextProvider"]
-    CH["Application components"]
-
-    T --> S --> P --> E --> AD --> C --> SU --> F --> D --> G --> V --> PO --> CM --> CH
-```
-
-**Figure 4.17.** *Context provider hierarchy as implemented in `Providers/Provider.jsx`. Nesting
-order matters: `ToastProvider` is outermost so that notifications can be raised from anywhere in
-the application.*
-
-### 4.12.3 Responsive design
-
-The interface adapts to screen width using Tailwind's breakpoint utilities. Separate components
-exist for mobile navigation (`MobileViewBar`, `MobileViewIcons`, `MobileViewSuggest`) because the
-desktop sidebar layout does not compress usefully to phone width. Mobile is the dominant access
-mode in the target population, so this was treated as a requirement rather than an enhancement.
-
----
-
-## 4.13 Implementation Statistics
-
-**Table 4.1**
+**Table 4.3**
 
 *Quantitative Summary of the Implemented System*
 
 | Metric | Value |
 |---|---|
-| Total application code | ≈ 18,985 lines |
+| Total application code | ≈ 19,000 lines |
 | Backend controllers | 33 |
-| Database models | 7 files, 8 collections |
+| Database models / collections | 7 files, 8 collections |
 | Express routers | 4 |
 | Middleware modules | 5 |
-| REST API endpoints | ≈ 55 |
+| REST endpoints | 58 |
+| Documented API operations | 58 (100%) |
+| OpenAPI schema definitions | 10 |
 | Socket events (client → server) | 10 |
 | Socket events (server → client) | 8 |
 | React pages | 13 |
 | React components | 25 |
 | Context providers | 13 |
-| Migration scripts | 10 |
-| Production bundle size (gzipped) | 251 kB |
+| Migration scripts | 11 |
+| Test scripts | 2 |
 | Modules transformed at build | 1,817 |
+| Production bundle (gzipped) | 252 kB |
 
-**Table 4.2**
+**Table 4.4**
 
 *Requirement Completion by Module*
 
@@ -870,222 +850,263 @@ mode in the target population, so this was treated as a requirement rather than 
 | M8 Administration | 11 | 0 | 1 |
 | **Total** | **98** | **5** | **10** |
 
-Approximately **87%** of specified requirements are fully implemented. All requirements of *Must*
-priority are met except those recorded in §4.17.
+Approximately **87%** of specified requirements are fully implemented.
 
 ---
 
-## 4.14 Security Implementation
+## 4.9 Development Challenges and Solutions
 
-**Table 4.3**
+Six substantial problems were encountered. The problem-solving process is part of what this
+chapter should evidence, so each is described with its cause and resolution.
 
-*Security Controls as Implemented*
+### 4.9.1 Case-sensitive file paths
 
-| Control | Implementation | Verified |
-|---|---|---|
-| Password hashing | bcrypt, cost factor 10 | ✅ |
-| Access token | JWT, 15-minute expiry | ✅ |
-| Refresh token | JWT, 7-day expiry | ⚠️ See D-02 |
-| Protected routes | Bearer token verified by middleware | ✅ |
-| Admin separation | Separate collection, login and middleware | ✅ |
-| Super-admin gate | Promotion restricted | ✅ |
-| Quiz answer protection | Answers stripped before transmission | ✅ |
-| Upload restriction | JPEG/PNG only, 2 MB maximum | ✅ |
-| CORS | Single configured origin | ✅ |
-| Secret storage | Environment variables, git-ignored | ✅ |
-| Socket authentication | — | ❌ See D-21 |
-| Rate limiting | — | ❌ See D-04 |
-
----
-
-## 4.15 Development Challenges and Solutions
-
-Five substantial problems were encountered. Each is described with its cause and resolution,
-since the problem-solving process is part of what this chapter should evidence.
-
-### 4.15.1 Case-sensitive file paths
-
-**Problem.** The application ran correctly during development but crashed immediately on a Linux
+**Problem.** The application ran correctly in development but crashed immediately on a Linux
 server with `Cannot find module '../socket/socket'`.
 
-**Cause.** Eleven import statements used different capitalisation from the actual filenames — for
-example importing `socket/socket` when the file is `socket/Socket.js`. Windows and macOS
-filesystems ignore capitalisation, so the error was invisible during development. Linux
-filesystems do not.
+**Cause.** Eleven imports used different capitalisation from the actual filenames — for example
+importing `socket/socket` when the file is `socket/Socket.js`. Windows and macOS filesystems
+ignore capitalisation; Linux does not.
 
-**Solution.** Every relative import in both packages was checked against the real filenames using
-a script written for the purpose. Eleven mismatches were found and corrected.
+**Solution.** A script checked every relative import in both packages against the real filenames.
+Eleven mismatches were found and corrected.
 
-**Lesson.** Develop and test on the same filesystem behaviour as the deployment target. This class
-of error is invisible until deployment and then fatal.
+**Lesson.** Develop and test on the same filesystem behaviour as the deployment target.
 
-### 4.15.2 Inadequate group privacy model
+### 4.9.2 Inadequate group privacy model
 
-**Problem.** The original design stored privacy as a true/false field. Testing revealed a needed
-case it could not express: a group that should be *findable* but not *automatically joinable*.
+**Problem.** The original design stored privacy as a boolean. Testing revealed a needed case it
+could not express: a group that should be *findable* but not *automatically joinable*.
 
-**Solution.** The field was replaced with a three-value enumeration, the join logic was rewritten
-to branch on it, a pending-requests structure was added, and a migration script converted existing
-records.
+**Solution.** The field was replaced with a three-value enumeration, the join logic rewritten to
+branch on it, a pending-requests structure added, and a migration written for existing records.
 
-**Lesson.** This is direct evidence that the incremental method was necessary. Under Waterfall the
-inadequacy would have surfaced only at final testing.
+**Lesson.** Direct evidence that the incremental method was necessary; under Waterfall this would
+have surfaced only at final testing.
 
-### 4.15.3 Real-time state consistency
+### 4.9.3 Image uploads failing silently
 
-**Problem.** Unread counts, delivery status and presence had to remain consistent across multiple
-clients connected simultaneously, including clients that disconnect and reconnect.
+**Problem.** Uploaded profile pictures and post images never displayed.
 
-**Solution.** Unread counts were restructured from a single number per chat to an array of
-per-user counters. Message state was formalised into the four-state machine of Figure 4.14.
-Pending deliveries are reconciled when a user reconnects, by updating all `sent` messages in their
-chats to `delivered`.
+**Cause.** Four independent faults formed a chain. `uploads/` and `audios/` are git-ignored and
+were never created, and multer does not create its destination — so every upload failed with
+`ENOENT` before the controller ran. Two controllers stored multer's filesystem path rather than a
+URL path. One frontend component built its URL with a hardcoded host and a doubled slash.
 
-### 4.15.4 Undeclared dependencies
+**Solution.** Both upload middlewares now create their directories on load; both controllers store
+root-relative `/uploads/...` paths; the frontend uses the configured base URL. A migration repairs
+records written earlier.
 
-**Problem.** The project would not build from a fresh copy of the repository. Two packages —
-`react-router-dom` and `react-icons` — were imported throughout the frontend but were missing
-from `package.json`.
+**Lesson.** A single visible symptom can have several independent causes. Fixing them one at a
+time produced no visible change until the last one was corrected, which was misleading.
 
-**Cause.** They had been installed locally at some point without being saved to the manifest.
-Because the local `node_modules` folder still contained them, the error never appeared during
-development.
+### 4.9.4 Server starting without a database
 
-**Solution.** Both were added as explicit dependencies. A root `package.json` was also created so
-that a single `npm install` sets up both packages.
+**Problem.** When the database was unreachable, the server started anyway and every request
+failed after a ten-second buffering timeout, so the logs showed a flood of timeouts rather than
+the actual cause.
 
-**Lesson.** Verify periodically that a clean copy of the project builds. Reproducibility failures
-are invisible from inside a working development environment.
+**Cause.** `connectDB` caught its own error and returned normally, so the caller's success path
+ran.
 
-### 4.15.5 Matching weight calibration
+**Solution.** The error now propagates; the server reports the likely causes and exits.
 
-**Problem.** The relative weights in the scoring function had to be chosen with no ground-truth
-data indicating what a "correct" match looks like.
+### 4.9.5 Undeclared dependencies
 
-**Solution.** Weights were set by reasoning from the design principle — complementary role must
-dominate subject similarity — and then tested against constructed sample profiles to confirm the
-resulting ranking was sensible.
+**Problem.** The project would not build from a fresh clone. `react-router-dom` and `react-icons`
+were imported throughout but missing from `package.json`; they were present in the local
+`node_modules`, so the error never appeared during development.
 
-**Limitation.** This remains a hand-tuned heuristic. It is stated as such in §3.8.6 and revisited
-in Chapter 5.
+**Solution.** Both declared explicitly. A root manifest now installs both packages with one
+command.
 
----
+**Lesson.** Verify periodically that a clean copy builds; reproducibility failures are invisible
+from inside a working environment.
 
-## 4.16 Deployment Considerations
+### 4.9.6 Matching weight calibration
 
-The system has been run and tested in a local environment. Before deployment to a public server,
-the following are required:
+**Problem.** The scoring weights had to be chosen with no ground-truth data indicating what a
+correct match looks like.
 
-| Requirement | Reason |
-|---|---|
-| Fix D-02 (§4.17) | Critical authentication vulnerability |
-| Fix D-21 (§4.17) | Socket connections are unauthenticated |
-| HTTPS with a valid certificate | Tokens must not travel in clear text |
-| Move uploads to object storage | Local files are destroyed on redeploy |
-| Set all environment secrets | High-entropy values, never defaults |
-| Increase email token lifetime (D-07) | Registration currently fails in practice |
-| Add rate limiting | Protects against brute-force attempts |
+**Solution.** Weights were derived from the design principle — complementary role must dominate
+subject similarity — then tested against constructed profiles to confirm sensible ranking.
+
+**Limitation.** This remains a hand-tuned heuristic, stated as such in Chapter 3 §3.8.6 and
+revisited in Chapter 5.
 
 ---
 
-## 4.17 Known Defects and Limitations
+## 4.10 Known Defects and Limitations
 
-This section records defects found in the implemented system. **Including it strengthens the
-report.** A project that identifies its own weaknesses demonstrates more engineering judgement
-than one that claims none exist.
+Including this section strengthens the report. A project that identifies its own weaknesses
+demonstrates more engineering judgement than one that claims none.
 
-**Table 4.4**
+**Table 4.5**
 
 *Known Defects and Limitations*
 
 | ID | Severity | Description | Effect | Remedy |
 |---|---|---|---|---|
-| **D-02** | **Critical** | The code reads the refresh-token secret from `JWT_REFRESH_SECRET`, but the environment file defines `REFRESH_TOKEN_SECRET`. The lookup fails and falls back to a hardcoded string written in the source. | Refresh tokens are signed with a key visible in the source code. Anyone who reads it can create a valid refresh token for any user and take over that account. | Rename the variable to match, and remove the fallback so the server refuses to start without a real secret. |
-| **D-21** | **Critical** | Socket.IO connections are not authenticated. The `user-online` event accepts any user ID sent by the client, with no token check. The `send-message` event takes the sender identity from the message payload. | A client can claim to be any user, join that user's private rooms, read their incoming messages, and send messages appearing to come from them. | Add a Socket.IO authentication handshake that verifies a JWT on connection, and take the user identity from the verified token rather than from the client payload. |
-| **D-22** | High | The REST endpoint `POST /api/messages` takes `senderId` from the request body rather than from the authenticated token. | Any logged-in user can send a message that appears to come from another user. | Use `req.authenticatedUser.id` as the sender; ignore any value supplied by the client. |
-| **D-03** | High | Tokens are stored in browser `localStorage`. | Any injected script can read them, so a cross-site scripting flaw becomes full account compromise. | Store tokens in `httpOnly`, `Secure`, `SameSite` cookies. |
-| **D-04** | High | No rate limiting anywhere. `GET /getallposts` and `POST /messages/audio` have no authentication middleware. | Password guessing is unthrottled; unauthenticated file upload is possible. | Add `express-rate-limit`; apply the auth middleware to both routes. |
-| **D-23** | Medium | Admin tokens are signed with the same secret as user tokens (`JWT_SECRET`). | The two trust domains are not cryptographically separated. An admin token is accepted as a user token on user routes. | Use a separate `ADMIN_JWT_SECRET`. |
-| **D-05** | High | Status is a single account-level field. | A student cannot be `Ready To Teach` for one subject and `Ready To Learn` for another — a common real situation the model cannot represent. | Move intent into the subjects array as `{name, intent, verified}`. |
-| **D-06** | High | Quiz questions come from a fixed template bank, not a language model. | Every subject produces structurally identical questions assessing teaching approach rather than subject knowledge. | Connect the installed SDK to `services/quizGenerator.js`; caching and marking already support it. |
+| **D-02** | **Critical** | The refresh-token secret is read from `JWT_REFRESH_SECRET` but `.env` defines `REFRESH_TOKEN_SECRET`, so the lookup falls back to a literal written in the source. | Refresh tokens are signed with a key visible in the code. Anyone reading it can forge a token for any user. | Rename to match and remove the fallback so the server refuses to start without a real secret. |
+| **D-21** | **Critical** | Socket.IO connections are unauthenticated. `user-online` accepts any user id from the client; `send-message` takes the sender from the payload. | A client can impersonate any user, join their private rooms, read their messages and send as them. | Verify a JWT in the connection handshake; take identity from the token. |
+| **D-22** | High | `POST /api/messages` takes `senderId` from the request body rather than the token. | Any authenticated user can send a message appearing to come from someone else. | Use `req.authenticatedUser.id`. |
+| **D-03** | High | Tokens are stored in `localStorage`. | Any injected script can read them, so an XSS flaw becomes full account compromise. | Use `httpOnly`, `Secure`, `SameSite` cookies. |
+| **D-04** | High | No rate limiting. `GET /getallposts` and `POST /messages/audio` have no auth middleware. | Unthrottled password guessing; unauthenticated file upload. | Add `express-rate-limit`; apply auth to both routes. |
+| **D-23** | Medium | Admin tokens are signed with the same secret as user tokens. | The two trust domains are not cryptographically separated. | Use a separate `ADMIN_JWT_SECRET`. |
+| **D-05** | High | Availability is a single account-level field. | A student cannot be ready to teach one subject and learn another — a common real situation. | Move intent into the subjects array. |
+| **D-06** | High | Quiz questions come from a fixed template bank, not a language model. | Every subject produces structurally identical questions assessing teaching approach, not knowledge. | Connect the installed SDK; caching and marking already support it. |
+| **D-24** | High | Normalisation strips `+ # . - _`, so `C++` and `C#` reduce to the single character `c`, which substring-matches any subject containing a "c". | A user listing `C++` receives near-random suggestions. Confirmed against ten unrelated subjects, all of which matched. | Require a minimum length for substring matches; map symbols to letters (`C++` → `cplusplus`). |
 | **D-07** | High | Email verification tokens expire after 60 seconds. | Most users cannot open their email and click within a minute, so registration fails in normal use. | Increase to 24 hours. |
-| **D-08** | Medium | `reputation` is stored and displayed but never increased. | The admin "top contributors" list is meaningless. | Increment on helpful marks received and verifications earned. |
-| **D-09** | Medium | The 10-minute quiz limit is sent to the browser but not enforced on submission. | A student may take unlimited time. | Compare the stored session start time against submission time on the server. |
-| **D-10** | Medium | Active quiz sessions are held in a server memory variable. | Sessions are lost if the server restarts, and the design breaks if more than one server instance runs. | Store sessions in MongoDB or Redis with an expiry. |
-| **D-11** | Medium | Users with status `Later` receive no complementary bonus but can still appear through subject overlap. | Unavailable students appear in suggestions. | Exclude `Later` from the candidate query. |
-| **D-12** | Medium | The feed and several list endpoints return all records with no pagination. | Response size and rendering cost grow without limit. | Add skip/limit or cursor pagination. |
-| **D-13** | Medium | An image is required on every post. | A text-only question cannot be posted, which is a serious restriction for the `help` post type. | Make the image field optional. |
-| **D-14** | Medium | Deleting a user does not remove their posts, messages or group memberships. | Orphaned references cause display errors where an author cannot be loaded. | Cascade the deletion or anonymise the records. |
-| **D-15** | Medium | Suggestions loads the entire user collection into memory on every request. | Response time grows linearly with user count. This is the main scalability limit. | Move scoring into a MongoDB aggregation pipeline; add a subject index. |
-| **D-16** | Low | The substring rule matches `Java` inside `JavaScript`. | Occasional irrelevant suggestion. | Require a minimum length ratio, or adopt a fixed subject list. |
-| **D-17** | Low | Uploads are written to the local filesystem. | Files are destroyed when a hosting platform redeploys. | Use object storage. |
-| **D-18** | Low | `isVerified` on the user record means two different things: email confirmed, and quiz passed. | Passing a quiz marks the account email-verified. An administrator using "unverify" could lock a user out of login. | Split into `isEmailVerified` and derive subject verification from `verifiedSubjects`. |
-| **D-19** | Low | No automated test suite. | Regressions are caught only by manual testing. | Add Jest and Supertest. |
+| **D-08** | Medium | `reputation` is stored and displayed but never incremented. | The admin top-contributors list is meaningless. | Increment on helpful marks and verifications. |
+| **D-09** | Medium | The 10-minute quiz limit is sent to the client but not enforced on submission. | A student may take unlimited time. | Compare stored start time to submission time server-side. |
+| **D-10** | Medium | Active quiz sessions are held in a server memory variable. | Sessions are lost on restart, and the design breaks with more than one server instance. | Store in MongoDB or Redis with expiry. |
+| **D-11** | Medium | Users with status `Later` receive no complementary bonus but can still appear via subject overlap. | Unavailable students appear in suggestions. | Exclude `Later` from the candidate query. |
+| **D-12** | Medium | The feed and several list endpoints return all records with no pagination. | Response size grows without limit. | Add cursor or skip/limit pagination. |
+| **D-13** | Medium | An image is required on every post. | A text-only question cannot be posted — a serious restriction for the `help` type. | Make the image optional. |
+| **D-14** | Medium | Deleting a user does not remove their posts, messages or memberships. | Orphaned references cause display errors. | Cascade or anonymise. |
+| **D-15** | Medium | Suggestions loads the entire user collection into memory on every request. | Response time grows linearly with user count; the main scalability limit. | Move scoring into an aggregation pipeline; index subjects. |
+| **D-16** | Low | The substring rule matches `Java` inside `JavaScript`. | Occasional irrelevant suggestion. | Same remedy as D-24. |
+| **D-17** | Low | Uploads are written to local disk. | Files are destroyed when a hosting platform redeploys. | Use object storage. |
+| **D-18** | Low | `isVerified` means two different things: email confirmed, and quiz passed. | Passing a quiz marks the account email-verified; an admin "unverify" can lock a user out of login. | Split into `isEmailVerified` and derive subject verification from `verifiedSubjects`. |
+| **D-19** | Low | No automated test suite beyond the two scripts in `backend/tests/`. | Regressions are caught only by manual testing. | Add Jest and Supertest. |
 | **D-20** | Low | Dependency vulnerabilities reported by `npm audit`. | Mostly transitive denial-of-service advisories. | Run `npm audit fix` and retest. |
 
-### 4.17.1 Priority order for remaining work
+### 4.10.1 Priority order for remaining work
 
-1. **D-02 and D-21** — both allow account takeover. Fix before any public demonstration.
+1. **D-02 and D-21** — both permit account takeover. Fix before any public demonstration.
 2. **D-22 and D-23** — identity spoofing and weak trust separation.
-3. **D-07** — registration is currently unusable in practice.
-4. **D-04 and D-03** — authentication hardening.
-5. **D-06** — either connect real question generation, or describe the templates accurately.
+3. **D-24** — degrades the core feature for a predictable class of users.
+4. **D-07** — registration is currently unusable in normal conditions.
+5. **D-04, D-03** — authentication hardening.
 6. **D-05** — per-subject intent, the highest-value functional improvement.
 
 ---
 
-## 4.18 Chapter Summary
+## 4.11 Screenshot Capture Checklist
 
-This chapter described the system as built.
+Sixteen figures have already been captured automatically and are embedded above; they are ticked
+below. The remaining thirteen require a desktop application, a private inbox, or an interaction
+that has to be performed by hand.
 
-The implementation comprises approximately 18,985 lines of code across two packages: a Node.js
-and Express backend with 33 controllers, 8 database collections and around 55 REST endpoints, and
-a React frontend with 13 pages, 25 components and 13 state providers. Real-time features are
-delivered over Socket.IO using 18 distinct events.
+To re-capture or refresh the automated set:
 
-The chapter presented seventeen diagrams describing the deployment architecture, code
-organisation, data model, request pipeline, authentication flows, the matching algorithm, the
-verification lifecycle, real-time messaging, group joining, and frontend structure.
+```bash
+npm install --no-save puppeteer-core
+node scripts/capture-screenshots.js --email you@example.com --password 'yourpassword'
+```
 
-Approximately 87% of specified requirements are fully implemented. Five development challenges
-were described with their causes and resolutions, including a filesystem case-sensitivity failure
-that appeared only on deployment and a group privacy model that had to be redesigned mid-project.
+Add `--admin-email` and `--admin-password` to include Figures 4.26 and 4.27. Files are written to
+`images/` using the names the chapter already references, so nothing needs renaming.
 
-Twenty-two defects and limitations were catalogued, including two critical authentication
-weaknesses that must be corrected before deployment. These are reported rather than concealed,
-and are revisited in Chapter 5.
+| # | Screen | Where | Captured |
+|---|---|---|---|
+| 4.1 | Project in VS Code | §4.2 | ☐ |
+| 4.2 | MongoDB Compass — eight collections | §4.4.3 | ☐ |
+| 4.3 | A user document *(redact password and email)* | §4.4.3 | ☐ |
+| 4.4 | A verification document with attempts | §4.4.3 | ☐ |
+| 4.5 | Swagger UI index at `/api-docs` | §4.5.4 | ✅ |
+| 4.6 | Swagger — `GET /api/suggestions` expanded | §4.5.4 | ✅ |
+| 4.7 | Swagger — Authorize dialog or a live Try-it-out response | §4.5.4 | ✅ |
+| 4.8 | Postman — login request and token pair *(redact tokens)* | §4.5.5 | ☐ |
+| 4.9 | Postman — suggestions request and ranked response | §4.5.5 | ☐ |
+| 4.10 | Registration page | §4.6.1 | ✅ |
+| 4.11 | Verification email received | §4.6.1 | ☐ |
+| 4.12 | Login page | §4.6.1 | ✅ |
+| 4.13 | Manage Profile panel | §4.6.2 | ✅ |
+| **4.14** | **Dashboard with ranked suggestions — most important** | §4.6.3 | ✅ |
+| 4.15 | Suggestion card with a verification badge | §4.6.3 | ✅ |
+| 4.16 | Verification dashboard | §4.6.4 | ✅ |
+| 4.17 | Quiz in progress | §4.6.4 | ☐ |
+| 4.18 | Quiz result | §4.6.4 | ☐ |
+| 4.19 | Two accounts messaging side by side | §4.6.5 | ✅ |
+| 4.20 | Create group with privacy options | §4.6.6 | ✅ |
+| 4.21 | Explore Groups | §4.6.6 | ✅ |
+| 4.22 | Pending join request (admin view) | §4.6.6 | ☐ |
+| 4.23 | Feed with posts | §4.6.7 | ✅ |
+| 4.24 | Post with comment thread | §4.6.7 | ☐ |
+| 4.25 | Create post form | §4.6.7 | ✅ |
+| 4.26 | Admin dashboard statistics | §4.6.8 | ☐ |
+| 4.27 | Admin user management | §4.6.8 | ☐ |
+| 4.28 | Dashboard on mobile | §4.7.4 | ✅ |
+| 4.29 | Chat on mobile | §4.7.4 | ✅ |
+
+**Capture guidance.** Use a consistent browser window size for every web screenshot so the figures
+look like one set. Populate the system with realistic data first — an empty dashboard evidences
+nothing. Redact any real email address, token or password before inserting. For the mobile
+figures, use the browser's device toolbar rather than photographing a phone.
+
+---
+
+## 4.12 Chapter Summary
+
+This chapter presented the system as built.
+
+The implementation comprises approximately 19,000 lines of code across two packages: a Node.js and
+Express backend with 33 controllers, 8 collections and 58 REST endpoints, and a React frontend
+with 13 pages, 25 components and 13 state providers. Real-time features are delivered over
+Socket.IO using 18 distinct events.
+
+The API is fully documented in OpenAPI 3.0 and served as interactive documentation at `/api-docs`,
+covering all 58 operations across nine functional areas with 10 reusable schema definitions and
+two declared security schemes.
+
+Evidence was presented in four forms: verbatim code extracts from each module, screenshots of the
+running interface, screenshots of the database as created, and screenshots of the API
+documentation and testing tools. Quantitative measures put completion at approximately 87% of
+specified requirements.
+
+Six development challenges were described with their causes and resolutions, including a
+filesystem case-sensitivity failure that appeared only on deployment, a privacy model that had to
+be redesigned mid-project, and an image-upload failure with four independent causes.
+
+Twenty-two defects were catalogued, including two critical authentication weaknesses and one
+matching defect found by the unit testing reported in Chapter 5. These are stated rather than
+concealed, and are revisited in the discussion.
 
 Chapter 5 presents the testing carried out, the evaluation results, and a discussion of what they
 mean.
 
 ---
 
-## 4.19 Note on Diagram Formats
+## Appendix 4A — Running and Documenting the API
 
-All diagrams in this chapter are written in **Mermaid**, a text-based diagram format.
+**Start the system**
 
-**They render automatically in:** GitHub, GitLab, Notion, Obsidian, and VS Code with the Markdown
-Preview Mermaid Support extension.
+```bash
+npm install          # from the repository root; installs both packages
+npm run backend      # API on http://localhost:5000
+npm run frontend     # interface on http://localhost:5173
+```
 
-**To export as images for Microsoft Word:**
+**View the API documentation**
 
-1. Open <https://mermaid.live> in a browser.
-2. Paste the diagram code (everything between the ` ```mermaid ` markers).
-3. Click **Actions → PNG** or **SVG**. Choose SVG if your department accepts it, since it stays
-   sharp when printed.
-4. Insert the image into your document and add the figure caption beneath it.
+| Resource | URL |
+|---|---|
+| Interactive documentation | `http://localhost:5000/api-docs` |
+| Raw OpenAPI specification | `http://localhost:5000/api-docs.json` |
 
-Keep the figure numbers and captions exactly as given here, so cross-references in your text
-remain correct.
+**Execute an authenticated request from the documentation page**
+
+1. Call `POST /api/login` from the Authentication section and copy the `accessToken`.
+2. Click **Authorize** at the top of the page.
+3. Paste the token and confirm. It persists across page reloads.
+4. Open any operation, click **Try it out**, then **Execute**.
+
+**Import the specification into Postman**
+
+Postman can generate a complete request collection from the specification:
+**Import → Link →** `http://localhost:5000/api-docs.json`. This produces all 58 requests with
+their parameters already described, rather than building the collection by hand.
 
 ---
 
-## Appendix 4A — Author's checklist for this chapter
+## Appendix 4B — Author's checklist for this chapter
 
-- [ ] All statistics in Table 4.1 re-checked against the final code
-- [ ] Table 4.2 completion figures re-checked before submission
-- [ ] Screenshots of the running system added alongside the relevant diagrams
-- [ ] Diagrams exported as images if your department requires Word format
-- [ ] D-02 and D-21 fixed before any live demonstration
-- [ ] Defect table updated if you fix any of the listed items
+- [ ] All 29 screenshots captured and inserted, placeholders removed
+- [ ] Passwords, tokens and real email addresses redacted in every figure
+- [ ] Statistics in Table 4.3 re-checked against the final code
+- [ ] Table 4.4 completion figures re-checked
+- [ ] Code extracts confirmed to match the current source
+- [ ] D-02, D-21 and D-24 fixed before any live demonstration, or their status stated
+- [ ] Defect table updated if any listed item is fixed
 - [ ] Figure numbers matched to your final List of Figures
