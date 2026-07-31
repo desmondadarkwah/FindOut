@@ -27,3 +27,9 @@ FindOut-Thesis.md
 
 # LibreOffice / Word lock files
 .~lock.*#
+
+# Test output
+coverage/
+coverage-integration/
+*.lcov
+.nyc_output/

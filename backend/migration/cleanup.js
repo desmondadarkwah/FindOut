@@ -2,8 +2,16 @@
 const mongoose = require('mongoose');
 const PostModel = require('../models/PostModel');
 
-// Direct connection string (temporary for cleanup)
-const MONGODB_URI = 'mongodb+srv://desmondadarkwah48:finder@cluster0.vnndu.mongodb.net/test?retryWrites=true&w=majority&appName=Cluster0';
+// The connection string is read from the environment. It was previously
+// hardcoded here, which committed a live Atlas credential to the repository.
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+  console.error('MONGODB_URI is not set. Add it to backend/.env before running this script.');
+  process.exit(1);
+}
 
 // Direct database connection
 const connectDB = async () => {

@@ -2,6 +2,14 @@ const UserModel = require("../models/UserModel");
 const GroupModel = require("../models/GroupModel");
 const { ChatModel } = require("../models/MessageModel");
 const mongoose = require("mongoose");
+const {
+  fuzzyMatch,
+  complementaryStatus,
+  scoreUser,
+  scoreGroup,
+  rankUsers,
+  rankGroups,
+} = require("../services/matchingService");
 
 const Suggestions = async (req, res) => {
   try {
@@ -38,63 +46,9 @@ const Suggestions = async (req, res) => {
     // ─────────────────────────────────────────
     // ✅ OPPOSITE STATUS MATCHING
     // ─────────────────────────────────────────
-    let targetStatus = [];
-    if (user.status === "Ready To Learn") {
-      targetStatus.push("Ready To Teach");  // ✅ Opposite
-    } else if (user.status === "Ready To Teach") {
-      targetStatus.push("Ready To Learn");  // ✅ Opposite
-    }
+    const targetStatus = complementaryStatus(user.status);
 
     console.log(`🎯 User status: ${user.status}, Looking for: ${targetStatus.join(', ')}`);
-
-    // ─────────────────────────────────────────
-    // FUZZY MATCHING FUNCTION
-    // ─────────────────────────────────────────
-    const fuzzyMatch = (str1, str2) => {
-      const normalize = (str) => str
-        .toLowerCase()
-        .replace(/[+#.\-_\s]/g, '')
-        .trim();
-      
-      const n1 = normalize(str1);
-      const n2 = normalize(str2);
-      
-      if (n1 === n2) return { match: true, score: 10 };
-      if (n1.includes(n2) || n2.includes(n1)) return { match: true, score: 7 };
-      if (n1.length >= 3 && n2.length >= 3 && n1.substring(0, 3) === n2.substring(0, 3)) {
-        return { match: true, score: 5 };
-      }
-      
-      const distance = levenshteinDistance(n1, n2);
-      const maxLen = Math.max(n1.length, n2.length);
-      const similarity = 1 - distance / maxLen;
-      
-      if (similarity >= 0.7) {
-        return { match: true, score: Math.floor(similarity * 5) };
-      }
-      
-      return { match: false, score: 0 };
-    };
-
-    const levenshteinDistance = (str1, str2) => {
-      const matrix = [];
-      for (let i = 0; i <= str2.length; i++) matrix[i] = [i];
-      for (let j = 0; j <= str1.length; j++) matrix[0][j] = j;
-      for (let i = 1; i <= str2.length; i++) {
-        for (let j = 1; j <= str1.length; j++) {
-          if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-            matrix[i][j] = matrix[i - 1][j - 1];
-          } else {
-            matrix[i][j] = Math.min(
-              matrix[i - 1][j - 1] + 1,
-              matrix[i][j - 1] + 1,
-              matrix[i - 1][j] + 1
-            );
-          }
-        }
-      }
-      return matrix[str2.length][str1.length];
-    };
 
     // ─────────────────────────────────────────
     // FETCH & MATCH USERS
@@ -110,32 +64,7 @@ const Suggestions = async (req, res) => {
           return null;
         }
 
-        let matchScore = 0;
-        const matchedSubjects = [];
-
-        // ✅ Status match (opposite statuses)
-        if (targetStatus.length > 0 && targetStatus.includes(otherUser.status)) {
-          matchScore += 20; // Higher priority for status match
-        }
-
-        // Subject matching
-        for (const userSubject of user.subjects) {
-          for (const otherSubject of otherUser.subjects || []) {
-            const result = fuzzyMatch(userSubject, otherSubject);
-            if (result.match) {
-              matchScore += result.score;
-              matchedSubjects.push({
-                yours: userSubject,
-                theirs: otherSubject,
-                score: result.score
-              });
-              break;
-            }
-          }
-        }
-
-        if (otherUser.isOnline) matchScore += 3;
-        if (matchedSubjects.length > 1) matchScore += matchedSubjects.length * 2;
+        const { score: matchScore, matchedSubjects } = scoreUser(user, otherUser);
 
         return matchScore > 0 ? {
           ...otherUser,
@@ -143,13 +72,8 @@ const Suggestions = async (req, res) => {
           matchedSubjects
         } : null;
       })
-      .filter(Boolean)
-      .sort((a, b) => {
-        if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
-        if (b.isOnline !== a.isOnline) return b.isOnline ? 1 : -1;
-        return new Date(b.lastSeen) - new Date(a.lastSeen);
-      })
-      .slice(0, 15);
+      .filter(Boolean);
+    const rankedUsers = rankUsers(suggestedUsers);
 
     // ─────────────────────────────────────────
     // FETCH & MATCH GROUPS
@@ -171,27 +95,7 @@ const Suggestions = async (req, res) => {
         );
         if (hasPendingRequest) return null;
 
-        let matchScore = 0;
-        const matchedSubjects = [];
-
-        for (const userSubject of user.subjects) {
-          for (const groupSubject of group.subjects || []) {
-            const result = fuzzyMatch(userSubject, groupSubject);
-            if (result.match) {
-              matchScore += result.score;
-              matchedSubjects.push({
-                yours: userSubject,
-                theirs: groupSubject,
-                score: result.score
-              });
-              break;
-            }
-          }
-        }
-
-        matchScore += Math.min(group.members.length, 15);
-        if (matchedSubjects.length > 1) matchScore += matchedSubjects.length * 3;
-        // ✅ REMOVED: No penalty for private groups
+        const { score: matchScore, matchedSubjects } = scoreGroup(user, group);
 
         return matchScore > 0 ? {
           ...group,
@@ -199,17 +103,13 @@ const Suggestions = async (req, res) => {
           matchedSubjects
         } : null;
       })
-      .filter(Boolean)
-      .sort((a, b) => {
-        if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      })
-      .slice(0, 15);
+      .filter(Boolean);
+    const rankedGroups = rankGroups(suggestedGroups);
 
-    console.log(`✅ Matched ${suggestedUsers.length} users, ${suggestedGroups.length} groups`);
+    console.log(`✅ Matched ${rankedUsers.length} users, ${rankedGroups.length} groups`);
 
     res.status(200).json({ 
-      suggestedUsers: suggestedUsers.map(u => ({
+      suggestedUsers: rankedUsers.map(u => ({
         _id: u._id,
         name: u.name,
         status: u.status,
@@ -217,7 +117,7 @@ const Suggestions = async (req, res) => {
         profilePicture: u.profilePicture,
         isOnline: u.isOnline
       })),
-      suggestedGroups: suggestedGroups.map(g => ({
+      suggestedGroups: rankedGroups.map(g => ({
         _id: g._id,
         groupName: g.groupName,
         groupProfile: g.groupProfile,

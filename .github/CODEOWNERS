@@ -1,0 +1,10 @@
+# Every change needs a review from the repository owner by default.
+*                       @desmondadarkwah
+
+# Areas where a mistake is expensive, listed explicitly so the requirement is
+# visible in the diff rather than implied by the catch-all above.
+/backend/middleware/    @desmondadarkwah
+/backend/socket/        @desmondadarkwah
+/backend/services/      @desmondadarkwah
+/.github/               @desmondadarkwah
+/scripts/               @desmondadarkwah
