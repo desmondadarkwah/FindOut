@@ -50,10 +50,12 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              - 'scripts/**'
               - '.github/workflows/**'
               - 'package.json'
             frontend:
               - 'frontend/**'
+              - 'scripts/**'
               - '.github/workflows/**'
               - 'package.json'
 

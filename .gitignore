@@ -22,8 +22,8 @@ audios/
 Thumbs.db
 
 # Thesis build artefacts
-FindOut-Thesis.md
-.thesis-combined.md
+docs/FindOut-Thesis.md
+docs/.thesis-combined.md
 
 # LibreOffice / Word lock files
 .~lock.*#

@@ -17,7 +17,7 @@ Usage:
     python3 scripts/build-thesis.py
     python3 scripts/build-thesis.py --output FindOut-Thesis.docx
 
-Requires: pandoc. Diagram PNGs are expected in images/ (see the mermaid
+Requires: pandoc. Diagram PNGs are expected in docs/images/ (see the mermaid
 rendering step in the project README).
 """
 
@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+DOCS = ROOT / "docs"          # chapters, figures and generated documents
 
 CHAPTERS = [
     "chapter1-problem-identification.md",
@@ -238,7 +239,7 @@ def replace_mermaid_with_images(text: str, chapter_no: int) -> str:
 
     def repl(_m):
         counter["n"] += 1
-        img = ROOT / "images" / f"fig-{chapter_no}.0{counter['n']}-diagram.png"
+        img = DOCS / "images" / f"fig-{chapter_no}.0{counter['n']}-diagram.png"
         if not img.exists():
             return _m.group(0)  # leave the source if the render is missing
         return f"![](images/{img.name})"
@@ -531,7 +532,7 @@ def main() -> int:
     for idx, name in enumerate(CHAPTERS, start=1):
         if idx not in selected:
             continue
-        path = ROOT / name
+        path = DOCS / name
         if not path.exists():
             print(f"missing: {name}", file=sys.stderr)
             return 1
@@ -555,10 +556,10 @@ def main() -> int:
 
     combined = "\n\n".join(parts)
 
-    tmp_md = ROOT / ".thesis-combined.md"
+    tmp_md = DOCS / ".thesis-combined.md"
     tmp_md.write_text(combined)
 
-    out = ROOT / output_name
+    out = DOCS / output_name
     ref = ROOT / "scripts" / "thesis-reference.docx"
 
     cmd = [
@@ -566,7 +567,7 @@ def main() -> int:
         "-f", "markdown+pipe_tables+raw_tex",
         "-t", "docx",
         "-o", str(out),
-        "--resource-path", str(ROOT),
+        "--resource-path", str(DOCS),
     ]
     if ref.exists():
         cmd += ["--reference-doc", str(ref)]
@@ -580,12 +581,12 @@ def main() -> int:
         print(r.stderr.strip()[:800])
 
     if args.keep_markdown:
-        (ROOT / output_name.replace(".docx", ".md")).write_text(combined)
+        (DOCS / output_name.replace(".docx", ".md")).write_text(combined)
     else:
         tmp_md.unlink(missing_ok=True)
 
     size = out.stat().st_size / 1024
-    print(f"\nWrote {out.name}  ({size:.0f} KB)")
+    print(f"\nWrote {out.relative_to(ROOT)}  ({size:.0f} KB)")
     print("\nBefore submitting, edit META at the top of this script with your")
     print("name, student ID and supervisor, then re-run.")
     return 0

@@ -27,7 +27,7 @@ const PostModel = B('models/PostModel');
 
 const puppeteer = require('puppeteer-core');
 
-const OUT = path.join(__dirname, '..', 'images');
+const OUT = path.join(__dirname, '..', 'docs', 'images');
 const FRONTEND = 'http://localhost:5173';
 const TAG = 'shotfix';
 const PW = 'ShotFix!2026';

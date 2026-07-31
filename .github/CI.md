@@ -60,7 +60,7 @@ scanner that cries wolf gets disabled.
 branch protection; the jobs above it can be reordered without editing the
 protection rule.
 
-**production-gate** — reads the defect register in `chapter4-implementation.md`
+**production-gate** — reads the defect register in `docs/chapter4-implementation.md`
 and fails while any defect is marked **Critical**. Closing a defect in the
 document is what opens the gate, so the register cannot claim one thing while
 the pipeline believes another.

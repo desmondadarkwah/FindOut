@@ -19,7 +19,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const REGISTER = path.join(__dirname, '..', 'chapter4-implementation.md');
+const REGISTER = path.join(__dirname, '..', 'docs', 'chapter4-implementation.md');
 const BLOCKING = /^\*{0,2}critical\*{0,2}$/i;
 const RESOLVED = /^\*{0,2}(fixed|resolved|closed)\*{0,2}$/i;
 
@@ -75,7 +75,7 @@ if (blockers.length > 0) {
     console.error(`  ${b.id}  ${b.description}…`);
   }
   console.error('');
-  console.error('Fix them, then change the severity cell in chapter4-implementation.md');
+  console.error('Fix them, then change the severity cell in docs/chapter4-implementation.md');
   console.error('to "Fixed" so the register and the pipeline agree.');
   process.exit(1);
 }
