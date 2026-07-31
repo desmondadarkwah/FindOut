@@ -553,7 +553,7 @@ simultaneously. Per-subject intent is the highest-priority item in §13.
 | Client OS | Any — Windows, macOS, Linux, Android, iOS |
 | Browser | Chrome/Edge ≥ 90, Firefox ≥ 88, Safari ≥ 14. Must support ES2020, WebSocket, MediaRecorder (audio messages) |
 | Client hardware | Any device with ≥ 2 GB RAM; screens 320 px–1920 px wide |
-| Server runtime | Node.js ≥ 18 LTS (developed and tested on v24.15.0) |
+| Server runtime | Node.js ≥ 22.19 (developed and tested on v24.15.0) |
 | Database | MongoDB ≥ 6.0 (local or Atlas) |
 | Network | Broadband or 3G+; the system must degrade gracefully on intermittent connectivity |
 | Server OS | Linux (case-sensitive filesystem — see §12.3 D-01) |
@@ -2052,7 +2052,7 @@ npm run lint         # lint the frontend
 Run the two servers in separate terminals. MongoDB must be reachable at `MONGODB_URI` before the
 backend will accept connections.
 
-**Prerequisites:** Node.js ≥ 18, MongoDB ≥ 6.0, an SMTP account for verification email.
+**Prerequisites:** Node.js ≥ 22.22, MongoDB ≥ 6.0, an SMTP account for verification email.
 
 **First-run setup:** create the initial administrator with
 `node backend/migration/createSuperAdmin.js`.

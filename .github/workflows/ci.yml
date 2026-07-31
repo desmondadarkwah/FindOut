@@ -28,7 +28,7 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION_DEFAULT: '20'
+  NODE_VERSION_DEFAULT: '24'
   # Never point CI at a real database. The service container below is
   # ephemeral and the integration suite refuses any database whose name does
   # not contain "test".
@@ -109,7 +109,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['18', '20', '22']
+        node: ['22', '24']
     steps:
       - uses: actions/checkout@v4
 

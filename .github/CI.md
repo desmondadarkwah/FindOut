@@ -18,7 +18,7 @@ protection rule should require.
 ## The pipeline
 
 ```
-changes ──┬── lint ──┬── test-backend-unit (Node 18, 20, 22)
+changes ──┬── lint ──┬── test-backend-unit (Node 22, 24)
           │          ├── test-backend-integration (MongoDB service)
           │          ├── test-frontend
           │          └── build ── bundle budget
@@ -39,8 +39,10 @@ relative import resolves with the correct capitalisation. That last one exists
 because case-mismatched imports resolve on macOS and Windows and fail on Linux;
 that fault reached deployment once.
 
-**test-backend-unit** — Jest across three Node versions, with coverage
-thresholds enforced.
+**test-backend-unit** — Jest across the supported Node versions, with coverage
+thresholds enforced. The matrix is 22 (maintenance LTS) and 24 (active LTS);
+18 and 20 are past end-of-life and the frontend toolchain no longer runs on
+them.
 
 **test-backend-integration** — Jest and Supertest against a real MongoDB in a
 service container. The suite refuses any database whose name does not contain

@@ -13,7 +13,7 @@ Final-year project, Department of Computer Science, University of Ghana, Legon.
 
 ## Stack
 
-MongoDB and Mongoose · Express 4 · React 18 and Vite · Node.js 18+ · Socket.IO 4
+MongoDB and Mongoose · Express 4 · React 18 and Vite · Node.js 22.22+ or 24.15+ · Socket.IO 4
 for messaging and presence · JWT authentication with a short-lived access token
 and a rotating refresh token.
 
