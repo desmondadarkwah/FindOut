@@ -26,7 +26,7 @@ const bcrypt = require('bcryptjs');
 const puppeteer = require('puppeteer-core');
 
 const ROOT = path.join(__dirname, '..');
-const OUT = path.join(ROOT, 'images');
+const OUT = path.join(ROOT, 'docs', 'images');
 const BASE = 'http://localhost:5000';
 const CHROME = ['/usr/bin/google-chrome', '/usr/bin/chromium'].find(fs.existsSync);
 

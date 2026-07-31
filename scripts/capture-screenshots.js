@@ -3,7 +3,7 @@
  * capture-screenshots.js
  *
  * Drives a real Chrome instance through the running application and saves the
- * figures referenced by chapter4-implementation.md into images/.
+ * figures referenced by docs/chapter4-implementation.md into docs/images/.
  *
  * Requires the backend on :5000 and the frontend on :5173, plus a test account
  * whose email is already verified.
@@ -41,7 +41,7 @@ const ADMIN_EMAIL = arg('admin-email');
 const ADMIN_PASSWORD = arg('admin-password');
 const FRONTEND = arg('frontend', 'http://localhost:5173').replace(/\/$/, '');
 const BACKEND = arg('backend', 'http://localhost:5000').replace(/\/$/, '');
-const OUT = path.join(__dirname, '..', 'images');
+const OUT = path.join(__dirname, '..', 'docs', 'images');
 
 if (!EMAIL || !PASSWORD) {
   console.error('Usage: node scripts/capture-screenshots.js --email <email> --password <password>');

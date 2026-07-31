@@ -1,6 +1,6 @@
 # Chapter 4 figure images
 
-Screenshots referenced by `chapter4-implementation.md`. Filenames match the figure
+Screenshots referenced by `../chapter4-implementation.md`. Filenames match the figure
 numbers in the chapter, so inserting them is a direct lookup.
 
 Naming: `fig-4.NN-short-description.png`
@@ -42,11 +42,11 @@ afterwards.
 | 4.29 | `fig-4.29-chat-mobile.png` | Chat, mobile viewport |
 
 **16 of 29 figures captured.** All are already embedded in
-`chapter4-implementation.md`.
+`../chapter4-implementation.md`.
 
 ## Capturing the rest
 
-The automation script is `scripts/capture-screenshots.js` in the repository root.
+The automation script is `scripts/capture-screenshots.js`, run from the repository root.
 It drives a real Chrome instance through the running application.
 
 **Prerequisites**
@@ -68,7 +68,7 @@ Files are written into this folder with the names listed above.
 
 ## Before submitting
 
-- [ ] Every image inserted into `chapter4-implementation.md` in place of its
+- [ ] Every image inserted into `../chapter4-implementation.md` in place of its
       `[SCREENSHOT n]` placeholder
 - [ ] No password, token or real email address visible in any image
 - [ ] Data populated so no screen appears empty
