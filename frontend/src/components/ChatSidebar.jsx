@@ -9,13 +9,20 @@ import { BeatLoader } from 'react-spinners';
 import { MdOutlineKeyboardVoice } from "react-icons/md";
 import moment from 'moment';
 import socket from '../socket/socket';
+import { BellOff, ImageIcon, FileText } from 'lucide-react';
+import { isMuted, mutedChatIds } from '../utils/chatPrefs';
 
 const ChatSidebar = ({ showChatSidebar }) => {
   const [loading, setLoading] = useState(true);
   const [onlineUsers, setOnlineUsers] = useState({});
   const [searchQuery, setSearchQuery] = useState(''); // ✅ NEW: Search state
 
-  const { chats, setChats, setSelectedChat, userId, setUserId, barsToHidden, setBarsToHidden, showChatOptions, setShowChatOptions } = useContext(ChatContext);
+  const { chats, setChats, selectedChat, setSelectedChat, userId, setUserId, barsToHidden, setBarsToHidden, showChatOptions, setShowChatOptions } = useContext(ChatContext);
+
+  /* Re-read on every render of the list rather than holding a copy: the
+     preference is changed from the chat window, which is a different subtree,
+     and a stale copy here would leave the bell icon disagreeing with the menu. */
+  const mutedIds = mutedChatIds();
 
   useEffect(() => {
     const fetchChats = async () => {
@@ -223,30 +230,35 @@ const ChatSidebar = ({ showChatSidebar }) => {
       onClick={() => setShowChatOptions(false)}
     >
 
-      <div className="p-4 flex items-center justify-between md:block border-b border-gray-700/30 text-center bg-gray-900/20 backdrop-blur-sm">
-        <RxDashboard className="lg:hidden text-gray-300 hover:text-white transition-colors cursor-pointer" />
-        <h4 className="text-lg font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-          Your Chats
+      <div className="flex items-center justify-between border-b border-edge-subtle px-4 py-4 md:block">
+        <RxDashboard className="cursor-pointer text-content-muted transition-colors hover:text-content-primary lg:hidden" />
+        <h4 className="text-[15px] font-semibold tracking-tight text-content-primary">
+          Chats
+          {chats.length > 0 && (
+            <span className="ml-2 text-[13px] font-normal tabular-nums text-content-muted">
+              {chats.length}
+            </span>
+          )}
         </h4>
-        <HiDotsVertical className="lg:hidden text-gray-300 hover:text-white transition-colors cursor-pointer" />
+        <HiDotsVertical className="cursor-pointer text-content-muted transition-colors hover:text-content-primary lg:hidden" />
       </div>
 
       {/* ✅ UPDATED: Search input with functionality */}
-      <div className="flex items-center justify-center relative p-4">
-        <div className="relative w-full max-w-sm">
-          <IoIosSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg z-10" />
+      <div className="relative px-3 py-3">
+        <div className="relative w-full">
+          <IoIosSearch className="absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-lg text-content-muted" />
           <input
             type="text"
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-800/40 backdrop-blur-sm text-white border border-gray-700/30 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-300 placeholder-gray-400"
+            className="w-full rounded-lg border border-edge bg-surface-input py-2.5 pl-11 pr-9 text-[14px] text-content-primary outline-none transition-colors placeholder:text-content-muted focus:border-primary-500 focus:ring-2 focus:ring-primary-500/25"
           />
           {/* ✅ Clear button when searching */}
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-content-muted transition-colors hover:text-content-primary"
             >
               ✕
             </button>
@@ -255,33 +267,34 @@ const ChatSidebar = ({ showChatSidebar }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <style jsx>{`
-          .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-track {
-            background: rgba(31, 41, 55, 0.3);
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(99, 102, 241, 0.5);
-            border-radius: 10px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(99, 102, 241, 0.7);
-          }
-        `}</style>
-
         {/* ✅ UPDATED: Use filteredChats instead of chats */}
         {filteredChats.length > 0 ? (
-          <div className="space-y-1 p-2">
+          <div className="space-y-0.5 px-2 pb-2">
             {filteredChats.map((chat) => {
               const otherUser = !chat.isGroup && chat.participants.find(p => p._id !== userId);
               const isUserOnline = otherUser && onlineUsers[otherUser._id]?.isOnline;
+              const isActive = selectedChat?._id === chat._id;
+              const chatMuted = mutedIds.includes(String(chat._id));
 
               return (
                 <div
                   key={chat._id}
-                  className="group flex items-center px-4 py-4 cursor-pointer rounded-2xl transition-all duration-300 hover:bg-gray-800/50 hover:backdrop-blur-sm hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] mx-2"
+                  role="button"
+                  tabIndex={0}
+                  aria-current={isActive ? 'true' : undefined}
+                  className={`group flex cursor-pointer items-center rounded-lg px-3 py-3 transition-colors ${
+                    isActive
+                      ? 'bg-primary-500/12 ring-1 ring-inset ring-primary-500/30'
+                      : 'hover:bg-surface-hover'
+                  }`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedChat(chat);
+                      setBarsToHidden(false);
+                      handleChatClick(chat);
+                    }
+                  }}
                   onClick={() => {
                     setSelectedChat(chat);
                     setBarsToHidden(false);
@@ -289,7 +302,7 @@ const ChatSidebar = ({ showChatSidebar }) => {
                   }}>
 
                   <div className="relative flex-shrink-0">
-                    <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-700 text-white rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface-overlay text-content-secondary">
                       {chat.isGroup ? (
                         chat.groupProfile ? (
                           <img
@@ -299,10 +312,10 @@ const ChatSidebar = ({ showChatSidebar }) => {
                                 : `${import.meta.env.VITE_BACKEND_URL}/uploads/${chat.groupProfile}`
                             }
                             alt={chat.groupName || 'Group'}
-                            className="w-12 h-12 rounded-2xl object-cover ring-2 ring-gray-600 group-hover:ring-indigo-500/30 transition-all duration-300"
+                            className="h-11 w-11 rounded-xl object-cover"
                           />
                         ) : (
-                          <RxAvatar className="text-gray-300 text-xl" />
+                          <RxAvatar className="text-xl text-content-muted" />
                         )
                       ) : (
                         chat.participants.length > 0 && chat.participants[0].profilePicture ? (
@@ -313,27 +326,35 @@ const ChatSidebar = ({ showChatSidebar }) => {
                                 : `${import.meta.env.VITE_BACKEND_URL}/uploads/${chat.participants[0].profilePicture}`
                             }
                             alt={chat.participants[0]?.name || 'User'}
-                            className="w-12 h-12 rounded-2xl object-cover ring-2 ring-gray-600 group-hover:ring-indigo-500/30 transition-all duration-300"
+                            className="h-11 w-11 rounded-xl object-cover"
                           />
                         ) : (
-                          <RxAvatar className="w-6 h-6 text-gray-300" />
+                          <RxAvatar className="h-6 w-6 text-content-muted" />
                         )
                       )}
                     </div>
 
                     {!chat.isGroup && isUserOnline && (
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900 shadow-sm"></div>
+                      <span
+                        title="Online"
+                        className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-surface-base bg-success-400"
+                      />
                     )}
                   </div>
 
                   <div className="flex-1 ml-4 min-w-0">
-                    <div className="flex justify-between  mb-1">
-                      <span className="text-sm font-semibold text-white truncate group-hover:text-indigo-200 transition-colors">
-                        {chat.isGroup
-                          ? chat.groupName
-                          : chat.participants.find(p => p._id !== userId)?.name || "Unknown User"}
+                    <div className="mb-0.5 flex items-baseline justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-[14px] font-semibold text-content-primary">
+                          {chat.isGroup
+                            ? chat.groupName
+                            : chat.participants.find(p => p._id !== userId)?.name || "Unknown User"}
+                        </span>
+                        {chatMuted && (
+                          <BellOff size={12} className="shrink-0 text-content-muted" aria-label="Muted" />
+                        )}
                       </span>
-                      <span className="text-xxs text-gray-400 font-medium">
+                      <span className="shrink-0 text-[11px] font-medium text-content-muted">
                         {chat.lastMessage?.createdAt
                           ? moment(chat.lastMessage.createdAt).fromNow()
                           : ''}
@@ -341,9 +362,22 @@ const ChatSidebar = ({ showChatSidebar }) => {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <div className="text-xs truncate flex-1 group-hover:text-gray-300 transition-colors">
+                      <div className="min-w-0 flex-1 truncate text-[12.5px] text-content-secondary">
                         {
-                          chat.lastMessage?.senderId?._id === userId ? (
+                          chat.lastMessage?.type === 'image' || chat.lastMessage?.type === 'file' ? (
+                            /* content holds a URL for these, so printing it raw
+                               filled the row with a localhost path. */
+                            <span className="flex items-center gap-1.5 text-content-muted">
+                              {chat.lastMessage.type === 'image'
+                                ? <ImageIcon size={13} />
+                                : <FileText size={13} />}
+                              {chat.lastMessage?.senderId?._id === userId
+                                ? 'You: '
+                                : (chat.isGroup && chat.lastMessage?.senderId?.name
+                                    ? `${chat.lastMessage.senderId.name}: ` : '')}
+                              {chat.lastMessage.type === 'image' ? 'Photo' : 'File'}
+                            </span>
+                          ) : chat.lastMessage?.senderId?._id === userId ? (
                             <>
                               {chat.lastMessage.type === 'audio' ? (
                                 <span className="flex items-center gap-1 text-gray-400">
@@ -386,9 +420,19 @@ const ChatSidebar = ({ showChatSidebar }) => {
 
                       {chat.unreadCount > 0 && (
                         <div className="ml-2 flex-shrink-0">
-                          <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-indigo-500 text-white text-xs font-bold rounded-full shadow-lg">
-                            {chat.unreadCount}
-                          </span>
+                          {chatMuted ? (
+                            /* Muted means the conversation stops demanding
+                               attention, not that it stops being tracked: a
+                               quiet dot instead of a count. */
+                            <span
+                              title={`${chat.unreadCount} unread, muted`}
+                              className="block h-2 w-2 rounded-full bg-content-muted"
+                            />
+                          ) : (
+                            <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary-500 px-1.5 text-[11px] font-bold tabular-nums text-white">
+                              {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -401,18 +445,18 @@ const ChatSidebar = ({ showChatSidebar }) => {
         ) : (
           /* ✅ UPDATED: Different message when searching vs no chats */
           <div className="flex flex-col items-center justify-center h-64 text-center px-4">
-            <div className="w-16 h-16 bg-gray-800/50 rounded-2xl flex items-center justify-center mb-4">
-              <RxAvatar className="w-8 h-8 text-gray-500" />
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-surface-overlay">
+              <RxAvatar className="h-7 w-7 text-content-muted" />
             </div>
             {searchQuery ? (
               <>
-                <h3 className="text-gray-300 font-medium mb-2">No results found</h3>
-                <p className="text-gray-500 text-sm">Try searching with a different name</p>
+                <h3 className="mb-1.5 text-[14px] font-semibold text-content-primary">No results found</h3>
+                <p className="text-[13px] text-content-muted">Try searching with a different name</p>
               </>
             ) : (
               <>
-                <h3 className="text-gray-300 font-medium mb-2">No conversations yet</h3>
-                <p className="text-gray-500 text-sm">Start a new chat to begin messaging</p>
+                <h3 className="mb-1.5 text-[14px] font-semibold text-content-primary">No conversations yet</h3>
+                <p className="text-[13px] text-content-muted">Start a new chat to begin messaging</p>
               </>
             )}
           </div>

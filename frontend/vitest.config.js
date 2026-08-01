@@ -27,10 +27,10 @@ export default defineConfig({
          About/Terms/Privacy pages and the availability indicator — carries the
          branch figure. Raise these as tests are added. */
       thresholds: {
-        statements: 10.4,
-        branches: 62,
-        functions: 33.5,
-        lines: 10.4,
+        statements: 10.5,
+        branches: 64,
+        functions: 37.5,
+        lines: 10.5,
       },
     },
   },

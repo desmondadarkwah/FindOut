@@ -18,6 +18,10 @@ import { SettingsContext } from '../Context/SettingsContext';
 import ManageIndividual from './ManageIndividual';
 import IndividualChatOptions from './IndividualChatOptions';
 import { SuggestionsContext } from '../Context/SuggestionsContext';
+import MediaPanel from './MediaPanel';
+import { formatBytes } from '../utils/formatBytes';
+import { isMuted, toggleMute } from '../utils/chatPrefs';
+import { X, FileText, Download, BellOff, Loader2 } from 'lucide-react';
 
 const ChatWindow = () => {
   // ═══════════════════════════════════════════════════════════════
@@ -31,6 +35,15 @@ const ChatWindow = () => {
   const [audioPlayingId, setAudioPlayingId] = useState(null);
   const [audioProgress, setAudioProgress] = useState({});
   const [audioDurations, setAudioDurations] = useState({});
+
+  // Attachments
+  const [pendingFile, setPendingFile] = useState(null);   // chosen, not yet sent
+  const [pendingPreview, setPendingPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [attachError, setAttachError] = useState(null);
+  const [showMediaPanel, setShowMediaPanel] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Voice Recording States
   const [isRecording, setIsRecording] = useState(false);
@@ -362,6 +375,13 @@ useEffect(() => {
     };
   }, [selectedChat, userId, setChats]);
 
+  // Reflect the stored preference whenever the open conversation changes.
+  useEffect(() => {
+    setMuted(isMuted(selectedChat?._id));
+    setShowMediaPanel(false);
+    clearPendingFile();
+  }, [selectedChat?._id]);
+
   // Mark messages as read when opening chat
   useEffect(() => {
     if (!socket || !userId || !selectedChat) return;
@@ -663,6 +683,82 @@ useEffect(() => {
     setAudioURL(null);
   };
 
+  // ═══════════════════════════════════════════════════════════════
+  // ATTACHMENTS
+  // ═══════════════════════════════════════════════════════════════
+
+  const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+  /**
+   * Checked here as well as on the server so the reader is told immediately,
+   * rather than after uploading ten megabytes to be refused.
+   */
+  const handleFileChosen = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';               // so re-picking the same file still fires
+    if (!file) return;
+
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      setAttachError(`${file.name} is ${formatBytes(file.size)} — the limit is 10 MB.`);
+      return;
+    }
+
+    setAttachError(null);
+    setPendingFile(file);
+    setPendingPreview(file.type.startsWith('image/') ? URL.createObjectURL(file) : null);
+  };
+
+  const clearPendingFile = () => {
+    // Revoke, or the object URL keeps the file alive for the life of the tab.
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(null);
+    setPendingPreview(null);
+    setAttachError(null);
+  };
+
+  const sendAttachment = async () => {
+    if (!pendingFile || !selectedChat?._id || uploading) return;
+
+    setUploading(true);
+    setAttachError(null);
+
+    const formData = new FormData();
+    formData.append('file', pendingFile);
+    formData.append('chatId', selectedChat._id);
+
+    try {
+      const { data } = await axiosInstance.post('/api/messages/attachment', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (data.success) {
+        setMessages((prev) => [...prev, data.message]);
+
+        socket.emit('send-attachment-message', {
+          messageId: data.message._id,
+          chatId: selectedChat._id,
+        }, (res) => {
+          if (res?.status !== 'success') {
+            console.error('Could not announce the attachment:', res?.error);
+          }
+        });
+
+        clearPendingFile();
+      } else {
+        setAttachError(data.message || 'The file could not be sent.');
+      }
+    } catch (err) {
+      setAttachError(
+        err.response?.data?.message ||
+        'The file could not be sent. Check your connection and try again.'
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleToggleMute = () => setMuted(toggleMute(selectedChat?._id));
+
   const sendVoiceMessage = async () => {
     if (!audioBlob) return;
 
@@ -812,9 +908,10 @@ useEffect(() => {
   const groupedItems = groupMessagesByDate();
 
   return (
-    <div className="flex flex-col w-full h-screen bg-gray-950 text-white">
+    <div className="flex w-full h-screen">
+    <div className="flex h-screen min-w-0 flex-1 flex-col bg-surface-base text-content-primary">
       {/* HEADER */}
-      <header className="flex justify-between items-center bg-gray-950 p-1.5 border-b border-gray-900">
+      <header className="flex items-center justify-between border-b border-edge-subtle bg-surface-base px-3 py-2.5">
         <IoMdArrowBack 
           size={20} 
           className='block lg:hidden cursor-pointer' 
@@ -864,11 +961,19 @@ useEffect(() => {
               )}
             </div>
 
-            <div className="flex flex-col">
-              <h2 className="text-lg font-semibold">
+            <div className="flex min-w-0 flex-col">
+              <h2 className="flex items-center gap-2 truncate text-[15px] font-semibold text-content-primary">
                 {selectedChat.isGroup
                   ? selectedChat.groupName
                   : selectedChat.participants.find(p => p._id !== userId)?.name || "Unknown User"}
+                {muted && (
+                  <span
+                    title="Notifications muted on this device"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-surface-overlay px-2 py-0.5 text-[10px] font-medium text-content-muted"
+                  >
+                    <BellOff size={10} /> Muted
+                  </span>
+                )}
               </h2>
               
               {!selectedChat.isGroup && (() => {
@@ -876,10 +981,10 @@ useEffect(() => {
                 const userStatus = otherParticipant && onlineUsers[otherParticipant._id];
                 
                 if (userStatus?.isOnline) {
-                  return <span className="text-xs text-green-400">Online</span>;
+                  return <span className="text-[12px] text-success-400">Online</span>;
                 } else if (userStatus?.lastSeen) {
                   return (
-                    <span className="text-xs text-gray-400">
+                    <span className="text-[12px] text-content-muted">
                       Last seen {moment(userStatus.lastSeen).fromNow()}
                     </span>
                   );
@@ -890,19 +995,51 @@ useEffect(() => {
           </div>
         </div>
         
-        <div className="flex gap-2">
-          <FiPhone size={20} className="cursor-pointer" />
-          <HiOutlineVideoCamera size={20} className="cursor-pointer" />
-          <HiDotsVertical 
-            size={20} 
-            className="cursor-pointer" 
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => setShowMediaPanel(v => !v)}
+            aria-label="Media and files"
+            title="Media and files"
+            className={`hidden rounded-lg p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 md:block ${
+              showMediaPanel
+                ? 'bg-primary-500/15 text-primary-300'
+                : 'text-content-muted hover:bg-surface-hover hover:text-content-primary'
+            }`}
+          >
+            <FileText size={18} />
+          </button>
+          <button type="button" aria-label="Voice call" title="Voice call"
+            className="rounded-lg p-2 text-content-muted transition-colors hover:bg-surface-hover hover:text-content-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
+            <FiPhone size={18} />
+          </button>
+          <button type="button" aria-label="Video call" title="Video call"
+            className="rounded-lg p-2 text-content-muted transition-colors hover:bg-surface-hover hover:text-content-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
+            <HiOutlineVideoCamera size={18} />
+          </button>
+          <button
+            type="button"
+            aria-label="Conversation options"
+            className="rounded-lg p-2 text-content-muted transition-colors hover:bg-surface-hover hover:text-content-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
             onClick={(e) => {
               e.stopPropagation();
               setShowChatOptions(!showChatOptions);
-            }} 
-          />
+            }}
+          >
+            <HiDotsVertical size={18} />
+          </button>
           {showChatOptions && (
-            selectedChat.isGroup ? <GroupOptions /> : <IndividualChatOptions />
+            selectedChat.isGroup
+              ? <GroupOptions
+                  muted={muted}
+                  onToggleMute={handleToggleMute}
+                  onOpenMedia={() => setShowMediaPanel(true)}
+                />
+              : <IndividualChatOptions
+                  muted={muted}
+                  onToggleMute={handleToggleMute}
+                  onOpenMedia={() => setShowMediaPanel(true)}
+                />
           )}
         </div>
         {openGroupManager && (
@@ -985,10 +1122,10 @@ useEffect(() => {
                   </span>
                 )}
 
-                <div className={`px-3 py-2 rounded-lg shadow-sm flex ${
-                  msg.type === 'audio'
-                    ? 'bg-transparent'
-                    : (isCurrentUserMessage ? 'bg-blue-700 text-white' : 'bg-gray-800 text-white')
+                <div className={`rounded-lg shadow-sm flex ${
+                  msg.type === 'audio' || msg.type === 'image'
+                    ? 'bg-transparent p-1'
+                    : `px-3 py-2 ${isCurrentUserMessage ? 'bg-blue-700 text-white' : 'bg-gray-800 text-white'}`
                 }`}>
                   <div className="flex-1 break-words pr-1">
                     {msg.type === 'audio' ? (
@@ -1036,11 +1173,48 @@ useEffect(() => {
                           </div>
                         </div>
                       </div>
+                    ) : msg.type === 'image' ? (
+                      <a
+                        href={msg.content}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block overflow-hidden rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                      >
+                        <img
+                          src={msg.content}
+                          alt={msg.attachment?.name || 'Shared image'}
+                          loading="lazy"
+                          className="max-h-72 w-auto max-w-full rounded-lg object-cover"
+                        />
+                      </a>
+                    ) : msg.type === 'file' ? (
+                      <a
+                        href={msg.content}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download={msg.attachment?.name}
+                        className="flex min-w-[210px] items-center gap-3 rounded-md p-1 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                      >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/15">
+                          <FileText size={18} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-medium">
+                            {msg.attachment?.name || 'Attachment'}
+                          </span>
+                          <span className="block text-[11px] opacity-70">
+                            {formatBytes(msg.attachment?.size)}
+                          </span>
+                        </span>
+                        <Download size={16} className="shrink-0 opacity-80" />
+                      </a>
                     ) : (
                       msg.content
                     )}
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] text-gray-400 self-end ml-1">
+                  <div className={`flex items-center gap-1 self-end text-[10px] text-gray-400 ${
+                    msg.type === 'image' ? 'absolute bottom-2 right-3 rounded bg-black/60 px-1.5 py-0.5' : 'ml-1'
+                  }`}>
                     <span>{msg.createdAt ? moment(msg.createdAt).format('h:mm A') : ''}</span>
                     {renderMessageStatus(msg)}
                   </div>
@@ -1164,15 +1338,78 @@ useEffect(() => {
         </div>
       )}
 
+      {/* Chosen file, before it is sent. Sending is a separate, deliberate act:
+          picking a file by accident should not put it in the conversation. */}
+      {(pendingFile || attachError) && !isRecording && (
+        <div className="border-t border-gray-900 bg-gray-950 px-3 py-2.5">
+          {attachError && (
+            <p role="alert" className="mb-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[12px] text-rose-300">
+              {attachError}
+            </p>
+          )}
+          {pendingFile && (
+            <div className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-900 p-2.5">
+              {pendingPreview ? (
+                <img src={pendingPreview} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />
+              ) : (
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-indigo-500/15 text-indigo-300">
+                  <FileText size={20} />
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-medium text-white">{pendingFile.name}</p>
+                <p className="text-[11px] text-gray-400">{formatBytes(pendingFile.size)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={clearPendingFile}
+                disabled={uploading}
+                aria-label="Remove attachment"
+                className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white disabled:opacity-50"
+              >
+                <X size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={sendAttachment}
+                disabled={uploading}
+                className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {uploading && <Loader2 size={14} className="animate-spin" />}
+                {uploading ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* INPUT */}
       {!isRecording && !audioURL && (
-        <form onSubmit={handleSendMessage} className="flex items-center p-3 bg-gray-950 border-t border-gray-900">
-          <FiPaperclip size={25} className="text-gray-400 cursor-pointer mr-2" />
-          <MdOutlineEmojiEmotions 
-            size={25} 
-            className="text-gray-400 cursor-pointer mr-2 emoji-trigger" 
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+        <form onSubmit={handleSendMessage} className="flex items-center gap-1 border-t border-edge-subtle bg-surface-base px-3 py-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            hidden
+            onChange={handleFileChosen}
+            accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.zip"
           />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Attach a photo or file"
+            title="Attach a photo or file"
+            className="rounded-lg p-2 text-content-muted transition-colors hover:bg-surface-hover hover:text-content-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+          >
+            <FiPaperclip size={22} />
+          </button>
+          <button
+            type="button"
+            aria-label="Insert emoji"
+            className="emoji-trigger rounded-lg p-2 text-content-muted transition-colors hover:bg-surface-hover hover:text-content-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+          >
+            <MdOutlineEmojiEmotions size={22} />
+          </button>
           {showEmojiPicker && (
             <div ref={emojiPickerRef} className="absolute bottom-16">
               <EmojiPicker onEmojiClick={handleEmojiClick} />
@@ -1183,21 +1420,42 @@ useEffect(() => {
             placeholder="Type a message" 
             value={input} 
             onChange={(e) => setInput(e.target.value)} 
-            className="flex-1 p-2 text-white bg-gray-900 rounded-lg" 
+            className="mx-1 flex-1 rounded-lg border border-edge bg-surface-input px-3.5 py-2.5 text-[14px] text-content-primary outline-none transition-colors placeholder:text-content-muted focus:border-primary-500 focus:ring-2 focus:ring-primary-500/25" 
           />
           {input.trim() ? (
-            <button type="submit" className="ml-2">
-              <IoMdSend size={25} className="text-indigo-500" />
+            <button
+              type="submit"
+              aria-label="Send message"
+              className="rounded-lg bg-primary-500 p-2.5 text-white transition-colors hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+            >
+              <IoMdSend size={18} />
             </button>
           ) : (
-            <MdOutlineKeyboardVoice
-              size={27}
-              className="text-indigo-500 cursor-pointer ml-2"
+            <button
+              type="button"
+              aria-label="Record a voice message"
+              title="Record a voice message"
+              className="rounded-lg p-2 text-content-muted transition-colors hover:bg-surface-hover hover:text-primary-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
               onClick={startRecording}
-            />
+            >
+              <MdOutlineKeyboardVoice size={22} />
+            </button>
           )}
         </form>
       )}
+    </div>
+
+    {/* Everything shared in this conversation. Hidden on small screens, where
+        it would leave no room for the thread it describes. */}
+    {showMediaPanel && (
+      <div className="hidden md:flex">
+        <MediaPanel
+          messages={messages}
+          chatName={selectedChat?.groupName || selectedChat?.name}
+          onClose={() => setShowMediaPanel(false)}
+        />
+      </div>
+    )}
     </div>
   );
 };

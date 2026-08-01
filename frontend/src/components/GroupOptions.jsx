@@ -4,6 +4,7 @@ import {
   FiAlertTriangle,
   FiUserPlus,
   FiSettings,
+  FiBell,
   FiBellOff,
   FiFileText,
   FiArchive,
@@ -15,7 +16,7 @@ import { SettingsContext } from "../Context/SettingsContext";
 import AddMembersModal from "./AddMembersModal";
 import { useToast } from "../Context/ToastContext";
 
-const GroupOptions = () => {
+const GroupOptions = ({ muted = false, onToggleMute, onOpenMedia }) => {
   const { selectedChat, setShowChatOptions, userId } = useContext(ChatContext);
   const { setOpenGroupManager } = useContext(SettingsContext);
   const [showAddMembers, setShowAddMembers] = useState(false);
@@ -94,17 +95,21 @@ const GroupOptions = () => {
         )}
 
         {/* ✅ COMMON OPTIONS (Both Admin & Members) */}
-        <span
-          onClick={hideOptions}
-          className="flex items-center cursor-pointer border border-gray-800 p-2 rounded hover:bg-gray-700 transition">
-          <FiBellOff size={18} className="mr-2" /> Mute Notifications
-        </span>
-        
-        <span
-          onClick={hideOptions}
-          className="flex items-center cursor-pointer border border-gray-800 p-2 rounded hover:bg-gray-700 transition">
-          <FiFileText size={18} className="mr-2" /> Media & Files
-        </span>
+        <button
+          type="button"
+          onClick={() => { onToggleMute?.(); hideOptions(); }}
+          className="flex w-full items-center rounded border border-gray-800 p-2 text-left transition hover:bg-gray-700">
+          {muted
+            ? <><FiBell size={18} className="mr-2" /> Unmute notifications</>
+            : <><FiBellOff size={18} className="mr-2" /> Mute notifications</>}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => { onOpenMedia?.(); hideOptions(); }}
+          className="flex w-full items-center rounded border border-gray-800 p-2 text-left transition hover:bg-gray-700">
+          <FiFileText size={18} className="mr-2" /> Media &amp; files
+        </button>
 
         {/* ✅ MEMBER-ONLY: View Group Info */}
         {!isAdmin && (

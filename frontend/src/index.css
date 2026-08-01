@@ -239,3 +239,34 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================================
+   Chat list scrollbar
+   ----------------------------------------------------------------------------
+   Was declared inline in ChatSidebar with <style jsx>, which is Next.js syntax:
+   in this app React passed `jsx` through as an unknown DOM attribute and the
+   rules leaked to the whole document rather than being scoped.
+   ========================================================================== */
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(var(--edge-strong));
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--content-muted));
+}
+
+/* Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--edge-strong)) transparent;
+}

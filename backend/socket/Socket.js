@@ -302,7 +302,10 @@ const initializeSocket = (httpServer) => {
     // AUDIO MESSAGE HANDLING
     // ═══════════════════════════════════════════════════════════════
 
-    socket.on('send-audio-message', async (messageData, acknowledge) => {
+    /* Looks the saved message up by id and broadcasts it. Audio and
+       attachments both post to the API first and then announce the result, so
+       one handler serves both. */
+    const broadcastUploadedMessage = async (messageData, acknowledge) => {
       try {
         const message = await MessageModel.findById(messageData.messageId)
           .populate('senderId', 'name email profilePicture')
@@ -339,7 +342,7 @@ const initializeSocket = (httpServer) => {
                   lastMessage: {
                     content: message.content,
                     senderId: message.senderId._id,
-                    type: 'audio',
+                    type: message.type,
                     createdAt: new Date()
                   },
                   $inc: { 'unreadCount.$[elem].count': 1 }
@@ -359,7 +362,7 @@ const initializeSocket = (httpServer) => {
                   lastMessage: {
                     content: message.content,
                     senderId: message.senderId._id,
-                    type: 'audio',
+                    type: message.type,
                     createdAt: new Date()
                   },
                   $inc: { 'unreadCount.$[elem].count': 1 }
@@ -377,7 +380,7 @@ const initializeSocket = (httpServer) => {
 
             await Promise.all(updatePromises);
           } catch (error) {
-            console.error('❌ Error updating audio message metadata:', error);
+            console.error('❌ Error updating uploaded message metadata:', error);
           }
         });
 
@@ -385,12 +388,15 @@ const initializeSocket = (httpServer) => {
           acknowledge({ status: 'success' });
         }
       } catch (error) {
-        console.error('❌ Error with audio message:', error);
+        console.error('❌ Error broadcasting uploaded message:', error);
         if (acknowledge) {
           acknowledge({ status: 'error', error: error.message });
         }
       }
-    });
+    };
+
+    socket.on('send-audio-message', broadcastUploadedMessage);
+    socket.on('send-attachment-message', broadcastUploadedMessage);
 
     // ═══════════════════════════════════════════════════════════════
     // READ RECEIPTS

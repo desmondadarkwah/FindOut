@@ -1092,6 +1092,38 @@ A user who has declared no subjects receives empty lists and a prompt.
       },
     },
 
+    '/api/messages/attachment': {
+      post: {
+        tags: ['Messaging'],
+        summary: 'Send an image or document to a conversation',
+        description:
+          'Images up to 10 MB and the document formats a student would share. ' +
+          'The sender is taken from the token rather than the request body — ' +
+          'unlike /api/messages/audio, which trusts a client-supplied senderId ' +
+          'and is unauthenticated.',
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                required: ['file', 'chatId'],
+                properties: {
+                  file: { type: 'string', format: 'binary' },
+                  chatId: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: ok('The stored message', { $ref: '#/components/schemas/Message' }),
+          400: { description: 'Missing chatId, unsupported type, or over 10 MB' },
+          401: Unauthorized,
+        },
+      },
+    },
+
     '/api/posts/{postId}': {
       get: {
         tags: ['Feed'],

@@ -54,6 +54,14 @@ const messageSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  /* Set for type 'image' and 'file'. `content` holds the URL, as it does for
+     audio; these carry what a file needs beyond a link — the name to show and
+     the size to warn about before someone on mobile data taps it. */
+  attachment: {
+    name: { type: String },
+    size: { type: Number },
+    mime: { type: String },
+  },
   // ✅ ADDED: Message status tracking
   status: {
     type: String,
