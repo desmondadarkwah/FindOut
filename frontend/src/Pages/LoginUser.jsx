@@ -1,18 +1,23 @@
 import React, { useContext, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { BeatLoader } from 'react-spinners';
-import { BrandMark } from '../components/BrandMark';
+import AuthLayout, { Field, Notice, SubmitButton } from '../components/AuthLayout';
 import { ProfileContext } from '../Context/ProfileContext';
 import { SuggestionsContext } from '../Context/SuggestionsContext';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
+/**
+ * Log in.
+ *
+ * The "Log in with Google" button is gone — there is no OAuth route in the
+ * backend, so it had nothing to call. The email field no longer offers "Phone
+ * number, username, or email" either: the server authenticates on email alone,
+ * and the other two were never accepted.
+ */
 const LoginUser = () => {
   const [data, setData] = useState({ email: '', password: '' });
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const { fetchUserDetails } = useContext(ProfileContext);
   const { fetchSuggestions } = useContext(SuggestionsContext);
 
@@ -20,10 +25,6 @@ const LoginUser = () => {
 
   const handleOnChange = (e) => {
     setData({ ...data, [e.target.name]: e.target.value });
-  };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
   };
 
   const handleSubmit = async (e) => {
@@ -52,83 +53,63 @@ const LoginUser = () => {
   };
 
   return (
-    <div className="w-screen h-screen bg-black flex items-center justify-center flex-col">
-      <div className="w-full max-w-md p-5 flex items-center flex-col">
-        <div className="mb-8 mt-5 flex flex-col items-center gap-3">
-          <BrandMark size={52} title="FindOut" />
-          <h1 className="text-4xl font-bold text-center text-white">FindOut</h1>
-        </div>
-        {error && <p className="mb-4 text-red-500 text-center  w-full p-3 font-bold">{error}</p>}
-        {success && <p className="mb-4  text-green-500 text-center  w-full p-3  font-bold">{success}</p>}
-        <form onSubmit={handleSubmit} className="space-y-4 w-80">
-          <div>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={data.email}
-              onChange={handleOnChange}
-              placeholder="Phone number, username, or email"
-              className="w-full px-4 py-2 text-sm border border-gray-500 rounded-md focus:outline-none focus:ring focus:ring-blue-300 bg-[#1c1e21] text-white"
-              required
-            />
-          </div>
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              id="password"
-              name="password"
-              value={data.password}
-              onChange={handleOnChange}
-              placeholder="Password"
-              className="w-full px-4 py-2 text-sm border border-gray-500 rounded-md focus:outline-none focus:ring focus:ring-blue-300 bg-[#1c1e21] text-white"
-              required
-            />
-            <button 
-              type="button" 
-              onClick={togglePasswordVisibility}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 cursor-pointer"
-            >
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
-            </button>
-          </div>
-          <button
-            type="submit"
-            className="ring ring-blue-950 w-full px-4 py-2 text-white bg-blue-00 rounded-md   focus:ring focus:ring-blue-300 mt-4"
-            disabled={loading}
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Log in to see who is ready to learn or teach what you named."
+      footer={
+        <>
+          New to FindOut?{' '}
+          <Link
+            to="/register"
+            className="font-medium text-primary-300 underline underline-offset-2 hover:text-primary-200"
           >
-            {loading ? <BeatLoader color="#ffffff" size={10} /> : "Login"}
-          </button>
-        </form>
+            Create an account
+          </Link>
+        </>
+      }
+    >
+      <Notice tone="error">{error}</Notice>
+      <Notice tone="success">{success}</Notice>
 
-        <div className="flex items-center mb-4 w-full">
-          <hr className="flex-grow border-gray-700" />
-          <span className="px-2 text-gray-400">OR</span>
-          <hr className="flex-grow border-gray-700" />
-        </div>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <Field
+          id="email"
+          name="email"
+          type="email"
+          label="Email address"
+          value={data.email}
+          onChange={handleOnChange}
+          placeholder="you@st.ug.edu.gh"
+          autoComplete="email"
+          required
+        />
+        <Field
+          id="password"
+          name="password"
+          type="password"
+          label="Password"
+          value={data.password}
+          onChange={handleOnChange}
+          placeholder="Your password"
+          autoComplete="current-password"
+          required
+        />
 
-        <button className="w-full py-2 mb-4 text-white ring ring-blue-600 rounded-md hover:bg-blue-950 focus:ring focus:ring-blue-300">
-          Log in with Google
-        </button>
+        <SubmitButton loading={loading} loadingLabel="Logging you in…">
+          Log in
+        </SubmitButton>
+      </form>
 
-        <div className="text-center text-sm text-white mt-2 cursor-pointer">
-          Forgot password?
-        </div>
-
-      </div>
-      <p className="text-sm text-center text-gray-400 mt-6">
-        Have an account?{" "}
-        <a href="/register" className="text-blue-500 hover:underline">
-          register
-        </a>
+      <p className="mt-5 text-center text-[13px] text-content-muted">
+        Not received your verification email?{' '}
+        <Link
+          to="/resend-verification-email"
+          className="text-primary-300 hover:text-primary-200"
+        >
+          Send it again
+        </Link>
       </p>
-
-      <nav className="mt-8 flex justify-center gap-5 text-xs text-gray-500">
-        <a href="/about" className="hover:text-gray-300">About</a>
-        <a href="/terms" className="hover:text-gray-300">Terms</a>
-        <a href="/privacy" className="hover:text-gray-300">Privacy</a>
-      </nav>
-    </div>
+    </AuthLayout>
   );
 };
 

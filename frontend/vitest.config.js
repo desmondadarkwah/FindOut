@@ -23,14 +23,14 @@ export default defineConfig({
          regression rather than on an aspiration. Statement coverage stays low
          because most of the app is screens no test mounts yet; what is covered
          — the token store, the sharing helpers, the post menu, the brand mark
-         and loader, the public About/Terms/Privacy pages and the availability
-         indicator — carries the branch figure. Raise these as tests are
-         added. */
+         and loader, the sign-in and sign-up screens, the public
+         About/Terms/Privacy pages and the availability indicator — carries the
+         branch figure. Raise these as tests are added. */
       thresholds: {
-        statements: 8.4,
-        branches: 57.5,
-        functions: 29,
-        lines: 8.4,
+        statements: 10.4,
+        branches: 62,
+        functions: 33.5,
+        lines: 10.4,
       },
     },
   },
