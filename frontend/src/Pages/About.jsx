@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, ArrowRight, GraduationCap, MessageSquare, Users,
+  ArrowRight, GraduationCap, MessageSquare, Users,
   BadgeCheck, Newspaper,
 } from 'lucide-react';
+import { BrandMark } from '../components/BrandMark';
 
 /**
  * About FindOut.
@@ -144,7 +145,7 @@ const About = () => (
           to="/"
           className="inline-flex items-center gap-2 rounded text-[13px] font-medium text-content-muted transition-colors hover:text-content-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
         >
-          <ArrowLeft size={15} />
+          <BrandMark size={22} />
           FindOut
         </Link>
         <Link
@@ -321,7 +322,10 @@ const About = () => (
 
     <footer className="border-t border-edge-subtle bg-surface-sunken">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-[13px] text-content-muted">
-        <p>FindOut · University of Ghana, Legon</p>
+        <p className="inline-flex items-center gap-2.5">
+          <BrandMark size={18} />
+          FindOut · University of Ghana, Legon
+        </p>
         <nav className="flex gap-6">
           <Link to="/about" className="transition-colors hover:text-content-primary">About</Link>
           <Link to="/terms" className="transition-colors hover:text-content-primary">Terms</Link>

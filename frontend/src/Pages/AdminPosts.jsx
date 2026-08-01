@@ -8,6 +8,7 @@ import {
 import { useAdminContext } from '../Context/AdminContext';
 import axiosInstance from '../utils/axiosInstance';
 import FindOutLoader from '../Loader/FindOutLoader';
+import { BrandMark } from '../components/BrandMark';
 
 const AdminPosts = () => {
   const { admin, logout } = useAdminContext();
@@ -132,8 +133,8 @@ const AdminPosts = () => {
         <div className="p-6">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <Shield size={24} className="text-white" />
+            <div className="w-10 h-10 rounded-xl bg-surface-overlay flex items-center justify-center">
+              <BrandMark size={26} />
             </div>
             <div>
               <h2 className="text-white font-bold">Admin Panel</h2>

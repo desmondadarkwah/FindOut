@@ -5,6 +5,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { BeatLoader } from 'react-spinners';
 // import { ScaleLoader } from 'react-spinners';
 import { RxAvatar } from "react-icons/rx";
+import { BrandMark } from "../components/BrandMark";
 
 
 const RegisterUser = () => {
@@ -98,7 +99,8 @@ const RegisterUser = () => {
             onChange={(e) => handleImageChange(e.target.files[0])} 
           />
 
-          <h1 className="text-4xl font-bold text-center text-white mb-4">
+          <h1 className="mb-4 flex items-center justify-center gap-3 text-4xl font-bold text-white">
+            <BrandMark size={40} />
             FindOut
           </h1>
         </span>

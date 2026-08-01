@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { BeatLoader } from 'react-spinners';
+import { BrandMark } from '../components/BrandMark';
 import { ProfileContext } from '../Context/ProfileContext';
 import { SuggestionsContext } from '../Context/SuggestionsContext';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -53,7 +54,10 @@ const LoginUser = () => {
   return (
     <div className="w-screen h-screen bg-black flex items-center justify-center flex-col">
       <div className="w-full max-w-md p-5 flex items-center flex-col">
-        <h1 className="text-4xl font-bold text-center text-white mb-8 mt-5">FindOut</h1>
+        <div className="mb-8 mt-5 flex flex-col items-center gap-3">
+          <BrandMark size={52} title="FindOut" />
+          <h1 className="text-4xl font-bold text-center text-white">FindOut</h1>
+        </div>
         {error && <p className="mb-4 text-red-500 text-center  w-full p-3 font-bold">{error}</p>}
         {success && <p className="mb-4  text-green-500 text-center  w-full p-3  font-bold">{success}</p>}
         <form onSubmit={handleSubmit} className="space-y-4 w-80">

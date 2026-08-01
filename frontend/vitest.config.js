@@ -22,14 +22,15 @@ export default defineConfig({
       /* Floors set just under measured coverage, so the build fails on a
          regression rather than on an aspiration. Statement coverage stays low
          because most of the app is screens no test mounts yet; what is covered
-         — the token store, the sharing helpers, the post menu, the public
-         About/Terms/Privacy pages and the availability indicator — carries the
-         branch figure. Raise these as tests are added. */
+         — the token store, the sharing helpers, the post menu, the brand mark
+         and loader, the public About/Terms/Privacy pages and the availability
+         indicator — carries the branch figure. Raise these as tests are
+         added. */
       thresholds: {
-        statements: 7.5,
-        branches: 56,
-        functions: 25,
-        lines: 7.5,
+        statements: 8.4,
+        branches: 57.5,
+        functions: 29,
+        lines: 8.4,
       },
     },
   },

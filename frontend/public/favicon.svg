@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="FindOut">
+  <title>FindOut</title>
+
+  <!--
+    The O in FindOut, drawn as two students meeting.
+
+    The ring is split into two arcs: indigo for the student ready to learn,
+    emerald for the one ready to teach. They face each other across two gaps
+    and do not touch — the platform introduces them, it does not do the
+    learning. The dot at the centre is the match.
+
+    Round caps and a 5px stroke keep it legible at 16px, where the whole mark
+    reads as a two-tone ring with a point in the middle.
+  -->
+
+  <defs>
+    <linearGradient id="fo-tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1B1B26"/>
+      <stop offset="1" stop-color="#0E0E15"/>
+    </linearGradient>
+    <linearGradient id="fo-learn" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#A5A8FD"/>
+      <stop offset="1" stop-color="#6366F1"/>
+    </linearGradient>
+    <linearGradient id="fo-teach" x1="1" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#34D399"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Tile, so the mark holds up on a light browser tab as well as a dark one -->
+  <rect width="32" height="32" rx="7.5" fill="url(#fo-tile)"/>
+
+  <g transform="rotate(-45 16 16)" fill="none" stroke-width="5" stroke-linecap="round">
+    <path d="M6.6031 12.5798 A10 10 0 0 1 25.3969 12.5798" stroke="url(#fo-learn)"/>
+    <path d="M25.3969 19.4202 A10 10 0 0 1 6.6031 19.4202" stroke="url(#fo-teach)"/>
+  </g>
+
+  <circle cx="16" cy="16" r="2.5" fill="#F4F4FA"/>
+</svg>

@@ -10,6 +10,7 @@ import { usePostContext } from '../Context/PostContext';
 import { ChatContext } from '../Context/ChatContext';
 import FindOutLoader from '../Loader/FindOutLoader';
 import { sharePost } from '../utils/share';
+import { BrandMark } from '../components/BrandMark';
 
 const AllPost = () => {
   const {
@@ -622,10 +623,15 @@ const AllPost = () => {
     <div style={{ marginBottom:28 }}>
       <h1 style={{
         fontSize:28, fontWeight:800, margin:'0 0 4px',
-        background:'linear-gradient(135deg,#60a5fa,#a78bfa)',
-        WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+        display:'flex', alignItems:'center', gap:10,
         letterSpacing:'-0.02em',
-      }}>FindOut</h1>
+      }}>
+        <BrandMark size={30} />
+        <span style={{
+          background:'linear-gradient(135deg,#60a5fa,#a78bfa)',
+          WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+        }}>FindOut</span>
+      </h1>
       <p style={{ fontSize:13, color:'rgba(255,255,255,0.3)', margin:0, fontWeight:500 }}>
         Share knowledge · Ask questions · Help others learn
       </p>
@@ -646,10 +652,15 @@ const AllPost = () => {
       <div style={{ ...card, paddingTop:20, paddingBottom:20 }}>
         <h1 style={{
           fontSize:24, fontWeight:800, margin:'0 0 4px',
-          background:'linear-gradient(135deg,#60a5fa,#a78bfa)',
-          WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+          display:'flex', alignItems:'center', gap:9,
           letterSpacing:'-0.02em',
-        }}>FindOut</h1>
+        }}>
+          <BrandMark size={26} />
+          <span style={{
+            background:'linear-gradient(135deg,#60a5fa,#a78bfa)',
+            WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+          }}>FindOut</span>
+        </h1>
         <p style={{ fontSize:11.5, color:'rgba(255,255,255,0.3)', margin:0, fontWeight:500, lineHeight:1.5 }}>
           Share knowledge · Ask questions · Help others learn
         </p>
