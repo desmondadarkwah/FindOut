@@ -25,7 +25,8 @@ const { GetMessages, SendMessage } = require('../controllers/MessageController')
 const StartNewChat = require('../controllers/StartNewChat');
 const UpdateGroupProfilePicture = require('../controllers/UpdateGroupProfilePicture');
 const { AudioHandler } = require('../middleware/AudioHandler');
-const { GetAllPost,TogglePostHelpful, DeletePost, AddPost } = require('../controllers/PostController');
+const { GetAllPost, GetPostById, TogglePostHelpful, DeletePost, AddPost } = require('../controllers/PostController');
+const { attachmentUpload, AttachmentHandler, handleAttachmentErrors } = require('../middleware/AttachmentHandler');
 const { AddComment, GetComment, LikeComment, ReplyComment, GetRepliedComments, DeleteRepliedComment } = require('../controllers/CommentController');
 const JoinGroup = require('../controllers/JoinGroup');
 const SearchUsers = require('../controllers/SearchUsers');
@@ -61,6 +62,15 @@ router.get('/messages/:chatId', authMiddleware, GetMessages);
 router.post('/messages', authMiddleware, SendMessage)
 router.post('/start-new-chat', authMiddleware, StartNewChat);
 router.post("/messages/audio", audioUpload.single("audio"), AudioHandler);
+// Image and document attachments. Authenticated, and the sender is taken from
+// the token rather than the request body.
+router.post(
+  '/messages/attachment',
+  authMiddleware,
+  attachmentUpload.single('file'),
+  handleAttachmentErrors,
+  AttachmentHandler
+);
 router.get('/search-users', authMiddleware, SearchUsers);
 router.get('/join/:inviteCode', authMiddleware, JoinGroupViaInvite);
 router.post('/groups/handle-join-request', authMiddleware, HandleJoinRequest);
@@ -71,6 +81,9 @@ router.post('/groups/leave', authMiddleware, LeaveGroup);
 //post routes
 router.post('/add-post', authMiddleware, AddPost);
 router.get('/getallposts', GetAllPost);
+// Backs the shareable /post/:postId link. Declared before the nested
+// /posts/:postId/* routes so a bare id cannot be swallowed by one of them.
+router.get('/posts/:postId', GetPostById);
 router.post('/posts/:postId/helpful', authMiddleware, TogglePostHelpful);
 router.delete('/posts/delete-post/:postId', authMiddleware, DeletePost);
 

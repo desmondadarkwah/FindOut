@@ -80,6 +80,14 @@ export default {
         'xxs': '0.5rem', // 8px
       },
 
+      /* Added as extra families rather than overriding `sans`, so existing
+         screens keep the font they were designed against. Applied explicitly
+         on the pages that use them. */
+      fontFamily: {
+        display: ['Newsreader', 'ui-serif', 'Georgia', 'serif'],
+        ui: ['Archivo', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
+
       /* Stacking order declared once, so layers cannot fight each other.
          The bug fixed in ManageUser.jsx was caused by an ad-hoc z-10. */
       zIndex: {

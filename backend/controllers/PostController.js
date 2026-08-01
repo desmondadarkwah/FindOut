@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const PostModel = require('../models/PostModel');
 const UserModel = require('../models/UserModel');
 const fs = require('fs');
@@ -73,6 +74,56 @@ const AddPost = async (req, res) => {
       });
     }
   });
+};
+
+/**
+ * Fetches a single post. This backs the shareable /post/:postId link, so it has
+ * to answer for an id that no longer exists — a shared link outlives the post
+ * it points at — rather than falling through to a generic 500.
+ */
+const GetPostById = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const currentUserId = req.authenticatedUser?.id;
+
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'That link does not point to a valid post.'
+      });
+    }
+
+    const post = await PostModel.findById(postId)
+      .populate('author', 'name profilePicture subjects status reputation isVerified')
+      .populate({ path: 'comments.user', select: 'name profilePicture' })
+      .populate({ path: 'comments.replies.user', select: 'name profilePicture' })
+      .lean();
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'This post no longer exists. It may have been deleted by its author.'
+      });
+    }
+
+    res.json({
+      success: true,
+      post: {
+        ...post,
+        isHelpful: currentUserId
+          ? Boolean(post.helpful?.some(h => h.user.toString() === currentUserId))
+          : false,
+        helpful: undefined
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching post:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch post',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 };
 
 const GetAllPost = async (req, res) => {
@@ -249,6 +300,7 @@ const DeletePost = async (req, res) => {
 
 module.exports = {
   GetAllPost,
+  GetPostById,
   TogglePostHelpful,
   DeletePost,
   AddPost

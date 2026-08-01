@@ -1,5 +1,6 @@
 import React, { useContext, useState } from "react";
 import {
+  FiBell,
   FiBellOff,
   FiFileText,
   FiLock,
@@ -12,7 +13,7 @@ import {
 } from "react-icons/fi";
 import { ChatContext } from "../Context/ChatContext";
 
-const IndividualChatOptions = () => {
+const IndividualChatOptions = ({ muted = false, onToggleMute, onOpenMedia }) => {
   const { setShowGroupOptions } = useContext(ChatContext);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
@@ -56,17 +57,21 @@ const IndividualChatOptions = () => {
           <FiSearch size={18} className="mr-2" /> Search Messages
         </span>
 
-        <span
-          onClick={() => handleAction('mute-notifications')}
-          className="flex items-center cursor-pointer border border-gray-800 p-2 rounded hover:bg-gray-700 transition text-gray-200">
-          <FiBellOff size={18} className="mr-2" /> Mute Notifications
-        </span>
+        <button
+          type="button"
+          onClick={() => { onToggleMute?.(); setShowGroupOptions(false); }}
+          className="flex w-full items-center rounded border border-gray-800 p-2 text-left text-gray-200 transition hover:bg-gray-700">
+          {muted
+            ? <><FiBell size={18} className="mr-2" /> Unmute notifications</>
+            : <><FiBellOff size={18} className="mr-2" /> Mute notifications</>}
+        </button>
 
-        <span
-          onClick={() => handleAction('media-files')}
-          className="flex items-center cursor-pointer border border-gray-800 p-2 rounded hover:bg-gray-700 transition text-gray-200">
-          <FiFileText size={18} className="mr-2" /> Media & Files
-        </span>
+        <button
+          type="button"
+          onClick={() => { onOpenMedia?.(); setShowGroupOptions(false); }}
+          className="flex w-full items-center rounded border border-gray-800 p-2 text-left text-gray-200 transition hover:bg-gray-700">
+          <FiFileText size={18} className="mr-2" /> Media &amp; files
+        </button>
 
         <span
           onClick={() => handleAction('starred-messages')}

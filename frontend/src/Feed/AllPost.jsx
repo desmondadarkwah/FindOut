@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { Heart, MessageCircle, Share2, MoreVertical, User, Clock, BookOpen, Filter, Home, ChevronDown, TrendingUp, Plus, Award, Sparkles, Flame, Inbox as InboxIcon, Compass, Eye } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreVertical, User, Clock, BookOpen, Filter, Home, ChevronDown, TrendingUp, Plus, Award, Sparkles, Flame, Inbox as InboxIcon, Compass, Eye, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../utils/axiosInstance';
 import MobileViewIcons from '../components/MobileViewIcons';
@@ -9,6 +9,8 @@ import PostSettings from './PostSettings';
 import { usePostContext } from '../Context/PostContext';
 import { ChatContext } from '../Context/ChatContext';
 import FindOutLoader from '../Loader/FindOutLoader';
+import { sharePost } from '../utils/share';
+import { BrandMark } from '../components/BrandMark';
 
 const AllPost = () => {
   const {
@@ -29,7 +31,8 @@ const AllPost = () => {
   const [postTypeFilter, setPostTypeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
   const [showFilters, setShowFilters] = useState(false);
-  const dropdownRef = useRef(null);
+  const [shareState, setShareState] = useState({});
+  const shareTimers = useRef({});
 
   const uniqueSubjects = ['all', ...new Set(posts.map(p => p.subject))];
 
@@ -49,12 +52,48 @@ const AllPost = () => {
     { value: 'top',       label: 'Top',       icon: Flame },
   ];
 
+  /**
+   * Uses the native share sheet where there is one and copies the link
+   * otherwise. The outcome is shown on the button itself: an alert would
+   * interrupt, and on the share sheet path it would fire behind the sheet.
+   */
+  const handleShare = async (post) => {
+    const outcome = await sharePost({
+      postId: post._id,
+      title: `${post.author?.name || 'A student'} on FindOut`,
+      text: post.caption || 'Shared from FindOut',
+    });
+
+    if (outcome === 'shared' || outcome === 'cancelled') return;
+
+    setShareState(prev => ({ ...prev, [post._id]: outcome }));
+    clearTimeout(shareTimers.current[post._id]);
+    shareTimers.current[post._id] = setTimeout(
+      () => setShareState(prev => {
+        const next = { ...prev };
+        delete next[post._id];
+        return next;
+      }),
+      2000
+    );
+  };
+
+  // Clearing the timers on unmount stops a state update landing on a component
+  // that is no longer mounted when the user leaves the feed mid-confirmation.
+  useEffect(() => () => {
+    Object.values(shareTimers.current).forEach(clearTimeout);
+  }, []);
+
   useEffect(() => { fetchPosts(); }, []);
 
   useEffect(() => {
+    // Matched by attribute rather than by ref: a single ref assigned inside
+    // the post loop only ever holds the last post's menu, so a mousedown in
+    // any other post's menu counted as "outside". The menu then unmounted
+    // between mousedown and mouseup and the item's onClick never fired —
+    // Report, Copy link and Delete all did nothing on every post but the last.
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
-        setActiveDropdown(null);
+      if (!e.target.closest?.('[data-post-menu]')) setActiveDropdown(null);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -361,7 +400,7 @@ const AllPost = () => {
                     </div>
                   </div>
 
-                  <div style={{ position:'relative' }} ref={dropdownRef}>
+                  <div style={{ position:'relative' }} data-post-menu>
                     <button
                       onClick={() => toggleDropdown(post._id)}
                       style={{
@@ -492,18 +531,40 @@ const AllPost = () => {
 
                     {/* Share */}
                     <button
+                      onClick={() => handleShare(post)}
+                      title={shareState[post._id] === 'copied' ? 'Link copied' : 'Share this post'}
+                      aria-label="Share this post"
                       style={{
-                        display:'flex', alignItems:'center', justifyContent:'center',
-                        width:34, height:34, borderRadius:'50%', cursor:'pointer',
-                        border:'1px solid rgba(255,255,255,0.07)',
-                        background:'rgba(255,255,255,0.03)',
-                        color:'rgba(255,255,255,0.4)', transition:'all 0.2s',
-                        marginLeft:'auto',
+                        display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+                        height:34, padding: shareState[post._id] ? '0 12px' : 0,
+                        width: shareState[post._id] ? 'auto' : 34,
+                        borderRadius:99, cursor:'pointer',
+                        border: shareState[post._id] === 'copied'
+                          ? '1px solid rgba(34,197,94,0.4)'
+                          : shareState[post._id] === 'failed'
+                            ? '1px solid rgba(248,113,113,0.4)'
+                            : '1px solid rgba(255,255,255,0.07)',
+                        background: shareState[post._id] === 'copied'
+                          ? 'rgba(34,197,94,0.1)'
+                          : shareState[post._id] === 'failed'
+                            ? 'rgba(248,113,113,0.1)'
+                            : 'rgba(255,255,255,0.03)',
+                        color: shareState[post._id] === 'copied'
+                          ? '#4ade80'
+                          : shareState[post._id] === 'failed'
+                            ? '#f87171'
+                            : 'rgba(255,255,255,0.4)',
+                        fontSize:12, fontWeight:600, whiteSpace:'nowrap',
+                        transition:'all 0.2s', marginLeft:'auto',
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.2)'; e.currentTarget.style.color='#fff'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.07)'; e.currentTarget.style.color='rgba(255,255,255,0.4)'; }}
+                      onMouseEnter={e => { if (!shareState[post._id]) { e.currentTarget.style.borderColor='rgba(255,255,255,0.2)'; e.currentTarget.style.color='#fff'; } }}
+                      onMouseLeave={e => { if (!shareState[post._id]) { e.currentTarget.style.borderColor='rgba(255,255,255,0.07)'; e.currentTarget.style.color='rgba(255,255,255,0.4)'; } }}
                     >
-                      <Share2 size={14} />
+                      {shareState[post._id] === 'copied'
+                        ? <Check size={14} />
+                        : <Share2 size={14} />}
+                      {shareState[post._id] === 'copied' && 'Link copied'}
+                      {shareState[post._id] === 'failed' && 'Copy failed'}
                     </button>
                   </div>
 
@@ -562,10 +623,15 @@ const AllPost = () => {
     <div style={{ marginBottom:28 }}>
       <h1 style={{
         fontSize:28, fontWeight:800, margin:'0 0 4px',
-        background:'linear-gradient(135deg,#60a5fa,#a78bfa)',
-        WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+        display:'flex', alignItems:'center', gap:10,
         letterSpacing:'-0.02em',
-      }}>FindOut</h1>
+      }}>
+        <BrandMark size={30} />
+        <span style={{
+          background:'linear-gradient(135deg,#60a5fa,#a78bfa)',
+          WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+        }}>FindOut</span>
+      </h1>
       <p style={{ fontSize:13, color:'rgba(255,255,255,0.3)', margin:0, fontWeight:500 }}>
         Share knowledge · Ask questions · Help others learn
       </p>
@@ -586,10 +652,15 @@ const AllPost = () => {
       <div style={{ ...card, paddingTop:20, paddingBottom:20 }}>
         <h1 style={{
           fontSize:24, fontWeight:800, margin:'0 0 4px',
-          background:'linear-gradient(135deg,#60a5fa,#a78bfa)',
-          WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+          display:'flex', alignItems:'center', gap:9,
           letterSpacing:'-0.02em',
-        }}>FindOut</h1>
+        }}>
+          <BrandMark size={26} />
+          <span style={{
+            background:'linear-gradient(135deg,#60a5fa,#a78bfa)',
+            WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+          }}>FindOut</span>
+        </h1>
         <p style={{ fontSize:11.5, color:'rgba(255,255,255,0.3)', margin:0, fontWeight:500, lineHeight:1.5 }}>
           Share knowledge · Ask questions · Help others learn
         </p>

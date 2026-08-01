@@ -11,6 +11,10 @@ import ChatSidebar from './components/ChatSidebar';
 import Inbox from './Pages/Inbox';
 import AddPost from './Feed/AddPost';
 import AllPost from './Feed/AllPost';
+import SinglePost from './Feed/SinglePost';
+import About from './Pages/About';
+import Terms from './Pages/Terms';
+import Privacy from './Pages/Privacy';
 import JoinGroup from './Pages/JoinGroup';
 import AdminLogin from './Pages/AdminLogin';
 import AdminDashboard from './Pages/AdminDashboard';
@@ -36,6 +40,12 @@ function App() {
             <Navigate to={getAccessToken() ? '/dashboard' : '/login'} replace />
           }
         />
+        {/* Public information pages. Linked from registration and from the
+            footer of each other, so they are reachable without an account. */}
+        <Route path="/about" element={<About />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
+
         <Route path="register" element={<RegisterUser />} />
         <Route path="login" element={<LoginUser />} />
         <Route path="verify-email" element={<VerifyEmail />} />
@@ -46,6 +56,9 @@ function App() {
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/add-post" element={<AddPost />} />
         <Route path="/feed" element={<AllPost />} />
+        {/* Destination of a shared post link. Must exist, or "Copy link"
+            produces a URL that lands on the 404 below. */}
+        <Route path="/post/:postId" element={<SinglePost />} />
         <Route path="/join/:inviteCode" element={<JoinGroup />} />
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />

@@ -2,9 +2,31 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Findout</title>
+
+    <!-- SVG first for browsers that take it, 32px PNG for those that do not. -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#0C0C12" />
+
+    <!-- Newsreader for display: a serif drawn for reading on screen, which is
+         what this platform is for. Archivo for interface text. Only the
+         weights actually used are requested, and display=swap keeps text
+         visible while they load. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap"
+      rel="stylesheet"
+    />
+
+    <title>FindOut — find a study partner at Legon</title>
+    <meta
+      name="description"
+      content="FindOut pairs students who want to learn a subject with students ready to teach it. Built at the University of Ghana, Legon."
+    />
   </head>
   <body>
     <div id="root"></div>

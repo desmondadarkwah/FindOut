@@ -1,59 +1,51 @@
 import axios from "axios";
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-// import UserProfile from "../components/UserProfile";
-import { BeatLoader } from 'react-spinners';
-// import { ScaleLoader } from 'react-spinners';
-import { RxAvatar } from "react-icons/rx";
+import { useNavigate, Link } from "react-router-dom";
+import AuthLayout, { Field, Notice, SubmitButton } from "../components/AuthLayout";
 
-
+/**
+ * Sign up.
+ *
+ * There is no profile-picture control here any more. It sat above the form as
+ * a bare grey circle with no label, so it read as an icon rather than
+ * something to click, and it asked for a decision before the account it
+ * belonged to existed. A photo can be added from the profile once you are in,
+ * and the field was always optional on the server.
+ *
+ * The "Log in with Google" button is gone too: there is no OAuth route in the
+ * backend, so it had nothing to call.
+ */
 const RegisterUser = () => {
-  const [data, setData] = useState({
-    name: "",
-    email: "",
-    password: "",
-  });
-
-  const [image, setImage] = useState(null); // Uncommented to define image state
+  const [data, setData] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleOnChange = (e) => {
-    setData({
-      ...data,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleImageChange = (newImage) => {
-    setImage(newImage);
+    setData({ ...data, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
+    // Still multipart: the register route runs multer, which expects it.
     const formData = new FormData();
     formData.append("name", data.name);
     formData.append("email", data.email);
     formData.append("password", data.password);
-    if (image) formData.append("profilePicture", image); 
 
     try {
       const URL = `${import.meta.env.VITE_BACKEND_URL}/api/register`;
       const response = await axios.post(URL, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
       setSuccess(response.data.message);
       setError(null);
       setLoading(false);
       setData({ name: "", email: "", password: "" });
-      setImage(null);
     } catch (err) {
       const errorMessage =
         err.response?.data?.message || "Something went wrong.";
@@ -62,130 +54,91 @@ const RegisterUser = () => {
       setLoading(false);
 
       if (errorMessage.includes("not verified")) {
-        setTimeout(() => navigate('/resend-verification-email'), 2000);
+        setTimeout(() => navigate("/resend-verification-email"), 2000);
       }
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-black">
-      <div className="w-full max-w-sm p-8 rounded-lg shadow-md">
-        <span className="flex items-center gap-20 mb-3">
-
-          <span>
-            <label htmlFor="file-input" className="cursor-pointer">
-              {image ? (
-                <img
-                  src={URL.createObjectURL(image)} 
-                  alt="Profile"
-                  className={'rounded-full w-12 h-12 object-cover cursor-pointer'}
-                />
-              ) : (
-                <div
-                  className={'w-12 h-12 bg-gray-800 text-gray-700 rounded-full flex items-center justify-center'}
-                >
-                  <RxAvatar size={20} />
-                </div>
-              )}
-            </label>
-          </span>
-          {/* <UserProfile /> */}
-
-          <input
-            type="file"
-            id='file-input'
-            hidden
-            onChange={(e) => handleImageChange(e.target.files[0])} 
-          />
-
-          <h1 className="text-4xl font-bold text-center text-white mb-4">
-            FindOut
-          </h1>
-        </span>
-
-        <p className="text-center text-sm text-gray-400 mb-6">
-          Sign up to discover who is eager to learn alongside you.
-        </p>
-
-        <button className="w-full py-2 mb-4 text-white ring ring-blue-900 rounded-md hover:bg-blue-950 focus:ring focus:ring-blue-300">
-          Log in with Google
-        </button>
-        <div className="flex items-center mb-4">
-          <hr className="flex-grow border-gray-700" />
-          <span className="px-2 text-gray-400">OR</span>
-          <hr className="flex-grow border-gray-700" />
-        </div>
-
-        {error && <p className="mb-4 text-sm text-red-500 font-bold flex items-center justify-center">{error}</p>}
-        {success && <p className="mb-4 text-sm text-green-500 font-bold flex items-center justify-center">{success}</p>}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            name="name"
-            value={data.name}
-            onChange={handleOnChange}
-            placeholder="Name"
-            className="w-full px-4 py-2 text-sm bg-[#1c1e21] text-white border border-gray-700 rounded-md focus:outline-none focus:ring focus:ring-blue-300"
-          />
-          <input
-            type="text"
-            name="email"
-            value={data.email}
-            onChange={handleOnChange}
-            placeholder="Email"
-            className="w-full px-4 py-2 text-sm bg-[#1c1e21] text-white border border-gray-700 rounded-md focus:outline-none focus:ring focus:ring-blue-300"
-          />
-          <input
-            type="password"
-            name="password"
-            value={data.password}
-            onChange={handleOnChange}
-            placeholder="Password"
-            className="w-full px-4 py-2 text-sm bg-[#1c1e21] text-white border border-gray-700 rounded-md focus:outline-none focus:ring focus:ring-blue-300"
-          />
-
-          <button
-            type="submit"
-            className="w-full py-2 text-white ring ring-blue-600 rounded-md hover:bg-blue-950 focus:ring focus:ring-blue-300"
-            disabled={loading}
+    <AuthLayout
+      title="Create your account"
+      subtitle="Tell us what you want to learn and what you can teach, and FindOut will look for the students who fit."
+      footer={
+        <>
+          Already have an account?{" "}
+          <Link
+            to="/login"
+            className="font-medium text-primary-300 underline underline-offset-2 hover:text-primary-200"
           >
-            {loading ? <BeatLoader color="#ffffff" size={10} /> : "Sign up"}
-          </button>
-        </form>
-
-        <p className="text-xs text-gray-400 mt-4 text-center">
-          People who use our service may have uploaded your contact information
-          to Instagram.{" "}
-          <a href="#" className="text-blue-500 hover:underline">
-            Learn More
-          </a>
-        </p>
-
-        <p className="text-xs text-gray-400 mt-4 text-center">
-          By signing up, you agree to our{" "}
-          <a href="#" className="text-blue-500 hover:underline">
-            Terms
-          </a>
-          ,{" "}
-          <a href="#" className="text-blue-500 hover:underline">
-            Privacy Policy
-          </a>{" "}
-          and{" "}
-          <a href="#" className="text-blue-500 hover:underline">
-            Cookies Policy
-          </a>
-          .
-        </p>
-
-        <p className="text-sm text-center text-gray-400 mt-6">
-          Have an account?{" "}
-          <a href="/login" className="text-blue-500 hover:underline">
             Log in
-          </a>
-        </p>
-      </div>
-    </div>
+          </Link>
+        </>
+      }
+    >
+      <Notice tone="error">{error}</Notice>
+      <Notice tone="success">{success}</Notice>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <Field
+          id="name"
+          name="name"
+          label="Full name"
+          value={data.name}
+          onChange={handleOnChange}
+          placeholder="Ama Mensah"
+          autoComplete="name"
+          required
+        />
+        <Field
+          id="email"
+          name="email"
+          type="email"
+          label="Email address"
+          value={data.email}
+          onChange={handleOnChange}
+          placeholder="you@st.ug.edu.gh"
+          autoComplete="email"
+          hint="We send a verification link here before your account goes live."
+          required
+        />
+        <Field
+          id="password"
+          name="password"
+          type="password"
+          label="Password"
+          value={data.password}
+          onChange={handleOnChange}
+          placeholder="At least 8 characters"
+          autoComplete="new-password"
+          minLength={8}
+          required
+        />
+
+        <SubmitButton loading={loading} loadingLabel="Creating your account…">
+          Create account
+        </SubmitButton>
+      </form>
+
+      <p className="mt-6 border-t border-edge-subtle pt-5 text-[12px] leading-relaxed text-content-muted">
+        Your name, subjects and availability are shown to other students so they
+        can find you — your email address never is.{" "}
+        <Link to="/about" className="text-primary-300 hover:text-primary-200">
+          How matching works
+        </Link>
+      </p>
+
+      <p className="mt-3 text-[12px] leading-relaxed text-content-muted">
+        By creating an account you agree to our{" "}
+        <Link to="/terms" className="text-primary-300 hover:text-primary-200">
+          Terms of Use
+        </Link>{" "}
+        and{" "}
+        <Link to="/privacy" className="text-primary-300 hover:text-primary-200">
+          Privacy Notice
+        </Link>
+        .
+      </p>
+    </AuthLayout>
   );
 };
 

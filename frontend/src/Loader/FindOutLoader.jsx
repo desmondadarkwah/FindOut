@@ -1,4 +1,5 @@
 import React from 'react';
+import { BrandMark } from '../components/BrandMark';
 
 const FindOutLoader = ({ 
   size = 'large', 
@@ -30,6 +31,7 @@ const FindOutLoader = ({
   };
 
   const config = sizeConfig[size];
+  const markSize = { small: 32, medium: 48, large: 64 }[size] ?? 64;
 
   // Wrapper classes based on fullScreen prop
   const wrapperClasses = fullScreen 
@@ -90,24 +92,21 @@ const FindOutLoader = ({
           </div>
         );
 
-      default: // Enhanced spinning loader
+      default:
+        /* The mark is a ring of two arcs around a centred dot, so spinning it
+           gives a loader for free — and the thing the user waits in front of
+           is the brand rather than a generic spinner. The dot sits on the axis
+           of rotation, so it stays still while the arcs travel. */
         return (
           <div className="relative">
-            <div className={`${config.container} relative`}>
-              {/* Outer glow ring */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 animate-pulse"></div>
-              
-              {/* Main spinning ring */}
-              <div className="absolute inset-0 border-4 border-gray-700/30 rounded-full"></div>
-              <div className="absolute inset-0 border-4 border-transparent border-t-blue-500 border-r-purple-500 rounded-full animate-spin"></div>
-              
-              {/* Inner spinning ring */}
-              <div className="absolute inset-2 border-2 border-gray-600/20 rounded-full"></div>
-              <div className="absolute inset-2 border-2 border-transparent border-b-blue-400 border-l-purple-400 rounded-full animate-spin" 
-                   style={{ animationDirection: 'reverse', animationDuration: '2s' }}></div>
-              
-              {/* Center dot */}
-              <div className="absolute inset-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full animate-pulse shadow-lg shadow-blue-500/50"></div>
+            <div className={`${config.container} relative flex items-center justify-center`}>
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary-500/20 to-accent-500/20 animate-pulse motion-reduce:animate-none" />
+              <div
+                className="animate-spin motion-reduce:animate-none"
+                style={{ animationDuration: '1.5s' }}
+              >
+                <BrandMark size={markSize} title="Loading" />
+              </div>
             </div>
           </div>
         );

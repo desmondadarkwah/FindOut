@@ -19,16 +19,18 @@ export default defineConfig({
         'src/test/**',
         'src/main.jsx',
       ],
-      /* Floors set from measured coverage, to stop it regressing silently.
-         They are low because component coverage is currently thin: only the
-         token store and the availability indicator are covered. Raise them as
-         tests are added rather than setting an aspirational number that fails
-         the build from day one. */
+      /* Floors set just under measured coverage, so the build fails on a
+         regression rather than on an aspiration. Statement coverage stays low
+         because most of the app is screens no test mounts yet; what is covered
+         — the token store, the sharing helpers, the post menu, the brand mark
+         and loader, the sign-in and sign-up screens, the public
+         About/Terms/Privacy pages and the availability indicator — carries the
+         branch figure. Raise these as tests are added. */
       thresholds: {
-        statements: 0.5,
-        branches: 12,
-        functions: 8,
-        lines: 0.5,
+        statements: 10.5,
+        branches: 64,
+        functions: 37.5,
+        lines: 10.5,
       },
     },
   },
