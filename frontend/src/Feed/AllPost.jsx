@@ -31,7 +31,6 @@ const AllPost = () => {
   const [sortBy, setSortBy] = useState('recent');
   const [showFilters, setShowFilters] = useState(false);
   const [shareState, setShareState] = useState({});
-  const dropdownRef = useRef(null);
   const shareTimers = useRef({});
 
   const uniqueSubjects = ['all', ...new Set(posts.map(p => p.subject))];
@@ -87,9 +86,13 @@ const AllPost = () => {
   useEffect(() => { fetchPosts(); }, []);
 
   useEffect(() => {
+    // Matched by attribute rather than by ref: a single ref assigned inside
+    // the post loop only ever holds the last post's menu, so a mousedown in
+    // any other post's menu counted as "outside". The menu then unmounted
+    // between mousedown and mouseup and the item's onClick never fired —
+    // Report, Copy link and Delete all did nothing on every post but the last.
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
-        setActiveDropdown(null);
+      if (!e.target.closest?.('[data-post-menu]')) setActiveDropdown(null);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -396,7 +399,7 @@ const AllPost = () => {
                     </div>
                   </div>
 
-                  <div style={{ position:'relative' }} ref={dropdownRef}>
+                  <div style={{ position:'relative' }} data-post-menu>
                     <button
                       onClick={() => toggleDropdown(post._id)}
                       style={{
