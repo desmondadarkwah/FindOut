@@ -118,6 +118,12 @@ const LoginUser = () => {
           register
         </a>
       </p>
+
+      <nav className="mt-8 flex justify-center gap-5 text-xs text-gray-500">
+        <a href="/about" className="hover:text-gray-300">About</a>
+        <a href="/terms" className="hover:text-gray-300">Terms</a>
+        <a href="/privacy" className="hover:text-gray-300">Privacy</a>
+      </nav>
     </div>
   );
 };

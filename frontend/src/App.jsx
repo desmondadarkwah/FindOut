@@ -12,6 +12,9 @@ import Inbox from './Pages/Inbox';
 import AddPost from './Feed/AddPost';
 import AllPost from './Feed/AllPost';
 import SinglePost from './Feed/SinglePost';
+import About from './Pages/About';
+import Terms from './Pages/Terms';
+import Privacy from './Pages/Privacy';
 import JoinGroup from './Pages/JoinGroup';
 import AdminLogin from './Pages/AdminLogin';
 import AdminDashboard from './Pages/AdminDashboard';
@@ -37,6 +40,12 @@ function App() {
             <Navigate to={getAccessToken() ? '/dashboard' : '/login'} replace />
           }
         />
+        {/* Public information pages. Linked from registration and from the
+            footer of each other, so they are reachable without an account. */}
+        <Route path="/about" element={<About />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
+
         <Route path="register" element={<RegisterUser />} />
         <Route path="login" element={<LoginUser />} />
         <Route path="verify-email" element={<VerifyEmail />} />

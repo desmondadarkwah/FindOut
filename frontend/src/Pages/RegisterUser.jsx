@@ -1,6 +1,6 @@
 import axios from "axios";
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 // import UserProfile from "../components/UserProfile";
 import { BeatLoader } from 'react-spinners';
 // import { ScaleLoader } from 'react-spinners';
@@ -155,26 +155,22 @@ const RegisterUser = () => {
         </form>
 
         <p className="text-xs text-gray-400 mt-4 text-center">
-          People who use our service may have uploaded your contact information
-          to Instagram.{" "}
-          <a href="#" className="text-blue-500 hover:underline">
-            Learn More
-          </a>
+          Your name, subjects and availability are shown to other students so
+          they can find you.{" "}
+          <Link to="/about" className="text-blue-500 hover:underline">
+            How matching works
+          </Link>
         </p>
 
         <p className="text-xs text-gray-400 mt-4 text-center">
           By signing up, you agree to our{" "}
-          <a href="#" className="text-blue-500 hover:underline">
-            Terms
-          </a>
-          ,{" "}
-          <a href="#" className="text-blue-500 hover:underline">
-            Privacy Policy
-          </a>{" "}
+          <Link to="/terms" className="text-blue-500 hover:underline">
+            Terms of Use
+          </Link>{" "}
           and{" "}
-          <a href="#" className="text-blue-500 hover:underline">
-            Cookies Policy
-          </a>
+          <Link to="/privacy" className="text-blue-500 hover:underline">
+            Privacy Notice
+          </Link>
           .
         </p>
 
