@@ -24,11 +24,13 @@ export default defineConfig({
          token store and the availability indicator are covered. Raise them as
          tests are added rather than setting an aspirational number that fails
          the build from day one. */
+      // Floors set just under measured coverage, so the build fails on a
+      // regression rather than on an aspiration. Raise them as tests are added.
       thresholds: {
-        statements: 0.5,
-        branches: 12,
-        functions: 8,
-        lines: 0.5,
+        statements: 1.2,
+        branches: 27,
+        functions: 12.5,
+        lines: 1.2,
       },
     },
   },

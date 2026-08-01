@@ -25,7 +25,7 @@ const { GetMessages, SendMessage } = require('../controllers/MessageController')
 const StartNewChat = require('../controllers/StartNewChat');
 const UpdateGroupProfilePicture = require('../controllers/UpdateGroupProfilePicture');
 const { AudioHandler } = require('../middleware/AudioHandler');
-const { GetAllPost,TogglePostHelpful, DeletePost, AddPost } = require('../controllers/PostController');
+const { GetAllPost, GetPostById, TogglePostHelpful, DeletePost, AddPost } = require('../controllers/PostController');
 const { AddComment, GetComment, LikeComment, ReplyComment, GetRepliedComments, DeleteRepliedComment } = require('../controllers/CommentController');
 const JoinGroup = require('../controllers/JoinGroup');
 const SearchUsers = require('../controllers/SearchUsers');
@@ -71,6 +71,9 @@ router.post('/groups/leave', authMiddleware, LeaveGroup);
 //post routes
 router.post('/add-post', authMiddleware, AddPost);
 router.get('/getallposts', GetAllPost);
+// Backs the shareable /post/:postId link. Declared before the nested
+// /posts/:postId/* routes so a bare id cannot be swallowed by one of them.
+router.get('/posts/:postId', GetPostById);
 router.post('/posts/:postId/helpful', authMiddleware, TogglePostHelpful);
 router.delete('/posts/delete-post/:postId', authMiddleware, DeletePost);
 

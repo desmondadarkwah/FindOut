@@ -1092,6 +1092,25 @@ A user who has declared no subjects receives empty lists and a prompt.
       },
     },
 
+    '/api/posts/{postId}': {
+      get: {
+        tags: ['Feed'],
+        summary: 'Fetch a single post',
+        description:
+          'Backs the shareable /post/:postId link. Unauthenticated, like the ' +
+          'feed listing it mirrors, so a shared link opens for a reader who is ' +
+          'not signed in; the per-user helpful flag is therefore false unless a ' +
+          'token is supplied.',
+        security: [],
+        parameters: [pathParam('postId', 'Post identifier')],
+        responses: {
+          200: ok('The post', { $ref: '#/components/schemas/Post' }),
+          400: { description: 'Malformed identifier' },
+          404: NotFound,
+        },
+      },
+    },
+
     '/api/posts/{postId}/helpful': {
       post: {
         tags: ['Feed'],

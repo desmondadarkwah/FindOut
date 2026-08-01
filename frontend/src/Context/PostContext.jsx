@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
 import axiosInstance from '../utils/axiosInstance';
 
 export const PostContext = createContext();
@@ -221,10 +221,14 @@ const markHelpful = async (postId) => {
     }
   };
 
-  const clearComments = () => {
+  // Stable identity. PostComment lists this in an effect's dependency array
+  // *and* calls it from inside that effect, so a fresh function on every
+  // provider render means: call → provider state changes → new identity →
+  // effect runs again. Unbounded.
+  const clearComments = useCallback(() => {
     setComments([]);
     setCommentsError(null);
-  };
+  }, []);
 
   const getCommentsCount = () => {
     return comments.length;
