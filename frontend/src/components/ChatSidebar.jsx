@@ -13,7 +13,7 @@ import socket from '../socket/socket';
 const ChatSidebar = ({ showChatSidebar }) => {
   const [loading, setLoading] = useState(true);
   const [onlineUsers, setOnlineUsers] = useState({});
-  const [searchQuery, setSearchQuery] = useState(''); // ✅ NEW: Search state
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { chats, setChats, setSelectedChat, userId, setUserId, barsToHidden, setBarsToHidden, showChatOptions, setShowChatOptions } = useContext(ChatContext);
 
@@ -23,21 +23,14 @@ const ChatSidebar = ({ showChatSidebar }) => {
         const response = await axiosInstance.get("/api/chats");
         const { chats, userId } = response.data;
         setChats(chats);
-        console.log('userId : ', userId);
-        console.log('chats : ', chats);
-
         setUserId(userId);
         setLoading(false);
-
-        setUserId(userId);
         localStorage.setItem('userId', userId);
-
       } catch (error) {
         console.error("Error fetching chats:", error);
         setLoading(false);
       }
     };
-
     fetchChats();
   }, []);
 
@@ -45,19 +38,13 @@ const ChatSidebar = ({ showChatSidebar }) => {
     if (!socket || !userId) return;
 
     const handleChatUpdated = (updatedChat) => {
-      console.log('📨 Chat updated in sidebar:', updatedChat._id);
-
       setChats(prevChats =>
         prevChats.map(chat => {
           if (chat._id === updatedChat._id) {
             const userUnread = updatedChat.unreadCount?.find(
               u => u.userId?.toString() === userId?.toString()
             );
-
-            return {
-              ...updatedChat,
-              unreadCount: userUnread ? userUnread.count : 0
-            };
+            return { ...updatedChat, unreadCount: userUnread ? userUnread.count : 0 };
           }
           return chat;
         })
@@ -65,10 +52,7 @@ const ChatSidebar = ({ showChatSidebar }) => {
     };
 
     socket.on('chat-updated', handleChatUpdated);
-
-    return () => {
-      socket.off('chat-updated', handleChatUpdated);
-    };
+    return () => socket.off('chat-updated', handleChatUpdated);
   }, [socket, userId, setChats]);
 
   useEffect(() => {
@@ -77,8 +61,6 @@ const ChatSidebar = ({ showChatSidebar }) => {
     socket.emit('user-online', userId);
 
     const handleUserStatusChanged = ({ userId: changedUserId, isOnline, lastSeen }) => {
-      console.log(`👤 User ${changedUserId} status: ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
-
       setOnlineUsers(prev => ({
         ...prev,
         [changedUserId]: { isOnline, lastSeen }
@@ -86,18 +68,13 @@ const ChatSidebar = ({ showChatSidebar }) => {
     };
 
     socket.on('user-status-changed', handleUserStatusChanged);
-
-    return () => {
-      socket.off('user-status-changed', handleUserStatusChanged);
-    };
+    return () => socket.off('user-status-changed', handleUserStatusChanged);
   }, [socket, userId]);
 
   useEffect(() => {
     if (!socket || !userId) return;
 
     const handleMembersAdded = ({ groupId, newMembers, group }) => {
-      console.log('👥 Members added to group:', groupId);
-
       setChats(prevChats =>
         prevChats.map(chat =>
           chat._id === groupId ? { ...chat, members: group.members } : chat
@@ -106,8 +83,6 @@ const ChatSidebar = ({ showChatSidebar }) => {
     };
 
     const handleMemberJoined = ({ groupId, newMember, group }) => {
-      console.log('👤 New member joined group:', groupId);
-
       setChats(prevChats =>
         prevChats.map(chat =>
           chat._id === groupId ? { ...chat, members: group.members } : chat
@@ -116,8 +91,6 @@ const ChatSidebar = ({ showChatSidebar }) => {
     };
 
     const handleAddedToGroup = ({ groupId, groupName, addedBy }) => {
-      console.log('✅ You were added to group:', groupName);
-
       axiosInstance.get("/api/chats").then(response => {
         setChats(response.data.chats);
       }).catch(error => {
@@ -140,61 +113,29 @@ const ChatSidebar = ({ showChatSidebar }) => {
     if (!socket || !userId) return;
 
     const handleForceRemoveChat = ({ groupId, groupName, reason }) => {
-      console.log(`❌ FORCE REMOVING chat ${groupName} - Reason: ${reason}`);
-
       setChats(prevChats => prevChats.filter(chat => chat._id !== groupId));
-
-      setSelectedChat(prev => {
-        if (prev?._id === groupId) {
-          return null;
-        }
-        return prev;
-      });
-
-      if (reason === 'removed') {
-        console.log(`You were removed from ${groupName}`);
-      } else if (reason === 'left') {
-        console.log(`You left ${groupName}`);
-      }
+      setSelectedChat(prev => prev?._id === groupId ? null : prev);
     };
 
     socket.on('force-remove-chat', handleForceRemoveChat);
-
-    return () => {
-      socket.off('force-remove-chat', handleForceRemoveChat);
-    };
+    return () => socket.off('force-remove-chat', handleForceRemoveChat);
   }, [socket, userId, setChats, setSelectedChat]);
 
   const handleChatClick = (chat) => {
     if (socket) {
-      socket.emit('mark-chat-read', {
-        chatId: chat._id,
-        userId: userId
-      });
+      socket.emit('mark-chat-read', { chatId: chat._id, userId });
     }
-
     setChats(prevChats =>
-      prevChats.map(c =>
-        c._id === chat._id ? { ...c, unreadCount: 0 } : c
-      )
+      prevChats.map(c => c._id === chat._id ? { ...c, unreadCount: 0 } : c)
     );
-
     setSelectedChat(chat);
     setBarsToHidden(false);
   };
 
-  // ✅ NEW: Filter chats based on search query
   const filteredChats = chats.filter(chat => {
-    if (!searchQuery.trim()) return true; // Show all if no search
-
+    if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
-
-    // Search in group name
-    if (chat.isGroup) {
-      return chat.groupName?.toLowerCase().includes(query);
-    }
-
-    // Search in participant names (for 1-on-1 chats)
+    if (chat.isGroup) return chat.groupName?.toLowerCase().includes(query);
     const otherUser = chat.participants?.find(p => p._id !== userId);
     return otherUser?.name?.toLowerCase().includes(query);
   });
@@ -213,16 +154,16 @@ const ChatSidebar = ({ showChatSidebar }) => {
   return (
     <div
       className={`
-  bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 
-  backdrop-blur-xl text-white h-screen overflow-hidden 
-  flex flex-col border-r border-gray-800/50 shadow-2xl
-  transition-all duration-300
-  ${barsToHidden ? 'w-full fixed inset-0 z-50' : 'hidden'} 
-  ${showChatSidebar ? 'md:flex md:relative md:w-auto lg:min-w-[33%]' : 'md:hidden'}
-`}
+        bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 
+        backdrop-blur-xl text-white h-screen overflow-hidden 
+        flex flex-col border-r border-gray-800/50 shadow-2xl
+        transition-all duration-300
+        ${barsToHidden ? 'w-full fixed inset-0 z-50' : 'hidden'} 
+        ${showChatSidebar ? 'md:flex md:relative md:w-auto lg:min-w-[33%]' : 'md:hidden'}
+      `}
       onClick={() => setShowChatOptions(false)}
     >
-
+      {/* Header */}
       <div className="p-4 flex items-center justify-between md:block border-b border-gray-700/30 text-center bg-gray-900/20 backdrop-blur-sm">
         <RxDashboard className="lg:hidden text-gray-300 hover:text-white transition-colors cursor-pointer" />
         <h4 className="text-lg font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
@@ -231,7 +172,7 @@ const ChatSidebar = ({ showChatSidebar }) => {
         <HiDotsVertical className="lg:hidden text-gray-300 hover:text-white transition-colors cursor-pointer" />
       </div>
 
-      {/* ✅ UPDATED: Search input with functionality */}
+      {/* Search */}
       <div className="flex items-center justify-center relative p-4">
         <div className="relative w-full max-w-sm">
           <IoIosSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg z-10" />
@@ -242,7 +183,6 @@ const ChatSidebar = ({ showChatSidebar }) => {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-800/40 backdrop-blur-sm text-white border border-gray-700/30 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-300 placeholder-gray-400"
           />
-          {/* ✅ Clear button when searching */}
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
@@ -254,29 +194,21 @@ const ChatSidebar = ({ showChatSidebar }) => {
         </div>
       </div>
 
+      {/* Chat List */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <style jsx>{`
-          .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-track {
-            background: rgba(31, 41, 55, 0.3);
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(99, 102, 241, 0.5);
-            border-radius: 10px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(99, 102, 241, 0.7);
-          }
+          .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: rgba(31,41,55,0.3); }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.5); border-radius: 10px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.7); }
         `}</style>
 
-        {/* ✅ UPDATED: Use filteredChats instead of chats */}
         {filteredChats.length > 0 ? (
           <div className="space-y-1 p-2">
             {filteredChats.map((chat) => {
               const otherUser = !chat.isGroup && chat.participants.find(p => p._id !== userId);
               const isUserOnline = otherUser && onlineUsers[otherUser._id]?.isOnline;
+              const isBlocked = chat.isBlockedChat; // ✅ blocked flag from backend
 
               return (
                 <div
@@ -286,10 +218,15 @@ const ChatSidebar = ({ showChatSidebar }) => {
                     setSelectedChat(chat);
                     setBarsToHidden(false);
                     handleChatClick(chat);
-                  }}>
-
+                  }}
+                >
+                  {/* Avatar */}
                   <div className="relative flex-shrink-0">
-                    <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-700 text-white rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300">
+                    <div className={`flex items-center justify-center w-12 h-12 text-white rounded-2xl shadow-lg transition-all duration-300 ${
+                      isBlocked
+                        ? 'bg-gradient-to-br from-red-900/40 to-gray-800'
+                        : 'bg-gradient-to-br from-gray-600 to-gray-700 group-hover:shadow-xl'
+                    }`}>
                       {chat.isGroup ? (
                         chat.groupProfile ? (
                           <img
@@ -313,7 +250,9 @@ const ChatSidebar = ({ showChatSidebar }) => {
                                 : `${import.meta.env.VITE_BACKEND_URL}/uploads/${chat.participants[0].profilePicture}`
                             }
                             alt={chat.participants[0]?.name || 'User'}
-                            className="w-12 h-12 rounded-2xl object-cover ring-2 ring-gray-600 group-hover:ring-indigo-500/30 transition-all duration-300"
+                            className={`w-12 h-12 rounded-2xl object-cover ring-2 transition-all duration-300 ${
+                              isBlocked ? 'ring-red-800/50 opacity-60' : 'ring-gray-600 group-hover:ring-indigo-500/30'
+                            }`}
                           />
                         ) : (
                           <RxAvatar className="w-6 h-6 text-gray-300" />
@@ -321,70 +260,101 @@ const ChatSidebar = ({ showChatSidebar }) => {
                       )}
                     </div>
 
-                    {!chat.isGroup && isUserOnline && (
+                    {/* Online indicator - hide if blocked */}
+                    {!chat.isGroup && isUserOnline && !isBlocked && (
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900 shadow-sm"></div>
+                    )}
+
+                    {/* Blocked indicator */}
+                    {isBlocked && (
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-500/80 rounded-full border-2 border-gray-900 flex items-center justify-center">
+                        <span style={{ fontSize: 8 }}>🚫</span>
+                      </div>
                     )}
                   </div>
 
+                  {/* Info */}
                   <div className="flex-1 ml-4 min-w-0">
-                    <div className="flex justify-between  mb-1">
-                      <span className="text-sm font-semibold text-white truncate group-hover:text-indigo-200 transition-colors">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className={`text-sm font-semibold truncate transition-colors ${
+                        isBlocked ? 'text-gray-400' : 'text-white group-hover:text-indigo-200'
+                      }`}>
                         {chat.isGroup
                           ? chat.groupName
                           : chat.participants.find(p => p._id !== userId)?.name || "Unknown User"}
                       </span>
-                      <span className="text-xxs text-gray-400 font-medium">
-                        {chat.lastMessage?.createdAt
-                          ? moment(chat.lastMessage.createdAt).fromNow()
-                          : ''}
-                      </span>
+
+                      {/* ✅ Blocked badge OR timestamp */}
+                      {isBlocked ? (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700,
+                          color: 'rgba(248,113,113,0.7)',
+                          flexShrink: 0, marginLeft: 6,
+                          background: 'rgba(239,68,68,0.08)',
+                          border: '1px solid rgba(239,68,68,0.15)',
+                          padding: '1px 6px', borderRadius: 99,
+                        }}>
+                          Blocked
+                        </span>
+                      ) : (
+                        <span className="text-xxs text-gray-400 font-medium flex-shrink-0 ml-2">
+                          {chat.lastMessage?.createdAt
+                            ? moment(chat.lastMessage.createdAt).fromNow()
+                            : ''}
+                        </span>
+                      )}
                     </div>
 
+                    {/* Message preview */}
                     <div className="flex items-center justify-between">
-                      <div className="text-xs truncate flex-1 group-hover:text-gray-300 transition-colors">
-                        {
-                          chat.lastMessage?.senderId?._id === userId ? (
-                            <>
-                              {chat.lastMessage.type === 'audio' ? (
-                                <span className="flex items-center gap-1 text-gray-400">
-                                  <MdOutlineKeyboardVoice size={14} />
-                                  You: Voice message
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1 text-gray-400">
-                                  You: {chat.lastMessage.content}
-                                </span>
-                              )}
-                            </>
-                          ) : chat.lastMessage?.content ? (
-                            <>
-                              {chat.lastMessage.type === 'audio' ? (
-                                <span className="flex items-center gap-1 text-gray-200">
-                                  <MdOutlineKeyboardVoice size={14} />
-                                  {chat.isGroup && chat.lastMessage?.senderId?.name
-                                    ? `${chat.lastMessage.senderId.name}: ` : ''}
-                                  Voice message
-                                </span>
-                              ) : (
-                                <span className="flex  gap-1 text-white font-bold ">
-                                  {chat.isGroup && chat.lastMessage?.senderId?.name && (
-                                    <span className="text-gray-300 font-normal ">
-                                      {chat.lastMessage.senderId.name}:
-                                    </span>
-                                  )}
-                                  {chat.lastMessage.content.length > 30
-                                    ? `${chat.lastMessage.content.substring(0, 30)}...`
-                                    : chat.lastMessage.content}
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-gray-500">No recent messages</span>
-                          )
-                        }
+                      <div className="text-xs truncate flex-1 transition-colors">
+                        {/* ✅ Show "Tap to unblock" for blocked chats */}
+                        {isBlocked ? (
+                          <span style={{ color: 'rgba(248,113,113,0.5)', fontStyle: 'italic' }}>
+                            Tap to unblock or delete
+                          </span>
+                        ) : chat.lastMessage?.senderId?._id === userId ? (
+                          <>
+                            {chat.lastMessage.type === 'audio' ? (
+                              <span className="flex items-center gap-1 text-gray-400">
+                                <MdOutlineKeyboardVoice size={14} />
+                                You: Voice message
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-gray-400">
+                                You: {chat.lastMessage.content}
+                              </span>
+                            )}
+                          </>
+                        ) : chat.lastMessage?.content ? (
+                          <>
+                            {chat.lastMessage.type === 'audio' ? (
+                              <span className="flex items-center gap-1 text-gray-200">
+                                <MdOutlineKeyboardVoice size={14} />
+                                {chat.isGroup && chat.lastMessage?.senderId?.name
+                                  ? `${chat.lastMessage.senderId.name}: ` : ''}
+                                Voice message
+                              </span>
+                            ) : (
+                              <span className="flex gap-1 text-white font-bold">
+                                {chat.isGroup && chat.lastMessage?.senderId?.name && (
+                                  <span className="text-gray-300 font-normal">
+                                    {chat.lastMessage.senderId.name}:
+                                  </span>
+                                )}
+                                {chat.lastMessage.content.length > 30
+                                  ? `${chat.lastMessage.content.substring(0, 30)}...`
+                                  : chat.lastMessage.content}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-gray-500">No recent messages</span>
+                        )}
                       </div>
 
-                      {chat.unreadCount > 0 && (
+                      {/* Unread badge - hide for blocked */}
+                      {!isBlocked && chat.unreadCount > 0 && (
                         <div className="ml-2 flex-shrink-0">
                           <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-indigo-500 text-white text-xs font-bold rounded-full shadow-lg">
                             {chat.unreadCount}
@@ -392,14 +362,12 @@ const ChatSidebar = ({ showChatSidebar }) => {
                         </div>
                       )}
                     </div>
-
                   </div>
                 </div>
               );
             })}
           </div>
         ) : (
-          /* ✅ UPDATED: Different message when searching vs no chats */
           <div className="flex flex-col items-center justify-center h-64 text-center px-4">
             <div className="w-16 h-16 bg-gray-800/50 rounded-2xl flex items-center justify-center mb-4">
               <RxAvatar className="w-8 h-8 text-gray-500" />

@@ -10,11 +10,39 @@ const StartNewChat = async (req, res) => {
       return res.status(400).json({ message: "User ID is required" });
     }
 
-    const authenticatedUserDetails = await UserModel.findById(authenticatedUser).select('name');
-    const userToChat = await UserModel.findById(userIdToChat).select('name');
+    const authenticatedUserDetails = await UserModel.findById(authenticatedUser)
+      .select('name blockedUsers');
+    const userToChat = await UserModel.findById(userIdToChat)
+      .select('name blockedUsers');
 
     if (!authenticatedUserDetails || !userToChat) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    // ✅ Check if current user has blocked the other user
+    const currentUserBlocked = authenticatedUserDetails.blockedUsers
+      ?.map(id => id.toString())
+      .includes(userIdToChat.toString());
+
+    // ✅ Check if other user has blocked the current user
+    const otherUserBlocked = userToChat.blockedUsers
+      ?.map(id => id.toString())
+      .includes(authenticatedUser.toString());
+
+    if (currentUserBlocked) {
+      return res.status(403).json({
+        success: false,
+        message: "You have blocked this user. Unblock them to start a chat.",
+        isBlocked: true
+      });
+    }
+
+    if (otherUserBlocked) {
+      return res.status(403).json({
+        success: false,
+        message: "You cannot message this user.",
+        isBlocked: true
+      });
     }
 
     // Check if a private chat already exists
@@ -32,7 +60,7 @@ const StartNewChat = async (req, res) => {
       chat = await ChatModel.create({
         isGroup: false,
         participants: [authenticatedUser, userIdToChat],
-        participantNames, 
+        participantNames,
       });
     }
 

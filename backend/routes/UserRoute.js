@@ -33,6 +33,8 @@ const JoinGroupViaInvite = require('../controllers/JoinGroupViaInvite');
 const HandleJoinRequest = require('../controllers/HandleJoinRequest');
 const UpdateGroupPrivacy = require('../controllers/UpdateGroupPrivacy');
 const LeaveGroup = require('../controllers/LeaveGroup');
+const { BlockUser, UnblockUser, DeleteChat, ReportUser } = require('../controllers/ChatActions'); // ✅ Add UnblockUser
+
 
 router.post('/register', upload.single('profilePicture'), RegisterUser);
 router.post('/login', LoginUser);
@@ -84,5 +86,15 @@ router.post('/comments/:commentId/reply', authMiddleware, ReplyComment)
 router.get('/comments/:commentId/replies', authMiddleware, GetRepliedComments)
 router.delete('/comments/:commentId/replies/:replyId', authMiddleware, DeleteRepliedComment)
 
+//chatOptions
+router.post('/block-user', authMiddleware, BlockUser);
+router.post('/delete-chat', authMiddleware, DeleteChat);
+router.post('/report-user', authMiddleware, ReportUser);
 
+// chatOptions
+router.post('/block-user', authMiddleware, BlockUser);
+router.post('/unblock-user', authMiddleware, UnblockUser); // ✅ NEW
+router.post('/delete-chat', authMiddleware, DeleteChat);
+router.post('/report-user', authMiddleware, ReportUser);
+v
 module.exports = router;

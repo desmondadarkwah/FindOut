@@ -33,31 +33,37 @@ const SuggestionsProvider = ({ children }) => {
   // ─────────────────────────────────────────
   // CONNECT PRIVATE CHAT (User DM)
   // ─────────────────────────────────────────
-  const handleConnectPrivateChat = async (userIdToChat) => {
-    try {
-      const response = await axiosInstance.post("/api/start-new-chat", { userIdToChat });
-      const newChatId = response.data.chat._id;
+const handleConnectPrivateChat = async (userIdToChat) => {
+  try {
+    const response = await axiosInstance.post("/api/start-new-chat", { userIdToChat });
+    const newChatId = response.data.chat._id;
 
-      const allChatsResponse = await axiosInstance.get(`/api/chats`);
-      const allChats = allChatsResponse.data.chats;
+    const allChatsResponse = await axiosInstance.get(`/api/chats`);
+    const allChats = allChatsResponse.data.chats;
 
-      const fullChat = allChats.find(chat => chat._id === newChatId);
+    const fullChat = allChats.find(chat => chat._id === newChatId);
 
-      if (fullChat) {
-        setSelectedChat(fullChat);
-        setChats((prevChats) => {
-          const chatExists = prevChats.some(chat => chat._id === fullChat._id);
-          if (chatExists) return prevChats;
-          return [...prevChats, fullChat];
-        });
-        navigate("/inbox");
-      } else {
-        console.error('Could not find the newly created chat');
-      }
-    } catch (error) {
-      console.error("Error starting chat:", error);
+    if (fullChat) {
+      setSelectedChat(fullChat);
+      setChats((prevChats) => {
+        const chatExists = prevChats.some(chat => chat._id === fullChat._id);
+        if (chatExists) return prevChats;
+        return [...prevChats, fullChat];
+      });
+      navigate("/inbox");
+    } else {
+      console.error('Could not find the newly created chat');
     }
-  };
+  } catch (error) {
+    // ✅ Handle blocked user
+    if (error.response?.data?.isBlocked) {
+      alert(error.response.data.message);
+      return;
+    }
+    console.error("Error starting chat:", error);
+    alert('Failed to start chat. Please try again.');
+  }
+};
 
   // ─────────────────────────────────────────
   // ✅ NEW: OPEN GROUP CHAT DIRECTLY

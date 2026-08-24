@@ -23,7 +23,7 @@ const ChatWindow = () => {
   // ═══════════════════════════════════════════════════════════════
   // STATE MANAGEMENT
   // ═══════════════════════════════════════════════════════════════
-  
+
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -63,9 +63,9 @@ const ChatWindow = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (emojiPickerRef.current && 
-          !emojiPickerRef.current.contains(event.target) &&
-          !event.target.closest('.emoji-trigger')) {
+      if (emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(event.target) &&
+        !event.target.closest('.emoji-trigger')) {
         setShowEmojiPicker(false);
       }
     };
@@ -112,7 +112,7 @@ const ChatWindow = () => {
 
     const handleUserStatusChanged = ({ userId: changedUserId, isOnline, lastSeen }) => {
       console.log(`👤 User ${changedUserId}: ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
-      
+
       setOnlineUsers(prev => ({
         ...prev,
         [changedUserId]: { isOnline, lastSeen }
@@ -130,7 +130,7 @@ const ChatWindow = () => {
     const handleMessagesRead = ({ chatId, readerUserId, readAt }) => {
       if (chatId === selectedChat?._id) {
         console.log('✅ Messages read by:', readerUserId);
-        
+
         setMessages(prevMessages =>
           prevMessages.map(msg => {
             const msgSenderId = msg.senderId._id || msg.senderId;
@@ -154,7 +154,7 @@ const ChatWindow = () => {
     const handleMessagesDelivered = ({ chatId, recipientUserId, deliveredAt }) => {
       if (chatId === selectedChat?._id) {
         console.log('✅ Messages delivered to:', recipientUserId);
-        
+
         setMessages(prevMessages =>
           prevMessages.map(msg => {
             const msgSenderId = msg.senderId._id || msg.senderId;
@@ -172,75 +172,75 @@ const ChatWindow = () => {
   }, [socket, selectedChat, userId]);
 
   // Listen for group member changes
-useEffect(() => {
-  if (!socket || !userId || !selectedChat) return;
+  useEffect(() => {
+    if (!socket || !userId || !selectedChat) return;
 
-  const handleMembersAdded = ({ groupId, newMembers, group }) => {
-    if (selectedChat._id === groupId) {
-      console.log('👥 Members added to current group');
-      setSelectedChat(prevChat => ({
-        ...prevChat,
-        members: group.members
-      }));
-    }
-  };
+    const handleMembersAdded = ({ groupId, newMembers, group }) => {
+      if (selectedChat._id === groupId) {
+        console.log('👥 Members added to current group');
+        setSelectedChat(prevChat => ({
+          ...prevChat,
+          members: group.members
+        }));
+      }
+    };
 
-  const handleMemberJoined = ({ groupId, newMember, group }) => {
-    if (selectedChat._id === groupId) {
-      console.log('👤 New member joined current group');
-      setSelectedChat(prevChat => ({
-        ...prevChat,
-        members: group.members
-      }));
-    }
-  };
+    const handleMemberJoined = ({ groupId, newMember, group }) => {
+      if (selectedChat._id === groupId) {
+        console.log('👤 New member joined current group');
+        setSelectedChat(prevChat => ({
+          ...prevChat,
+          members: group.members
+        }));
+      }
+    };
 
-  // ✅ UPDATED: Handle member removed
-  const handleMemberRemoved = ({ groupId, removedMemberId, group }) => {
-    if (selectedChat._id === groupId) {
-      console.log('👤 Member removed from group');
-      setSelectedChat(group);
-    }
+    // ✅ UPDATED: Handle member removed
+    const handleMemberRemoved = ({ groupId, removedMemberId, group }) => {
+      if (selectedChat._id === groupId) {
+        console.log('👤 Member removed from group');
+        setSelectedChat(group);
+      }
 
-    // If YOU were removed, it's handled by force-remove-chat
-  };
+      // If YOU were removed, it's handled by force-remove-chat
+    };
 
-  // ✅ UPDATED: Handle member left
-  const handleMemberLeft = ({ groupId, leftMemberId, group }) => {
-    if (selectedChat._id === groupId) {
-      console.log('👤 Member left group');
-      setSelectedChat(group);
-    }
-  };
+    // ✅ UPDATED: Handle member left
+    const handleMemberLeft = ({ groupId, leftMemberId, group }) => {
+      if (selectedChat._id === groupId) {
+        console.log('👤 Member left group');
+        setSelectedChat(group);
+      }
+    };
 
-  // ✅ NEW: Handle being forcibly removed while viewing the chat
-  const handleForceRemoveChat = ({ groupId, groupName, reason }) => {
-    if (selectedChat?._id === groupId) {
-      console.log(`❌ You were ${reason} from ${groupName} - closing chat`);
-      
-      // ✅ Close the chat window
-      setSelectedChat(null);
-      setBarsToHidden(true); // Show sidebar
-      
-      // ✅ Remove from chats list
-      setChats(prevChats => prevChats.filter(chat => chat._id !== groupId));
-    }
-  };
+    // ✅ NEW: Handle being forcibly removed while viewing the chat
+    const handleForceRemoveChat = ({ groupId, groupName, reason }) => {
+      if (selectedChat?._id === groupId) {
+        console.log(`❌ You were ${reason} from ${groupName} - closing chat`);
 
-  socket.on('members-added', handleMembersAdded);
-  socket.on('member-joined', handleMemberJoined);
-  socket.on('member-removed', handleMemberRemoved);
-  socket.on('member-left', handleMemberLeft);
-  socket.on('force-remove-chat', handleForceRemoveChat); // ✅ NEW
+        // ✅ Close the chat window
+        setSelectedChat(null);
+        setBarsToHidden(true); // Show sidebar
 
-  return () => {
-    socket.off('members-added', handleMembersAdded);
-    socket.off('member-joined', handleMemberJoined);
-    socket.off('member-removed', handleMemberRemoved);
-    socket.off('member-left', handleMemberLeft);
-    socket.off('force-remove-chat', handleForceRemoveChat); // ✅ NEW
-  };
-}, [socket, userId, selectedChat, setSelectedChat, setChats, setBarsToHidden]);
+        // ✅ Remove from chats list
+        setChats(prevChats => prevChats.filter(chat => chat._id !== groupId));
+      }
+    };
+
+    socket.on('members-added', handleMembersAdded);
+    socket.on('member-joined', handleMemberJoined);
+    socket.on('member-removed', handleMemberRemoved);
+    socket.on('member-left', handleMemberLeft);
+    socket.on('force-remove-chat', handleForceRemoveChat); // ✅ NEW
+
+    return () => {
+      socket.off('members-added', handleMembersAdded);
+      socket.off('member-joined', handleMemberJoined);
+      socket.off('member-removed', handleMemberRemoved);
+      socket.off('member-left', handleMemberLeft);
+      socket.off('force-remove-chat', handleForceRemoveChat); // ✅ NEW
+    };
+  }, [socket, userId, selectedChat, setSelectedChat, setChats, setBarsToHidden]);
 
   // ✅ NEW: Listen for system messages
   useEffect(() => {
@@ -282,20 +282,20 @@ useEffect(() => {
 
     const handleMessageReceived = (newMessage) => {
       console.log('📩 Message received:', newMessage._id);
-    
+
       if (newMessage.chatId === selectedChat._id) {
         setMessages((prevMessages) => {
           const messageExists = prevMessages.some(msg => msg._id === newMessage._id);
-    
+
           if (!messageExists && newMessage.senderId._id !== userId) {
             console.log('✅ Adding message from other user');
             return [...prevMessages, newMessage];
           }
-          
+
           return prevMessages;
         });
       }
-    
+
       setChats((prevChats) =>
         prevChats.map((chat) => {
           if (chat._id === newMessage.chatId) {
@@ -320,7 +320,7 @@ useEffect(() => {
 
     const handleMessageConfirmed = ({ tempId, message }) => {
       console.log('✅ Message confirmed:', tempId, '→', message._id);
-      
+
       setMessages((prevMessages) =>
         prevMessages.map(msg => msg._id === tempId ? message : msg)
       );
@@ -328,10 +328,10 @@ useEffect(() => {
 
     const handleMessageError = ({ tempId, error }) => {
       console.error('❌ Message failed:', tempId, error);
-      
+
       setMessages((prevMessages) =>
         prevMessages.map(msg =>
-          msg._id === tempId 
+          msg._id === tempId
             ? { ...msg, error: true, errorMessage: error }
             : msg
         )
@@ -346,7 +346,7 @@ useEffect(() => {
       socket.off('message-received', handleMessageReceived);
       socket.off('message-confirmed', handleMessageConfirmed);
       socket.off('message-error', handleMessageError);
-      
+
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
@@ -768,14 +768,14 @@ useEffect(() => {
             <path d="M8 4v4l3 3" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
           </svg>
         );
-      
+
       case 'sent':
         return (
           <svg className="w-4 h-4 text-gray-400" viewBox="0 0 16 16" fill="none">
             <path d="M13.5 4.5L6 12l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         );
-      
+
       case 'delivered':
         return (
           <svg className="w-4 h-4 text-gray-400" viewBox="0 0 16 16" fill="none">
@@ -783,7 +783,7 @@ useEffect(() => {
             <path d="M11.5 4.5L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         );
-      
+
       case 'read':
         return (
           <svg className="w-4 h-4 text-blue-500" viewBox="0 0 16 16" fill="none">
@@ -791,7 +791,7 @@ useEffect(() => {
             <path d="M11.5 4.5L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         );
-      
+
       default:
         return null;
     }
@@ -815,20 +815,20 @@ useEffect(() => {
     <div className="flex flex-col w-full h-screen bg-gray-950 text-white">
       {/* HEADER */}
       <header className="flex justify-between items-center bg-gray-950 p-1.5 border-b border-gray-900">
-        <IoMdArrowBack 
-          size={20} 
-          className='block lg:hidden cursor-pointer' 
+        <IoMdArrowBack
+          size={20}
+          className='block lg:hidden cursor-pointer'
           onClick={(e) => {
             e.stopPropagation();
             setBarsToHidden(true);
-          }} 
+          }}
         />
-        
+
         <div className="flex items-center gap-2">
           <div
             onClick={() => setOpenGroupManager(true)}
             className="flex items-center gap-2 cursor-pointer">
-            
+
             <div className="relative">
               {selectedChat.isGroup ? (
                 <GroupProfile />
@@ -836,7 +836,7 @@ useEffect(() => {
                 (() => {
                   const otherParticipant = selectedChat.participants.find(p => p._id !== userId);
                   const isUserOnline = otherParticipant && onlineUsers[otherParticipant._id]?.isOnline;
-                  
+
                   return (
                     <>
                       {otherParticipant?.profilePicture ? (
@@ -854,7 +854,7 @@ useEffect(() => {
                           <RxAvatar size={24} className="text-gray-400" />
                         </div>
                       )}
-                      
+
                       {isUserOnline && (
                         <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-950"></div>
                       )}
@@ -870,11 +870,11 @@ useEffect(() => {
                   ? selectedChat.groupName
                   : selectedChat.participants.find(p => p._id !== userId)?.name || "Unknown User"}
               </h2>
-              
+
               {!selectedChat.isGroup && (() => {
                 const otherParticipant = selectedChat.participants.find(p => p._id !== userId);
                 const userStatus = otherParticipant && onlineUsers[otherParticipant._id];
-                
+
                 if (userStatus?.isOnline) {
                   return <span className="text-xs text-green-400">Online</span>;
                 } else if (userStatus?.lastSeen) {
@@ -889,20 +889,25 @@ useEffect(() => {
             </div>
           </div>
         </div>
-        
+
         <div className="flex gap-2">
           <FiPhone size={20} className="cursor-pointer" />
           <HiOutlineVideoCamera size={20} className="cursor-pointer" />
-          <HiDotsVertical 
-            size={20} 
-            className="cursor-pointer" 
+          <HiDotsVertical
+            size={20}
+            className="cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
               setShowChatOptions(!showChatOptions);
-            }} 
+            }}
           />
           {showChatOptions && (
-            selectedChat.isGroup ? <GroupOptions /> : <IndividualChatOptions />
+            selectedChat.isGroup ? <GroupOptions /> : (
+              <IndividualChatOptions
+                otherUser={selectedChat.participants?.find(p => p._id !== userId)}
+                chatId={selectedChat._id}
+              />
+            )
           )}
         </div>
         {openGroupManager && (
@@ -985,11 +990,10 @@ useEffect(() => {
                   </span>
                 )}
 
-                <div className={`px-3 py-2 rounded-lg shadow-sm flex ${
-                  msg.type === 'audio'
-                    ? 'bg-transparent'
-                    : (isCurrentUserMessage ? 'bg-blue-700 text-white' : 'bg-gray-800 text-white')
-                }`}>
+                <div className={`px-3 py-2 rounded-lg shadow-sm flex ${msg.type === 'audio'
+                  ? 'bg-transparent'
+                  : (isCurrentUserMessage ? 'bg-blue-700 text-white' : 'bg-gray-800 text-white')
+                  }`}>
                   <div className="flex-1 break-words pr-1">
                     {msg.type === 'audio' ? (
                       <div className="w-64 max-w-full">
@@ -1016,22 +1020,22 @@ useEffect(() => {
                           <div className="flex-1 mx-2 cursor-pointer" onClick={(e) => handleWaveformClick(audioId, e)}>
                             <div className="flex items-center h-8">
                               {waveData.map((bar, i) => (
-                                <div 
-                                  key={i} 
+                                <div
+                                  key={i}
                                   className="mx-[1px] transition-all duration-100"
                                   style={{
                                     height: `${bar.height}%`,
                                     width: '2px',
                                     backgroundColor: bar.isActive ? 'rgba(255, 255, 255, 1)' : 'rgba(255, 255, 255, 0.4)',
                                     transform: bar.isActive ? 'scale(1.05)' : 'scale(1)'
-                                  }} 
+                                  }}
                                 />
                               ))}
                             </div>
                           </div>
                           <div className="bg-white text-blue-600 px-2 py-1 rounded-full text-xs font-medium">
-                            {audioDurations[audioId] !== undefined 
-                              ? formatAudioTime(currentProgress * audioDurations[audioId]) 
+                            {audioDurations[audioId] !== undefined
+                              ? formatAudioTime(currentProgress * audioDurations[audioId])
                               : '0:00'}
                           </div>
                         </div>
@@ -1168,22 +1172,22 @@ useEffect(() => {
       {!isRecording && !audioURL && (
         <form onSubmit={handleSendMessage} className="flex items-center p-3 bg-gray-950 border-t border-gray-900">
           <FiPaperclip size={25} className="text-gray-400 cursor-pointer mr-2" />
-          <MdOutlineEmojiEmotions 
-            size={25} 
-            className="text-gray-400 cursor-pointer mr-2 emoji-trigger" 
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+          <MdOutlineEmojiEmotions
+            size={25}
+            className="text-gray-400 cursor-pointer mr-2 emoji-trigger"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
           />
           {showEmojiPicker && (
             <div ref={emojiPickerRef} className="absolute bottom-16">
               <EmojiPicker onEmojiClick={handleEmojiClick} />
             </div>
           )}
-          <input 
-            type="text" 
-            placeholder="Type a message" 
-            value={input} 
-            onChange={(e) => setInput(e.target.value)} 
-            className="flex-1 p-2 text-white bg-gray-900 rounded-lg" 
+          <input
+            type="text"
+            placeholder="Type a message"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            className="flex-1 p-2 text-white bg-gray-900 rounded-lg"
           />
           {input.trim() ? (
             <button type="submit" className="ml-2">

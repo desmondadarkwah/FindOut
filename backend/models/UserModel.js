@@ -58,7 +58,22 @@ const userSchema = new mongoose.Schema({
   socketId: {
     type: String,
     default: null
-  }
+  },
+blockedUsers: [{
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'User',
+  default: []
+}],
+reports: [{
+  reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  reason: { type: String },
+  chatId: { type: mongoose.Schema.Types.ObjectId },
+  reportedAt: { type: Date, default: Date.now }
+}],
+mutedChats: [{
+  type: mongoose.Schema.Types.ObjectId,
+  default: []
+}],
 }, {
   timestamps: true
 });
