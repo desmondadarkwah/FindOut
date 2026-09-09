@@ -23,18 +23,15 @@ const initializeSocket = (httpServer) => {
 
     socket.on('user-online', async (userId) => {
       try {
-        // ✅ JOIN PERSONAL ROOM FIRST
         socket.join(userId);
         console.log(`🔗 User ${userId} joined their personal room`);
 
-        // Mark user as online
         await User.findByIdAndUpdate(userId, {
           isOnline: true,
           lastSeen: new Date(),
           socketId: socket.id
         });
 
-        // Find all chats this user participates in
         const [chats, groups] = await Promise.all([
           ChatModel.find({ participants: userId }).lean(),
           GroupModel.find({ members: userId }).lean()
@@ -45,41 +42,31 @@ const initializeSocket = (httpServer) => {
           ...groups.map(g => g._id.toString())
         ];
 
-        //JOIN ALL CHAT -new code
         allChatIds.forEach(chatId => {
           socket.join(chatId);
           console.log(`🔗 User ${userId} joined room ${chatId}`);
         });
 
-        // Update all 'sent' messages to 'delivered' in these chats
         const result = await MessageModel.updateMany(
           {
             chatId: { $in: allChatIds },
             senderId: { $ne: userId },
             status: 'sent'
           },
-          {
-            $set: {
-              status: 'delivered',
-              deliveredAt: new Date()
-            }
-          }
+          { $set: { status: 'delivered', deliveredAt: new Date() } }
         );
 
-        // Notify senders that their messages are now delivered
         if (result.modifiedCount > 0) {
           console.log(`📬 Updated ${result.modifiedCount} messages to 'delivered' for user ${userId}`);
-
           allChatIds.forEach(chatId => {
             io.to(chatId).emit('messages-delivered', {
               chatId,
-              recipientUserId: userId, // User who came online
+              recipientUserId: userId,
               deliveredAt: new Date()
             });
           });
         }
 
-        // Broadcast online status to all users
         socket.broadcast.emit('user-status-changed', {
           userId,
           isOnline: true,
@@ -123,19 +110,85 @@ const initializeSocket = (httpServer) => {
       try {
         const tempId = `temp-${Date.now()}-${socket.id}`;
 
-        // Fetch sender info immediately for instant display
+        // ✅ Fetch sender info
         const sender = await User.findById(messageData.senderId)
-          .select('name email profilePicture')
+          .select('name email profilePicture blockedUsers')
           .lean();
 
         if (!sender) {
-          return acknowledge({
-            status: 'error',
-            error: 'Sender not found'
-          });
+          return acknowledge({ status: 'error', error: 'Sender not found' });
         }
 
-        // 1. Immediately acknowledge to sender (no waiting)
+        // ✅ Get chat to find other participant
+        const chat = await ChatModel.findById(messageData.chatId)
+          .populate('participants', '_id isOnline blockedUsers');
+
+        // ✅ BLOCK CHECK - only for private chats
+        if (chat && !chat.isGroup) {
+          const otherParticipant = chat.participants.find(
+            p => p._id.toString() !== messageData.senderId.toString()
+          );
+
+          if (otherParticipant) {
+            // Check if other user blocked the sender
+            const senderIsBlockedByOther = otherParticipant.blockedUsers
+              ?.map(id => id.toString())
+              .includes(messageData.senderId.toString());
+
+            // Check if sender blocked the other user
+            const senderBlockedOther = sender.blockedUsers
+              ?.map(id => id.toString())
+              .includes(otherParticipant._id.toString());
+
+            if (senderIsBlockedByOther || senderBlockedOther) {
+              console.log(`🚫 Message silently dropped - user is blocked`);
+
+              // ✅ Acknowledge success to sender - they don't know they're blocked
+              acknowledge({
+                status: 'success',
+                tempId,
+                message: {
+                  _id: tempId,
+                  ...messageData,
+                  senderId: sender,
+                  createdAt: new Date().toISOString(),
+                  status: 'sent' // ✅ Single tick forever - never delivered
+                }
+              });
+
+              // ✅ Save to database so sender sees their message
+              setImmediate(async () => {
+                try {
+                  const message = new MessageModel({
+                    chatId: messageData.chatId,
+                    senderId: messageData.senderId,
+                    content: messageData.content,
+                    type: messageData.type,
+                    status: 'sent', // ✅ Never becomes delivered or read
+                    deliveredAt: null
+                  });
+                  const savedMessage = await message.save();
+
+                  const populatedMessage = await MessageModel.findById(savedMessage._id)
+                    .populate('senderId', 'name email profilePicture')
+                    .lean();
+
+                  // ✅ Confirm message to sender only (NOT broadcast to blocked user)
+                  socket.emit('message-confirmed', {
+                    tempId,
+                    message: populatedMessage
+                  });
+                } catch (error) {
+                  console.error('❌ Error saving blocked message:', error);
+                }
+              });
+
+              return; // ✅ Stop here - don't broadcast to the other user
+            }
+          }
+        }
+
+        // ✅ Immediately acknowledge to sender
         acknowledge({
           status: 'success',
           tempId,
@@ -148,12 +201,9 @@ const initializeSocket = (httpServer) => {
           }
         });
 
-        // 2. Check if any recipient is online
-        const chat = await ChatModel.findById(messageData.chatId)
-          .populate('participants', '_id isOnline');
+        // ✅ Check if any recipient is online
         const group = !chat
-          ? await GroupModel.findById(messageData.chatId)
-            .populate('members', '_id isOnline')
+          ? await GroupModel.findById(messageData.chatId).populate('members', '_id isOnline')
           : null;
 
         const recipients = chat ? chat.participants : (group ? group.members : []);
@@ -162,7 +212,7 @@ const initializeSocket = (httpServer) => {
         );
         const anyRecipientOnline = recipientIds.some(r => r.isOnline === true);
 
-        // 3. Broadcast to other users in room immediately
+        // ✅ Broadcast to other users in room immediately
         socket.to(messageData.chatId).emit('message-received', {
           _id: tempId,
           chatId: messageData.chatId,
@@ -174,10 +224,9 @@ const initializeSocket = (httpServer) => {
           isOptimistic: true
         });
 
-        // 4. Persist to database asynchronously (non-blocking)
+        // ✅ Persist to database asynchronously
         setImmediate(async () => {
           try {
-            // Save message to database
             const message = new MessageModel({
               chatId: messageData.chatId,
               senderId: messageData.senderId,
@@ -189,10 +238,8 @@ const initializeSocket = (httpServer) => {
 
             const savedMessage = await message.save();
 
-            // Get list of users actively viewing this chat
             const roomSockets = await io.in(messageData.chatId).fetchSockets();
             const activeViewers = [];
-
             roomSockets.forEach(s => {
               if (s.data?.viewingChat === messageData.chatId && s.data?.userId) {
                 activeViewers.push(s.data.userId);
@@ -201,7 +248,6 @@ const initializeSocket = (httpServer) => {
 
             console.log(`📊 Active viewers in chat ${messageData.chatId}:`, activeViewers.length > 0 ? activeViewers : 'none');
 
-            // Update chat metadata with atomic operations
             const chatUpdate = ChatModel.findByIdAndUpdate(
               messageData.chatId,
               {
@@ -211,19 +257,15 @@ const initializeSocket = (httpServer) => {
                   type: messageData.type,
                   createdAt: savedMessage.createdAt
                 },
-                $inc: {
-                  'unreadCount.$[elem].count': 1
-                }
+                $inc: { 'unreadCount.$[elem].count': 1 }
               },
               {
-                arrayFilters: [
-                  {
-                    'elem.userId': {
-                      $ne: messageData.senderId,
-                      $nin: activeViewers
-                    }
+                arrayFilters: [{
+                  'elem.userId': {
+                    $ne: messageData.senderId,
+                    $nin: activeViewers
                   }
-                ],
+                }],
                 new: true
               }
             ).lean();
@@ -237,37 +279,30 @@ const initializeSocket = (httpServer) => {
                   type: messageData.type,
                   createdAt: savedMessage.createdAt
                 },
-                $inc: {
-                  'unreadCount.$[elem].count': 1
-                }
+                $inc: { 'unreadCount.$[elem].count': 1 }
               },
               {
-                arrayFilters: [
-                  {
-                    'elem.userId': {
-                      $ne: messageData.senderId,
-                      $nin: activeViewers
-                    }
+                arrayFilters: [{
+                  'elem.userId': {
+                    $ne: messageData.senderId,
+                    $nin: activeViewers
                   }
-                ],
+                }],
                 new: true
               }
             ).lean();
 
             await Promise.all([chatUpdate, groupUpdate]);
 
-            // Populate sender info for confirmation
             const populatedMessage = await MessageModel.findById(savedMessage._id)
               .populate('senderId', 'name email profilePicture')
               .lean();
 
-            // Emit confirmed message to replace optimistic one
             io.to(messageData.chatId).emit('message-confirmed', {
               tempId,
               message: populatedMessage
             });
 
-            // Emit updated chat for sidebar
             const updatedChatDoc = chat || group;
             if (updatedChatDoc) {
               const populatedChat = chat
@@ -309,29 +344,21 @@ const initializeSocket = (httpServer) => {
           .lean();
 
         if (!message) {
-          return acknowledge({
-            status: 'error',
-            error: 'Message not found'
-          });
+          return acknowledge({ status: 'error', error: 'Message not found' });
         }
 
-        // Broadcast immediately to other users
         socket.to(messageData.chatId).emit('message-received', message);
 
-        // Update chat metadata asynchronously
         setImmediate(async () => {
           try {
-            // Get active viewers
             const roomSockets = await io.in(messageData.chatId).fetchSockets();
             const activeViewers = [];
-
             roomSockets.forEach(s => {
               if (s.data?.viewingChat === messageData.chatId && s.data?.userId) {
                 activeViewers.push(s.data.userId);
               }
             });
 
-            // Update both chat and group models
             const updatePromises = [
               ChatModel.findByIdAndUpdate(
                 messageData.chatId,
@@ -381,14 +408,10 @@ const initializeSocket = (httpServer) => {
           }
         });
 
-        if (acknowledge) {
-          acknowledge({ status: 'success' });
-        }
+        if (acknowledge) acknowledge({ status: 'success' });
       } catch (error) {
         console.error('❌ Error with audio message:', error);
-        if (acknowledge) {
-          acknowledge({ status: 'error', error: error.message });
-        }
+        if (acknowledge) acknowledge({ status: 'error', error: error.message });
       }
     });
 
@@ -398,32 +421,25 @@ const initializeSocket = (httpServer) => {
 
     socket.on('mark-messages-read', async (data) => {
       const { chatId, userId } = data;
-
       try {
         const result = await MessageModel.updateMany(
           {
-            chatId: chatId,
+            chatId,
             senderId: { $ne: userId },
             status: { $in: ['sent', 'delivered'] }
           },
           {
             $set: { status: 'read' },
-            $addToSet: {
-              readBy: {
-                userId: userId,
-                readAt: new Date()
-              }
-            }
+            $addToSet: { readBy: { userId, readAt: new Date() } }
           }
         );
 
         if (result.modifiedCount > 0) {
           io.to(chatId).emit('messages-read', {
             chatId,
-            readerUserId: userId, // User who read the messages
+            readerUserId: userId,
             readAt: new Date()
           });
-
           console.log(`✅ ${result.modifiedCount} messages marked as read in chat ${chatId}`);
         }
       } catch (error) {
@@ -433,7 +449,6 @@ const initializeSocket = (httpServer) => {
 
     socket.on('mark-chat-read', async (data) => {
       const { chatId, userId } = data;
-
       try {
         const [chat, group] = await Promise.all([
           ChatModel.findOneAndUpdate(
@@ -457,8 +472,6 @@ const initializeSocket = (httpServer) => {
       }
     });
 
-    // Add these socket events in your io.on('connection') block
-
     socket.on('join-group-room', (groupId) => {
       socket.join(groupId);
       console.log(`🔗 User joined group room: ${groupId}`);
@@ -470,15 +483,10 @@ const initializeSocket = (httpServer) => {
 
     socket.on('disconnect', async () => {
       console.log(`🔌 User disconnected: ${socket.id}`);
-
       try {
         const user = await User.findOneAndUpdate(
           { socketId: socket.id },
-          {
-            isOnline: false,
-            lastSeen: new Date(),
-            socketId: null
-          },
+          { isOnline: false, lastSeen: new Date(), socketId: null },
           { new: true }
         );
 
@@ -488,7 +496,6 @@ const initializeSocket = (httpServer) => {
             isOnline: false,
             lastSeen: new Date()
           });
-
           console.log(`🔴 User ${user._id} is now OFFLINE`);
         }
       } catch (error) {
@@ -501,9 +508,7 @@ const initializeSocket = (httpServer) => {
 };
 
 const getIo = () => {
-  if (!io) {
-    throw new Error('Socket.io not initialized!');
-  }
+  if (!io) throw new Error('Socket.io not initialized!');
   return io;
 };
 
