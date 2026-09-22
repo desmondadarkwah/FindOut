@@ -1,6 +1,6 @@
 const GroupModel = require('../models/GroupModel');
 const { MessageModel } = require('../models/MessageModel');
-const { getIo } = require('../socket/socket');
+const { createNotification } = require('../services/notificationService');
 
 const JoinGroup = async (req, res) => {
   try {
@@ -13,13 +13,10 @@ const JoinGroup = async (req, res) => {
       .populate('pendingRequests.userId', 'name profilePicture');
 
     if (!group) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Group not found' 
-      });
+      return res.status(404).json({ success: false, message: 'Group not found' });
     }
 
-    // ✅ SECRET GROUP: Cannot be joined directly - invite link only
+    // ✅ SECRET GROUP: Cannot be joined directly
     if (group.privacy === 'secret') {
       return res.status(403).json({
         success: false,
@@ -29,7 +26,7 @@ const JoinGroup = async (req, res) => {
     }
 
     // Check if already a member
-    const isAlreadyMember = group.members.some(m => 
+    const isAlreadyMember = group.members.some(m =>
       (m._id || m).toString() === userId.toString()
     );
 
@@ -37,7 +34,7 @@ const JoinGroup = async (req, res) => {
       return res.status(200).json({
         success: true,
         message: 'Already a member',
-        group: group,
+        group,
         alreadyMember: true
       });
     }
@@ -55,10 +52,19 @@ const JoinGroup = async (req, res) => {
       });
     }
 
-    // ✅ PRIVATE GROUP: Create join request (visible on explore but needs approval)
+    // ✅ Get socket safely
+    let io = null;
+    try {
+      const { getIo } = require('../socket/socket');
+      io = getIo();
+    } catch (e) {
+      console.warn('⚠️ Socket not available:', e.message);
+    }
+
+    // ✅ PRIVATE GROUP: Create join request
     if (group.privacy === 'private') {
       group.pendingRequests.push({
-        userId: userId,
+        userId,
         requestedAt: new Date()
       });
       await group.save();
@@ -68,14 +74,23 @@ const JoinGroup = async (req, res) => {
         .populate('groupAdmin', 'name profilePicture')
         .populate('pendingRequests.userId', 'name profilePicture');
 
-      // Notify admin instantly via socket
-      try {
-        const io = getIo();
-        
+      // ✅ Notify admin
+      await createNotification({
+        recipient: group.groupAdmin._id,
+        sender: userId,
+        type: 'join_request',
+        title: '📝 New Join Request',
+        message: `Someone requested to join "${group.groupName}"`,
+        link: '/inbox',
+        groupId: group._id,
+        io,
+      });
+
+      if (io) {
         io.to(group.groupAdmin._id.toString()).emit('new-join-request', {
           groupId: group._id,
           groupName: group.groupName,
-          userId: userId,
+          userId,
           group: updatedGroup
         });
 
@@ -83,10 +98,6 @@ const JoinGroup = async (req, res) => {
           groupId: group._id,
           pendingRequests: updatedGroup.pendingRequests
         });
-
-        console.log(`📝 Join request created for ${group.groupName} by user ${userId}`);
-      } catch (socketError) {
-        console.warn('⚠️ Socket notification skipped:', socketError.message);
       }
 
       return res.status(200).json({
@@ -108,7 +119,7 @@ const JoinGroup = async (req, res) => {
       .populate('groupAdmin', 'name profilePicture')
       .populate('lastMessage.senderId', 'name profilePicture');
 
-    // Create system message
+    // System message
     try {
       const systemMessage = new MessageModel({
         chatId: group._id,
@@ -122,19 +133,18 @@ const JoinGroup = async (req, res) => {
       const populatedMessage = await MessageModel.findById(systemMessage._id)
         .populate('senderId', 'name profilePicture');
 
-      const io = getIo();
+      if (io) {
+        io.to(groupId).emit('member-joined', {
+          groupId: group._id,
+          newMember: userId,
+          group: populatedGroup
+        });
 
-      io.to(groupId).emit('member-joined', {
-        groupId: group._id,
-        newMember: userId,
-        group: populatedGroup
-      });
+        io.to(groupId).emit('system-message', {
+          message: populatedMessage
+        });
+      }
 
-      io.to(groupId).emit('system-message', {
-        message: populatedMessage
-      });
-
-      console.log(`✅ User ${userId} joined public group ${group.groupName}`);
     } catch (socketError) {
       console.log('⚠️ Socket skipped:', socketError.message);
     }

@@ -10,6 +10,8 @@ import { useState } from 'react';
 import GlobalSearch from './GlobalSearch';
 import UserProfile from "./UserProfile";
 import { SettingsContext } from '../Context/SettingsContext';
+import NotificationBell from './NotificationBell';
+
 
 const DashSidebar = () => {
   const { setOpenSettings, openManageUser, setOpenManageUser } = useContext(SettingsContext);
@@ -71,12 +73,12 @@ const DashSidebar = () => {
             Add a Post
           </a>
         </span>
-        {/* <span className="flex items-center hover:bg-[#1c1e21] p-2">
-          <IoMdNotificationsOutline size={25} color="white" />
+        <span className="flex items-center hover:bg-[#1c1e21] p-2 cursor-pointer">
+          <NotificationBell iconSize={25} iconColor="white" />
           <span className="block px-4 py-2 font-medium text-white">
             Notifications
           </span>
-        </span> */}
+        </span>
 
         <span
           onClick={() => setOpenSettings(true)}
@@ -87,7 +89,7 @@ const DashSidebar = () => {
             More
           </span>
         </span>
-        
+
         <span
           onClick={() => { handleEditClick(); closeSettings(); }}
           className="flex items-center hover:bg-[#1c1e21] p-2">

@@ -13,12 +13,14 @@ import {
 import { ChatContext } from "../Context/ChatContext";
 import { SettingsContext } from "../Context/SettingsContext";
 import AddMembersModal from "./AddMembersModal";
+import ReportModal from "./ReportModal";
 import { useToast } from "../Context/ToastContext";
 
 const GroupOptions = () => {
   const { selectedChat, setShowChatOptions, userId } = useContext(ChatContext);
   const { setOpenGroupManager } = useContext(SettingsContext);
   const [showAddMembers, setShowAddMembers] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const { toast, confirm } = useToast();
 
   // ✅ Check if current user is admin
@@ -135,7 +137,7 @@ const GroupOptions = () => {
 
         {/* ✅ COMMON: Report Group */}
         <span
-          onClick={hideOptions}
+          onClick={() => setShowReport(true)}
           className="flex items-center cursor-pointer border border-yellow-600 text-yellow-400 p-2 rounded hover:bg-yellow-700 hover:text-white transition">
           <FiAlertTriangle size={18} className="mr-2" /> Report Group
         </span>
@@ -151,6 +153,16 @@ const GroupOptions = () => {
           }}
           groupId={selectedChat?._id}
           existingMembers={selectedChat?.members?.map(m => m._id) || []}
+        />
+      )}
+
+      {/* ✅ Report Group Modal */}
+      {showReport && (
+        <ReportModal
+          type="group"
+          id={selectedChat?._id}
+          name={selectedChat?.groupName}
+          onClose={() => setShowReport(false)}
         />
       )}
     </>

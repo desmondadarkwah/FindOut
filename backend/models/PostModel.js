@@ -109,7 +109,12 @@ const postSchema = new mongoose.Schema({
   commentCount: {
     type: Number,
     default: 0
-  }
+  },
+  reports: [{
+    reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reason: { type: String },
+    reportedAt: { type: Date, default: Date.now }
+  }],
 }, {
   timestamps: true
 });
@@ -122,7 +127,7 @@ postSchema.index({ 'comments.user': 1 });
 postSchema.index({ 'comments.replies.user': 1 });
 
 // Virtual for total engagement
-postSchema.virtual('engagementCount').get(function() {
+postSchema.virtual('engagementCount').get(function () {
   const totalReplies = this.comments.reduce((sum, comment) => sum + (comment.replyCount || 0), 0);
   return this.helpfulCount + this.commentCount + totalReplies;
 });

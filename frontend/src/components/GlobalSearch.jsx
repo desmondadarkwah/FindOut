@@ -59,7 +59,7 @@ const GlobalSearch = ({ isOpen, onClose }) => {
 
       if (response.data.success) {
         setResults(response.data.results);
-        
+
         // Save to recent searches
         saveRecentSearch(searchQuery);
       }
@@ -89,7 +89,7 @@ const GlobalSearch = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleJoinGroup = async (groupId, isPrivate) => {
+  const handleJoinGroup = async (groupId, privacy) => {
     try {
       const response = await axiosInstance.post('/api/join-group', { groupId });
 
@@ -166,11 +166,10 @@ const GlobalSearch = ({ isOpen, onClose }) => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap ${
-                    activeTab === tab.id
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap ${activeTab === tab.id
                       ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
                       : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
-                  }`}
+                    }`}
                 >
                   <Icon size={16} />
                   {tab.label}
@@ -249,11 +248,10 @@ const GlobalSearch = ({ isOpen, onClose }) => {
                           </div>
                           <p className="text-gray-400 text-sm">{item.email}</p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              item.status === 'Ready To Teach'
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${item.status === 'Ready To Teach'
                                 ? 'bg-blue-500/20 text-blue-400'
                                 : 'bg-purple-500/20 text-purple-400'
-                            }`}>
+                              }`}>
                               {item.status === 'Ready To Teach' ? '👨‍🏫 Teacher' : '📚 Learner'}
                             </span>
                             {item.reputation > 0 && (
@@ -294,7 +292,7 @@ const GlobalSearch = ({ isOpen, onClose }) => {
                             <span className="text-xs text-gray-400">
                               {item.memberCount} members
                             </span>
-                            {item.isPrivate ? (
+                            {item.privacy === 'private' ? (
                               <Lock size={12} className="text-orange-400" />
                             ) : (
                               <Unlock size={12} className="text-green-400" />
@@ -313,10 +311,10 @@ const GlobalSearch = ({ isOpen, onClose }) => {
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleJoinGroup(item._id, item.isPrivate)}
+                            onClick={() => handleJoinGroup(item._id, item.privacy === 'private')}
                             className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all text-sm font-medium"
                           >
-                            {item.isPrivate ? 'Request' : 'Join'}
+                            {item.privacy === 'private' ? 'Request' : 'Join'}
                           </button>
                         )}
                       </div>

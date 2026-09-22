@@ -33,7 +33,9 @@ const JoinGroupViaInvite = require('../controllers/JoinGroupViaInvite');
 const HandleJoinRequest = require('../controllers/HandleJoinRequest');
 const UpdateGroupPrivacy = require('../controllers/UpdateGroupPrivacy');
 const LeaveGroup = require('../controllers/LeaveGroup');
-const { BlockUser, UnblockUser, DeleteChat, ReportUser } = require('../controllers/ChatActions'); // ✅ Add UnblockUser
+const { BlockUser, UnblockUser, DeleteChat } = require('../controllers/ChatActions'); // ✅ Add UnblockUser
+const { GetNotifications, MarkAsRead, MarkAllAsRead, DeleteNotification } = require('../controllers/NotificationController');
+const { ReportUser, ReportPost, ReportGroup, GetAllReports } = require('../controllers/ReportController');
 
 
 router.post('/register', upload.single('profilePicture'), RegisterUser);
@@ -89,12 +91,21 @@ router.delete('/comments/:commentId/replies/:replyId', authMiddleware, DeleteRep
 //chatOptions
 router.post('/block-user', authMiddleware, BlockUser);
 router.post('/delete-chat', authMiddleware, DeleteChat);
-router.post('/report-user', authMiddleware, ReportUser);
-
-// chatOptions
-router.post('/block-user', authMiddleware, BlockUser);
+// router.post('/report-user', authMiddleware, ReportUser);
 router.post('/unblock-user', authMiddleware, UnblockUser); // ✅ NEW
-router.post('/delete-chat', authMiddleware, DeleteChat);
+
+// router.post('/report-user', authMiddleware, ReportUser);
+
+// Notification routes
+router.get('/notifications', authMiddleware, GetNotifications);
+router.put('/notifications/:notificationId/read', authMiddleware, MarkAsRead);
+router.put('/notifications/mark-all-read', authMiddleware, MarkAllAsRead);
+router.delete('/notifications/:notificationId', authMiddleware, DeleteNotification);
+
+// Report routes
 router.post('/report-user', authMiddleware, ReportUser);
+router.post('/report-post', authMiddleware, ReportPost);
+router.post('/report-group', authMiddleware, ReportGroup);
+router.get('/reports/all', authMiddleware, GetAllReports); // Admin use
 
 module.exports = router;

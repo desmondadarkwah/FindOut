@@ -19,7 +19,7 @@ import AdminAnalytics from './Pages/AdminAnalytics';
 import ExploreGroups from './Pages/ExploreGroups';
 import VerificationDashboard from './Pages/VerificationDashboard';
 import TakeQuiz from './Pages/TakeQuiz';
-
+import LandingPage from './Pages/LandingPage';
 
 function App() {
   return (
@@ -27,6 +27,7 @@ function App() {
       {/* <Router> */}
       <Routes>
         {/* <Route path="/" element={<Navigate to="/register" replace />} /> Redirect base path */}
+        <Route path="/" element={<LandingPage />} />
         <Route path="register" element={<RegisterUser />} />
         <Route path="login" element={<LoginUser />} />
         <Route path="verify-email" element={<VerifyEmail />} />

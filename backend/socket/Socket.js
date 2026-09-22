@@ -17,10 +17,6 @@ const initializeSocket = (httpServer) => {
   io.on('connection', (socket) => {
     console.log(`✅ User connected: ${socket.id}`);
 
-    // ═══════════════════════════════════════════════════════════════
-    // USER ONLINE/OFFLINE MANAGEMENT
-    // ═══════════════════════════════════════════════════════════════
-
     socket.on('user-online', async (userId) => {
       try {
         socket.join(userId);
@@ -47,10 +43,18 @@ const initializeSocket = (httpServer) => {
           console.log(`🔗 User ${userId} joined room ${chatId}`);
         });
 
+        // ✅ Get current user's blocked list
+        const currentUser = await User.findById(userId).select('blockedUsers').lean();
+        const blockedUserIds = currentUser?.blockedUsers?.map(id => id.toString()) || [];
+
+        // ✅ Only mark delivered for messages NOT from blocked users
         const result = await MessageModel.updateMany(
           {
             chatId: { $in: allChatIds },
-            senderId: { $ne: userId },
+            senderId: { 
+              $ne: userId,
+              $nin: blockedUserIds // ✅ Don't deliver messages from blocked users
+            },
             status: 'sent'
           },
           { $set: { status: 'delivered', deliveredAt: new Date() } }
@@ -79,10 +83,6 @@ const initializeSocket = (httpServer) => {
       }
     });
 
-    // ═══════════════════════════════════════════════════════════════
-    // ACTIVE CHAT TRACKING
-    // ═══════════════════════════════════════════════════════════════
-
     socket.on('viewing-chat', (data) => {
       socket.data = socket.data || {};
       socket.data.viewingChat = data.chatId;
@@ -110,7 +110,6 @@ const initializeSocket = (httpServer) => {
       try {
         const tempId = `temp-${Date.now()}-${socket.id}`;
 
-        // ✅ Fetch sender info
         const sender = await User.findById(messageData.senderId)
           .select('name email profilePicture blockedUsers')
           .lean();
@@ -119,31 +118,28 @@ const initializeSocket = (httpServer) => {
           return acknowledge({ status: 'error', error: 'Sender not found' });
         }
 
-        // ✅ Get chat to find other participant
         const chat = await ChatModel.findById(messageData.chatId)
           .populate('participants', '_id isOnline blockedUsers');
 
-        // ✅ BLOCK CHECK - only for private chats
+        // ✅ BLOCK CHECK FIRST - before ANY broadcast
         if (chat && !chat.isGroup) {
           const otherParticipant = chat.participants.find(
             p => p._id.toString() !== messageData.senderId.toString()
           );
 
           if (otherParticipant) {
-            // Check if other user blocked the sender
             const senderIsBlockedByOther = otherParticipant.blockedUsers
               ?.map(id => id.toString())
               .includes(messageData.senderId.toString());
 
-            // Check if sender blocked the other user
             const senderBlockedOther = sender.blockedUsers
               ?.map(id => id.toString())
               .includes(otherParticipant._id.toString());
 
             if (senderIsBlockedByOther || senderBlockedOther) {
-              console.log(`🚫 Message silently dropped - user is blocked`);
+              console.log(`🚫 Silently dropping message - blocked`);
 
-              // ✅ Acknowledge success to sender - they don't know they're blocked
+              // ✅ Tell sender success - they don't know they're blocked
               acknowledge({
                 status: 'success',
                 tempId,
@@ -152,11 +148,11 @@ const initializeSocket = (httpServer) => {
                   ...messageData,
                   senderId: sender,
                   createdAt: new Date().toISOString(),
-                  status: 'sent' // ✅ Single tick forever - never delivered
+                  status: 'sent' // ✅ Single tick forever
                 }
               });
 
-              // ✅ Save to database so sender sees their message
+              // ✅ Save to DB - sender sees it, blocked user never will
               setImmediate(async () => {
                 try {
                   const message = new MessageModel({
@@ -164,31 +160,28 @@ const initializeSocket = (httpServer) => {
                     senderId: messageData.senderId,
                     content: messageData.content,
                     type: messageData.type,
-                    status: 'sent', // ✅ Never becomes delivered or read
-                    deliveredAt: null
+                    status: 'sent',
+                    deliveredAt: null,
+                    blockedMessage: true // ✅ Flag it as blocked
                   });
                   const savedMessage = await message.save();
-
                   const populatedMessage = await MessageModel.findById(savedMessage._id)
                     .populate('senderId', 'name email profilePicture')
                     .lean();
 
-                  // ✅ Confirm message to sender only (NOT broadcast to blocked user)
-                  socket.emit('message-confirmed', {
-                    tempId,
-                    message: populatedMessage
-                  });
+                  // ✅ Only emit to SENDER's socket - NOT the room
+                  socket.emit('message-confirmed', { tempId, message: populatedMessage });
                 } catch (error) {
                   console.error('❌ Error saving blocked message:', error);
                 }
               });
 
-              return; // ✅ Stop here - don't broadcast to the other user
+              return; // ✅ STOP - no broadcast to room at all
             }
           }
         }
 
-        // ✅ Immediately acknowledge to sender
+        // ✅ NOT BLOCKED - normal flow
         acknowledge({
           status: 'success',
           tempId,
@@ -201,7 +194,6 @@ const initializeSocket = (httpServer) => {
           }
         });
 
-        // ✅ Check if any recipient is online
         const group = !chat
           ? await GroupModel.findById(messageData.chatId).populate('members', '_id isOnline')
           : null;
@@ -212,7 +204,7 @@ const initializeSocket = (httpServer) => {
         );
         const anyRecipientOnline = recipientIds.some(r => r.isOnline === true);
 
-        // ✅ Broadcast to other users in room immediately
+        // ✅ Broadcast to room - only reaches here if NOT blocked
         socket.to(messageData.chatId).emit('message-received', {
           _id: tempId,
           chatId: messageData.chatId,
@@ -224,7 +216,6 @@ const initializeSocket = (httpServer) => {
           isOptimistic: true
         });
 
-        // ✅ Persist to database asynchronously
         setImmediate(async () => {
           try {
             const message = new MessageModel({
@@ -245,8 +236,6 @@ const initializeSocket = (httpServer) => {
                 activeViewers.push(s.data.userId);
               }
             });
-
-            console.log(`📊 Active viewers in chat ${messageData.chatId}:`, activeViewers.length > 0 ? activeViewers : 'none');
 
             const chatUpdate = ChatModel.findByIdAndUpdate(
               messageData.chatId,
@@ -422,10 +411,17 @@ const initializeSocket = (httpServer) => {
     socket.on('mark-messages-read', async (data) => {
       const { chatId, userId } = data;
       try {
+        // ✅ Get blocked users so we don't mark their messages as read
+        const currentUser = await User.findById(userId).select('blockedUsers').lean();
+        const blockedUserIds = currentUser?.blockedUsers?.map(id => id.toString()) || [];
+
         const result = await MessageModel.updateMany(
           {
             chatId,
-            senderId: { $ne: userId },
+            senderId: { 
+              $ne: userId,
+              $nin: blockedUserIds // ✅ Don't mark blocked users' messages as read
+            },
             status: { $in: ['sent', 'delivered'] }
           },
           {
@@ -476,10 +472,6 @@ const initializeSocket = (httpServer) => {
       socket.join(groupId);
       console.log(`🔗 User joined group room: ${groupId}`);
     });
-
-    // ═══════════════════════════════════════════════════════════════
-    // DISCONNECT HANDLING
-    // ═══════════════════════════════════════════════════════════════
 
     socket.on('disconnect', async () => {
       console.log(`🔌 User disconnected: ${socket.id}`);

@@ -1,4 +1,4 @@
-import React, { useContext, useState,useEffect } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { RxAvatar } from "react-icons/rx";
 import { BeatLoader } from "react-spinners";
 import { MdLock } from "react-icons/md";
@@ -163,7 +163,7 @@ const Suggestions = () => {
           if (isJoining) return <BeatLoader color="white" size={6} />;
           if (isAlreadyMember) return 'Open';
           if (isRequested) return null;
-          if (group.isPrivate) return 'Request';
+          if (group.privacy === 'private') return 'Request';
           return 'Join';
         };
 
@@ -189,13 +189,13 @@ const Suggestions = () => {
               <span className="flex flex-col">
                 <span className="font-semibold text-white truncate block w-28">
                   {group.groupName}
-                  {group.isPrivate && (
+                  {group.privacy === 'private' && (
                     <MdLock size={12} className="text-gray-400 inline ml-1" />
                   )}
                 </span>
                 <span className="block text-gray-500 text-xs">
                   {group.members?.length || 0} members •{' '}
-                  {group.isPrivate ? 'Private' : 'Public'}
+                  {group.privacy === 'private' ? 'Private' : 'Public'}
                 </span>
               </span>
             </div>

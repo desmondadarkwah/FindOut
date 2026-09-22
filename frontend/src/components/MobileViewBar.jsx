@@ -1,6 +1,9 @@
-import React, {  useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MdAdd } from 'react-icons/md';
 import UserProfile from './UserProfile';
+import NotificationBell from './NotificationBell';
+import { IoMdNotificationsOutline } from 'react-icons/io';
+
 
 const MobileViewBar = () => {
   const [visible, setVisible] = useState(false);
@@ -15,7 +18,7 @@ const MobileViewBar = () => {
 
   useEffect(() => {
     window.addEventListener('scroll', handleScroll);
-    
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
@@ -33,6 +36,15 @@ const MobileViewBar = () => {
         <button className="relative text-white">
           <UserProfile />
           {/* <span className={`absolute top-0 right-0 ${status.Teach ? 'bg-green-600' : status.Learn ? 'bg-yellow-500' : ''} rounded-full h-3 w-3`} /> */}
+        </button>
+      </div>
+      <div className="flex items-center">
+        <NotificationBell iconSize={24} iconColor="white" /> {/* ✅ ADD */}
+        <button className="text-white mr-4 ml-2">
+          <MdAdd size={24} />
+        </button>
+        <button className="relative text-white">
+          <UserProfile />
         </button>
       </div>
     </div>

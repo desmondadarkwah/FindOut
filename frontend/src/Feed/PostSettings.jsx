@@ -1,11 +1,13 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { Flag, Link, Trash2, X } from 'lucide-react';
 import { PostContext } from '../Context/PostContext';
 import { ChatContext } from '../Context/ChatContext';
+import ReportModal from '../components/ReportModal';
 
 const PostSettings = ({ postId, authorId, onClose }) => {
   const { deletePost } = useContext(PostContext);
   const { userId } = useContext(ChatContext);
+  const [showReport, setShowReport] = useState(false);
 
   // ✅ FIX: Convert both to strings for comparison
   const isOwnPost = userId?.toString() === authorId?.toString();
@@ -15,12 +17,6 @@ const PostSettings = ({ postId, authorId, onClose }) => {
     authorId,
     isOwnPost
   });
-
-  const handleReport = () => {
-    console.log('Report post:', postId);
-    alert('Post reported. Thank you for keeping our community safe!');
-    onClose();
-  };
 
   const handleCopyLink = () => {
     const postUrl = `${window.location.origin}/post/${postId}`;
@@ -53,7 +49,7 @@ const PostSettings = ({ postId, authorId, onClose }) => {
       <div className="py-2">
         {!isOwnPost && (
           <button
-            onClick={handleReport}
+            onClick={() => setShowReport(true)}
             className="w-full px-4 py-3 text-left text-red-400 hover:bg-gray-700/50 transition-colors flex items-center space-x-3"
           >
             <Flag size={16} />
@@ -89,6 +85,14 @@ const PostSettings = ({ postId, authorId, onClose }) => {
           </button>
         </div>
       </div>
+
+      {showReport && (
+        <ReportModal
+          type="post"
+          id={postId}
+          onClose={() => setShowReport(false)}
+        />
+      )}
     </div>
   );
 };

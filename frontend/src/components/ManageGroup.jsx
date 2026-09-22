@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useCallback } from "react";
 import { IoClose } from "react-icons/io5";
 import { MdDelete, MdLock, MdPublic, MdExitToApp } from "react-icons/md";
 import { FaCrown } from "react-icons/fa";
@@ -13,7 +13,7 @@ import { SuggestionsContext } from "../Context/SuggestionsContext";
 import axiosInstance from "../utils/axiosInstance";
 import { BeatLoader } from "react-spinners";
 import { useToast } from "../Context/ToastContext";
-import socket from '../socket/socket'; 
+import socket from '../socket/socket';
 
 const ManageGroup = () => {
   const { selectedChat, userId, setSelectedChat, setChats } = useContext(ChatContext);
@@ -21,18 +21,20 @@ const ManageGroup = () => {
   const [changePhoto, setChangePhoto] = useState(false);
   const [removing, setRemoving] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [isPrivate, setIsPrivate] = useState(selectedChat?.isPrivate || false);
+  const [privacy, setPrivacy] = useState(selectedChat?.privacy || 'public');
   const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
   const [pendingRequests, setPendingRequests] = useState(selectedChat?.pendingRequests || []);
   const [handlingRequest, setHandlingRequest] = useState(null);
   const [saving, setSaving] = useState(false);
-  
-  // ✅ NEW: Editable fields for admin
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [removingPhoto, setRemovingPhoto] = useState(false);
+
+  // Editable fields for admin
   const [groupName, setGroupName] = useState(selectedChat?.groupName || '');
   const [subjects, setSubjects] = useState(selectedChat?.subjects?.join(', ') || '');
   const [description, setDescription] = useState(selectedChat?.description || '');
-  
-  const { openGroupManager, setOpenGroupManager } = useContext(SettingsContext);
+
+  const { setOpenGroupManager } = useContext(SettingsContext);
   const { setGroupId } = useContext(GroupProfileContext);
   const { handleConnectPrivateChat } = useContext(SuggestionsContext);
   const { toast, confirm } = useToast();
@@ -45,71 +47,73 @@ const ManageGroup = () => {
     ? `${window.location.origin}/join/${selectedChat.inviteCode}`
     : '';
 
-  // ✅ Update local state when selectedChat changes
+  // Update local state when selectedChat changes
   useEffect(() => {
     if (selectedChat) {
       setGroupName(selectedChat.groupName || '');
       setSubjects(selectedChat.subjects?.join(', ') || '');
       setDescription(selectedChat.description || '');
-      setIsPrivate(selectedChat.isPrivate || false);
+      setPrivacy(selectedChat?.privacy || 'public');
       setPendingRequests(selectedChat.pendingRequests || []);
     }
   }, [selectedChat?._id]);
 
-  // ✅ Real-time updates for admin
-useEffect(() => {
-  if (!selectedChat?._id || !isAdmin) return;
+  // Real-time + polled updates for admin
+  // NOTE: `toast` is intentionally excluded from deps below — if it's not
+  // memoized by ToastContext, including it will re-create this interval and
+  // re-subscribe the socket listeners on every render. If ToastContext later
+  // wraps its value in useMemo/useCallback, it's safe to add back.
+  useEffect(() => {
+    if (!selectedChat?._id || !isAdmin) return;
 
-  const fetchGroupDetails = async () => {
-    try {
-      const response = await axiosInstance.get(`/api/group/${selectedChat._id}`);
-      if (response.data.group) {
-        setPendingRequests(response.data.group.pendingRequests || []);
-        setIsPrivate(response.data.group.isPrivate || false);
+    let cancelled = false;
+
+    const fetchGroupDetails = async () => {
+      try {
+        const response = await axiosInstance.get(`/api/group/${selectedChat._id}`);
+        if (!cancelled && response.data.group) {
+          setPendingRequests(response.data.group.pendingRequests || []);
+          setPrivacy(response.data.group.privacy || 'public');
+        }
+      } catch (error) {
+        console.error('Error fetching group details:', error);
       }
-    } catch (error) {
-      console.error('❌ Error fetching group details:', error);
-    }
-  };
+    };
 
-  fetchGroupDetails();
-  const interval = setInterval(fetchGroupDetails, 5000);
+    fetchGroupDetails();
+    const interval = setInterval(fetchGroupDetails, 5000);
 
-  // ✅ NEW: Listen for instant pending request updates
-  const handlePendingRequestsUpdated = ({ groupId, pendingRequests }) => {
-    if (groupId === selectedChat._id) {
-      console.log('📝 Pending requests updated via socket');
-      setPendingRequests(pendingRequests || []);
-    }
-  };
+    const handlePendingRequestsUpdated = ({ groupId, pendingRequests: updated }) => {
+      if (groupId === selectedChat._id) {
+        setPendingRequests(updated || []);
+      }
+    };
 
-  // ✅ NEW: Listen for new join requests
-  const handleNewJoinRequest = ({ groupId, group }) => {
-    if (groupId === selectedChat._id) {
-      console.log('📝 New join request received');
-      setPendingRequests(group.pendingRequests || []);
-      
-      // Optional: Show toast notification
-      toast.info('New join request received', 'Join Request');
-    }
-  };
+    const handleNewJoinRequest = ({ groupId, group }) => {
+      if (groupId === selectedChat._id) {
+        setPendingRequests(group.pendingRequests || []);
+        toast.info('New join request received', 'Join Request');
+      }
+    };
 
-  if (socket) {
-    socket.on('pending-requests-updated', handlePendingRequestsUpdated);
-    socket.on('new-join-request', handleNewJoinRequest);
-  }
-
-  return () => {
-    clearInterval(interval);
     if (socket) {
-      socket.off('pending-requests-updated', handlePendingRequestsUpdated);
-      socket.off('new-join-request', handleNewJoinRequest);
+      socket.on('pending-requests-updated', handlePendingRequestsUpdated);
+      socket.on('new-join-request', handleNewJoinRequest);
     }
-  };
-}, [selectedChat?._id, isAdmin, toast, socket]);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      if (socket) {
+        socket.off('pending-requests-updated', handlePendingRequestsUpdated);
+        socket.off('new-join-request', handleNewJoinRequest);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChat?._id, isAdmin]);
 
   // ─────────────────────────────────────────
-  // ✅ SAVE GROUP CHANGES (Admin Only)
+  // SAVE GROUP CHANGES (Admin Only)
   // ─────────────────────────────────────────
   const handleSaveChanges = async () => {
     if (!isAdmin) return;
@@ -124,7 +128,6 @@ useEffect(() => {
       });
 
       if (response.data.success) {
-        // ✅ Update selectedChat
         setSelectedChat(prev => ({
           ...prev,
           groupName: groupName.trim(),
@@ -132,16 +135,15 @@ useEffect(() => {
           description: description.trim()
         }));
 
-        // ✅ Update in chats list
         setChats(prevChats =>
           prevChats.map(chat =>
             chat._id === selectedChat._id
               ? {
-                  ...chat,
-                  groupName: groupName.trim(),
-                  subjects: subjects.split(',').map(s => s.trim()).filter(Boolean),
-                  description: description.trim()
-                }
+                ...chat,
+                groupName: groupName.trim(),
+                subjects: subjects.split(',').map(s => s.trim()).filter(Boolean),
+                description: description.trim()
+              }
               : chat
           )
         );
@@ -149,7 +151,7 @@ useEffect(() => {
         toast.success('Group details updated successfully!', 'Changes Saved');
       }
     } catch (error) {
-      console.error('❌ Error saving changes:', error);
+      console.error('Error saving changes:', error);
       toast.error(error.response?.data?.message || 'Failed to save changes');
     } finally {
       setSaving(false);
@@ -182,18 +184,77 @@ useEffect(() => {
     document.getElementById("group-file-input").click();
   };
 
-  const handleFileChange = (e) => {
+  // Now actually uploads the file to the backend instead of just logging it.
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      console.log("Selected file:", file);
+    if (!file || !selectedChat?._id) return;
+
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('groupId', selectedChat._id);
+      formData.append('photo', file);
+
+      const response = await axiosInstance.put('/api/group/photo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (response.data.success) {
+        const newPhotoUrl = response.data.profilePicture;
+
+        setSelectedChat(prev => ({ ...prev, profilePicture: newPhotoUrl }));
+        setChats(prevChats =>
+          prevChats.map(chat =>
+            chat._id === selectedChat._id
+              ? { ...chat, profilePicture: newPhotoUrl }
+              : chat
+          )
+        );
+
+        toast.success('Group photo updated!', 'Photo Updated');
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      toast.error(error.response?.data?.message || 'Failed to upload photo');
+    } finally {
+      setUploadingPhoto(false);
+      setAllowUploads(false);
+      // reset the input so selecting the same file again still fires onChange
+      e.target.value = '';
     }
   };
 
-  const handleRemovePhoto = () => {
-    if (!isAdmin) return;
-    setAllowUploads(false);
-    setChangePhoto(false);
-    setGroupId(selectedChat._id);
+  // Now actually calls the backend to remove the photo instead of only
+  // resetting local UI state.
+  const handleRemovePhoto = async () => {
+    if (!isAdmin || !selectedChat?._id) return;
+
+    setRemovingPhoto(true);
+    try {
+      const response = await axiosInstance.delete('/api/group/photo', {
+        data: { groupId: selectedChat._id }
+      });
+
+      if (response.data.success) {
+        setSelectedChat(prev => ({ ...prev, profilePicture: null }));
+        setChats(prevChats =>
+          prevChats.map(chat =>
+            chat._id === selectedChat._id
+              ? { ...chat, profilePicture: null }
+              : chat
+          )
+        );
+        toast.success('Group photo removed', 'Photo Removed');
+      }
+    } catch (error) {
+      console.error('Error removing photo:', error);
+      toast.error(error.response?.data?.message || 'Failed to remove photo');
+    } finally {
+      setRemovingPhoto(false);
+      setAllowUploads(false);
+      setChangePhoto(false);
+      setGroupId(selectedChat._id);
+    }
   };
 
   // ─────────────────────────────────────────
@@ -201,7 +262,7 @@ useEffect(() => {
   // ─────────────────────────────────────────
   const handleRemoveMember = async (memberId, memberName) => {
     if (!isAdmin) return;
-  
+
     const confirmed = await confirm({
       title: 'Remove Member',
       message: `Are you sure you want to remove ${memberName || 'this member'} from the group?`,
@@ -209,26 +270,24 @@ useEffect(() => {
       cancelText: 'Cancel',
       confirmStyle: 'danger'
     });
-  
+
     if (!confirmed) return;
-  
+
     setRemoving(memberId);
     try {
       const response = await axiosInstance.put('/api/groups/remove-member', {
         groupId: selectedChat._id,
         memberId
       });
-  
+
       if (response.data.success) {
         toast.success(`${memberName || 'Member'} has been removed`, 'Member Removed');
-        
-        // ✅ IMMEDIATELY update local state
+
         setSelectedChat(prev => ({
           ...prev,
           members: prev.members.filter(m => (m._id || m) !== memberId)
         }));
-  
-        // ✅ Update in chats list
+
         setChats(prevChats =>
           prevChats.map(chat =>
             chat._id === selectedChat._id
@@ -238,7 +297,7 @@ useEffect(() => {
         );
       }
     } catch (error) {
-      console.error('❌ Error removing member:', error);
+      console.error('Error removing member:', error);
       toast.error(error.response?.data?.message || 'Failed to remove member');
     } finally {
       setRemoving(null);
@@ -269,7 +328,7 @@ useEffect(() => {
         setOpenGroupManager(false);
       }
     } catch (error) {
-      console.error('❌ Error leaving group:', error);
+      console.error('Error leaving group:', error);
       toast.error(error.response?.data?.message || 'Failed to leave group');
     }
   };
@@ -286,25 +345,27 @@ useEffect(() => {
   // ─────────────────────────────────────────
   // PRIVACY TOGGLE (Admin Only)
   // ─────────────────────────────────────────
-  const handlePrivacyToggle = async (newIsPrivate) => {
-    if (!isAdmin || newIsPrivate === isPrivate) return;
+  const handlePrivacyToggle = async (newPrivacy) => {
+    if (!isAdmin || newPrivacy === privacy) return;
 
     setUpdatingPrivacy(true);
     try {
       const response = await axiosInstance.put('/api/groups/update-privacy', {
         groupId: selectedChat._id,
-        isPrivate: newIsPrivate
+        privacy: newPrivacy
       });
 
       if (response.data.success) {
-        setIsPrivate(newIsPrivate);
+        setPrivacy(newPrivacy);
+        // Fixed: was `newPrivacy ? 'Private' : 'Public'`, which is always
+        // truthy for a non-empty string and so always said "Private".
         toast.success(
-          `Group is now ${newIsPrivate ? 'Private' : 'Public'}`,
+          `Group is now ${newPrivacy === 'private' ? 'Private' : 'Public'}`,
           'Privacy Updated'
         );
       }
     } catch (error) {
-      console.error('❌ Error updating privacy:', error);
+      console.error('Error updating privacy:', error);
       toast.error(error.response?.data?.message || 'Failed to update privacy');
     } finally {
       setUpdatingPrivacy(false);
@@ -346,12 +407,12 @@ useEffect(() => {
               setPendingRequests(refreshResponse.data.group.pendingRequests || []);
             }
           } catch (err) {
-            console.error('❌ Error refreshing:', err);
+            console.error('Error refreshing:', err);
           }
         }, 1000);
       }
     } catch (error) {
-      console.error('❌ Error handling request:', error);
+      console.error('Error handling request:', error);
       toast.error(error.response?.data?.message || 'Failed to handle request');
     } finally {
       setHandlingRequest(null);
@@ -401,12 +462,12 @@ useEffect(() => {
           </span>
 
           {/* Privacy Badge */}
-          <span className={`mt-1 text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${isPrivate
-              ? 'bg-purple-900/50 text-purple-400 border border-purple-700'
-              : 'bg-blue-900/50 text-blue-400 border border-blue-700'
+          <span className={`mt-1 text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${privacy === 'private'
+            ? 'bg-purple-900/50 text-purple-400 border border-purple-700'
+            : 'bg-blue-900/50 text-blue-400 border border-blue-700'
             }`}>
-            {isPrivate ? <MdLock size={10} /> : <MdPublic size={10} />}
-            {isPrivate ? 'Private Group' : 'Public Group'}
+            {privacy === 'private' ? <MdLock size={10} /> : <MdPublic size={10} />}
+            {privacy === 'private' ? 'Private Group' : 'Public Group'}
           </span>
 
           {/* Admin Badge */}
@@ -422,13 +483,13 @@ useEffect(() => {
             <div className="bg-gray-800 absolute mt-32 p-3 w-64 flex flex-col items-center gap-3 shadow-lg border border-gray-700 rounded-lg z-10">
               <span
                 onClick={handleChangePhotoClick}
-                className="block text-blue-400 cursor-pointer hover:underline">
-                Upload Photo
+                className={`block text-blue-400 cursor-pointer hover:underline ${uploadingPhoto ? 'opacity-50 pointer-events-none' : ''}`}>
+                {uploadingPhoto ? 'Uploading...' : 'Upload Photo'}
               </span>
               <span
                 onClick={handleRemovePhoto}
-                className="block text-red-500 cursor-pointer hover:underline">
-                Remove Current Photo
+                className={`block text-red-500 cursor-pointer hover:underline ${removingPhoto ? 'opacity-50 pointer-events-none' : ''}`}>
+                {removingPhoto ? 'Removing...' : 'Remove Current Photo'}
               </span>
               <span
                 onClick={() => setChangePhoto(false)}
@@ -556,7 +617,7 @@ useEffect(() => {
         </div>
 
         {/* ─────────────────────────────────────── */}
-        {/* ✅ ADMIN-ONLY SETTINGS */}
+        {/* ADMIN-ONLY SETTINGS */}
         {/* ─────────────────────────────────────── */}
         {isAdmin && (
           <div className="border-t border-gray-700 pt-4">
@@ -568,7 +629,7 @@ useEffect(() => {
                 <div>
                   <p className="text-white font-medium text-sm">Group Privacy</p>
                   <p className="text-gray-500 text-xs mt-1">
-                    {isPrivate
+                    {privacy === 'private'
                       ? '🔒 Members must request to join'
                       : '🌍 Anyone can join instantly'}
                   </p>
@@ -578,22 +639,22 @@ useEffect(() => {
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => handlePrivacyToggle(false)}
+                  onClick={() => handlePrivacyToggle('public')}
                   disabled={updatingPrivacy}
-                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${!isPrivate
-                      ? 'bg-blue-600/20 border-blue-500 text-blue-400'
-                      : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
+                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${privacy === 'public'
+                    ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                    : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
                     }`}>
                   <MdPublic size={20} />
                   <span className="text-xs font-medium">Public</span>
                 </button>
 
                 <button
-                  onClick={() => handlePrivacyToggle(true)}
+                  onClick={() => handlePrivacyToggle('private')}
                   disabled={updatingPrivacy}
-                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${isPrivate
-                      ? 'bg-purple-600/20 border-purple-500 text-purple-400'
-                      : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
+                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${privacy === 'private'
+                    ? 'bg-purple-600/20 border-purple-500 text-purple-400'
+                    : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
                     }`}>
                   <MdLock size={20} />
                   <span className="text-xs font-medium">Private</span>
@@ -602,7 +663,7 @@ useEffect(() => {
             </div>
 
             {/* Pending Join Requests */}
-            {isPrivate && (
+            {privacy === 'private' && (
               <div className="mb-6 p-4 bg-gray-900 rounded-lg border border-gray-800">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-white font-medium text-sm">Join Requests</p>
@@ -671,7 +732,7 @@ useEffect(() => {
               </div>
             )}
 
-            {/* ✅ EDITABLE FIELDS FOR ADMIN */}
+            {/* EDITABLE FIELDS FOR ADMIN */}
             <div className="mb-4">
               <label className="block text-sm text-gray-300 mb-1">Group Name</label>
               <input
@@ -723,7 +784,7 @@ useEffect(() => {
         )}
 
         {/* ─────────────────────────────────────── */}
-        {/* ✅ MEMBER-ONLY OPTIONS */}
+        {/* MEMBER-ONLY OPTIONS */}
         {/* ─────────────────────────────────────── */}
         {!isAdmin && (
           <div className="border-t border-gray-700 pt-4">

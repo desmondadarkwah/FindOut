@@ -21,7 +21,10 @@ const AllPost = () => {
   const [postTypeFilter, setPostTypeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
   const [showFilters, setShowFilters] = useState(false);
-  const dropdownRef = useRef(null);
+  // ✅ FIX: was a single shared useRef reused for every post in the map loop,
+  // so only the last-mounted post's dropdown was ever tracked correctly.
+  // Now keyed per post id.
+  const dropdownRefs = useRef({});
 
   const uniqueSubjects = ['all', ...new Set(posts.map(p => p.subject).filter(Boolean))];
 
@@ -42,13 +45,22 @@ const AllPost = () => {
 
   useEffect(() => { fetchPosts(); }, []);
 
+  // ✅ FIX: previously used `mousedown` with an empty dependency array, so
+  // (a) it always compared against the single shared ref's stale/wrong node,
+  // and (b) it fired before the button's own `click` event, closing the
+  // dropdown (and unmounting PostSettings/ReportModal) before the click
+  // handler on "Report" ever ran. Now it looks up the correct per-post node
+  // and re-subscribes whenever activeDropdown changes.
   useEffect(() => {
+    if (!activeDropdown) return;
+
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setActiveDropdown(null);
+      const node = dropdownRefs.current[activeDropdown];
+      if (node && !node.contains(e.target)) setActiveDropdown(null);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [activeDropdown]);
 
   const handleMarkHelpful = async (postId) => {
     try { await markHelpful(postId); }
@@ -578,7 +590,9 @@ const AllPost = () => {
                     </div>
                   </div>
 
-                  <div style={{ position: 'relative' }} ref={dropdownRef}>
+                  {/* ✅ FIX: ref is now keyed per post id via a callback ref
+                      instead of the single shared `dropdownRef` */}
+                  <div style={{ position: 'relative' }} ref={(el) => { dropdownRefs.current[post._id] = el; }}>
                     <button
                       onClick={() => toggleDropdown(post._id)}
                       style={{
@@ -779,7 +793,7 @@ const AllPost = () => {
               Share knowledge · Ask questions · Help others learn
             </p>
           </div>
-          <PostsList />
+          {PostsList()}
         </div>
         <MobileViewIcons />
       </div>
@@ -792,9 +806,9 @@ const AllPost = () => {
           gridTemplateColumns: '240px minmax(0,1fr) 300px',
           gap: 24, alignItems: 'start',
         }}>
-          <LeftRail />
-          <main><PostsList /></main>
-          <RightRail />
+          {LeftRail()}
+          <main>{PostsList()}</main>
+          {RightRail()}
         </div>
       </div>
 

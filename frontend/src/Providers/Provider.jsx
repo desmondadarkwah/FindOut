@@ -12,6 +12,8 @@ import CommentContextProvider from '../Context/CommentContext';
 import ToastProvider from '../Context/ToastContext'; // ✅ ADD THIS
 import AdminContextProvider from '../Context/AdminContext';
 import VerificationProvider from '../Context/VerificationContext';
+import NotificationProvider from '../Context/NotificationContext';
+
 
 const Provider = ({ children }) => {
   return (
@@ -28,7 +30,9 @@ const Provider = ({ children }) => {
                         <VerificationProvider>
                           <PostContextProvider>
                             <CommentContextProvider>
-                              {children}
+                              <NotificationProvider>
+                                {children}
+                              </NotificationProvider>
                             </CommentContextProvider>
                           </PostContextProvider>
                         </VerificationProvider>

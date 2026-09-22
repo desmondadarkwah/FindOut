@@ -6,10 +6,15 @@ const GetMessages = async (req, res) => {
     const { chatId } = req.params;
     const userId = req.authenticatedUser.id;
 
-    // ✅ Fetch messages but filter out ones deleted for this user
+    // ✅ Get current user's blocked list
+    const currentUser = await UserModel.findById(userId).select('blockedUsers').lean();
+    const blockedUserIds = currentUser?.blockedUsers?.map(id => id.toString()) || [];
+
     const messages = await MessageModel.find({
       chatId,
-      deletedFor: { $nin: [userId] } // ✅ Don't show messages deleted for this user
+      deletedFor: { $nin: [userId] },
+      // ✅ Filter out messages from blocked users
+      senderId: { $nin: blockedUserIds }
     })
       .populate('senderId', 'profilePicture name')
       .sort({ createdAt: 1 });

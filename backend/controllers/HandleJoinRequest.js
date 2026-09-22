@@ -1,5 +1,6 @@
 const GroupModel = require('../models/GroupModel');
 const { MessageModel, ChatModel } = require('../models/MessageModel');
+const { createNotification } = require('../services/notificationService');
 const { getIo } = require('../socket/socket');
 
 const HandleJoinRequest = async (req, res) => {
@@ -27,10 +28,7 @@ const HandleJoinRequest = async (req, res) => {
       .populate('pendingRequests.userId', 'name profilePicture');
 
     if (!group) {
-      return res.status(404).json({
-        success: false,
-        message: 'Group not found'
-      });
+      return res.status(404).json({ success: false, message: 'Group not found' });
     }
 
     if (group.groupAdmin._id.toString() !== adminId) {
@@ -65,28 +63,23 @@ const HandleJoinRequest = async (req, res) => {
     }
 
     if (action === 'approve') {
-      // Add user to members
       group.members.push(userId);
-      
       if (!group.unreadCount) group.unreadCount = [];
       group.unreadCount.push({ userId, count: 0 });
-      
       await group.save();
 
-      // ✅ ALSO update ChatModel
       await ChatModel.findByIdAndUpdate(groupId, {
         participants: group.members,
         $push: { unreadCount: { userId, count: 0 } }
       });
 
-      // Re-populate
       const populatedGroup = await GroupModel.findById(groupId)
         .populate('members', 'name profilePicture')
         .populate('groupAdmin', 'name profilePicture')
         .populate('lastMessage.senderId', 'name profilePicture')
         .populate('pendingRequests.userId', 'name profilePicture');
 
-      // Create system message
+      // System message
       try {
         const systemMessage = new MessageModel({
           chatId: group._id,
@@ -107,22 +100,31 @@ const HandleJoinRequest = async (req, res) => {
         console.log('⚠️ System message skipped:', msgError.message);
       }
 
+      // ✅ Notify the approved user
+      await createNotification({
+        recipient: userId,
+        sender: adminId,
+        type: 'request_approved',
+        title: '✅ Join Request Approved!',
+        message: `Your request to join "${group.groupName}" was approved. Welcome!`,
+        link: '/inbox',
+        groupId: group._id,
+        io,
+      });
+
       if (io) {
-        // ✅ Notify all group members
         io.to(groupId).emit('member-joined', {
           groupId: group._id,
           newMember: userId,
           group: populatedGroup
         });
 
-        // ✅ Tell the approved user to add the chat
         io.to(userId).emit('join-request-approved', {
           groupId: group._id,
           groupName: group.groupName,
           group: populatedGroup
         });
 
-        // ✅ Update admin's ManageGroup view instantly
         io.to(adminId).emit('pending-requests-updated', {
           groupId: group._id,
           pendingRequests: populatedGroup.pendingRequests
@@ -138,7 +140,7 @@ const HandleJoinRequest = async (req, res) => {
       });
 
     } else {
-      // Deny - just remove from pending
+      // Deny
       await group.save();
 
       const populatedGroup = await GroupModel.findById(groupId)
@@ -146,13 +148,24 @@ const HandleJoinRequest = async (req, res) => {
         .populate('groupAdmin', 'name profilePicture')
         .populate('pendingRequests.userId', 'name profilePicture');
 
+      // ✅ Notify the denied user
+      await createNotification({
+        recipient: userId,
+        sender: adminId,
+        type: 'request_rejected',
+        title: 'Join Request Not Approved',
+        message: `Your request to join "${group.groupName}" was not approved.`,
+        link: '/explore-groups',
+        groupId: group._id,
+        io,
+      });
+
       if (io) {
         io.to(userId).emit('join-request-denied', {
           groupId: group._id,
           groupName: group.groupName
         });
 
-        // ✅ Update admin's ManageGroup view
         io.to(adminId).emit('pending-requests-updated', {
           groupId: group._id,
           pendingRequests: populatedGroup.pendingRequests

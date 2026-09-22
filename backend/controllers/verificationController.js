@@ -1,6 +1,8 @@
 const VerificationModel = require('../models/VerificationModel');
 const UserModel = require('../models/UserModel');
 const quizGenerator = require('../services/quizGenerator');
+const { createNotification } = require('../services/notificationService');
+const { getIo } = require('../socket/socket');
 
 // ═══════════════════════════════════════════════════════════════
 // GET VERIFICATION STATUS
@@ -10,20 +12,14 @@ const GetVerificationStatus = async (req, res) => {
   try {
     const userId = req.authenticatedUser.id;
 
-    // Get user's subjects
     const user = await UserModel.findById(userId).select('subjects isVerified verifiedSubjects');
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Get all verification records for this user
     const verifications = await VerificationModel.find({ userId });
 
-    // Build status for each subject
     const subjectStatus = user.subjects.map(subject => {
       const verification = verifications.find(v => v.subject === subject);
 
@@ -58,15 +54,12 @@ const GetVerificationStatus = async (req, res) => {
 
   } catch (error) {
     console.error('Get verification status error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get verification status'
-    });
+    res.status(500).json({ success: false, message: 'Failed to get verification status' });
   }
 };
 
 // ═══════════════════════════════════════════════════════════════
-// START QUIZ (Generate Questions)
+// START QUIZ
 // ═══════════════════════════════════════════════════════════════
 
 const StartQuiz = async (req, res) => {
@@ -75,13 +68,9 @@ const StartQuiz = async (req, res) => {
     const { subject } = req.body;
 
     if (!subject) {
-      return res.status(400).json({
-        success: false,
-        message: 'Subject is required'
-      });
+      return res.status(400).json({ success: false, message: 'Subject is required' });
     }
 
-    // Check if user has this subject
     const user = await UserModel.findById(userId);
     if (!user.subjects.includes(subject)) {
       return res.status(400).json({
@@ -90,15 +79,10 @@ const StartQuiz = async (req, res) => {
       });
     }
 
-    // Check if user can take quiz
     let verification = await VerificationModel.findOne({ userId, subject });
 
     if (!verification) {
-      // Create new verification record
-      verification = new VerificationModel({
-        userId,
-        subject
-      });
+      verification = new VerificationModel({ userId, subject });
       await verification.save();
     }
 
@@ -107,7 +91,7 @@ const StartQuiz = async (req, res) => {
         success: false,
         message: verification.isVerified
           ? 'You are already verified for this subject'
-          : 'Maximum attempts reached. Please contact support.',
+          : 'Maximum attempts reached.',
         verification: {
           isVerified: verification.isVerified,
           totalAttempts: verification.totalAttempts,
@@ -116,31 +100,16 @@ const StartQuiz = async (req, res) => {
       });
     }
 
-    // Generate quiz questions
     const questions = await quizGenerator.generateQuiz(subject);
 
-    // Remove correct answers from response (send to client without answers)
     const questionsForClient = questions.map(q => ({
       question: q.question,
       options: q.options,
       difficulty: q.difficulty
     }));
 
-    // Store questions temporarily (we'll need them for grading)
     const quizSessionId = `${userId}_${subject}_${Date.now()}`;
 
-    res.json({
-      success: true,
-      quizSessionId,
-      subject,
-      questions: questionsForClient,
-      totalQuestions: 10,
-      passingScore: 70,
-      timeLimit: 600, // 10 minutes in seconds
-      attemptsRemaining: verification.maxAttempts - verification.totalAttempts
-    });
-
-    // Store the full questions temporarily for grading
     global.activeQuizSessions = global.activeQuizSessions || {};
     global.activeQuizSessions[quizSessionId] = {
       questions,
@@ -149,17 +118,25 @@ const StartQuiz = async (req, res) => {
       userId
     };
 
+    res.json({
+      success: true,
+      quizSessionId,
+      subject,
+      questions: questionsForClient,
+      totalQuestions: 10,
+      passingScore: 70,
+      timeLimit: 600,
+      attemptsRemaining: verification.maxAttempts - verification.totalAttempts
+    });
+
   } catch (error) {
     console.error('Start quiz error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to start quiz. Please try again.'
-    });
+    res.status(500).json({ success: false, message: 'Failed to start quiz.' });
   }
 };
 
 // ═══════════════════════════════════════════════════════════════
-// SUBMIT QUIZ (Grade Answers)
+// SUBMIT QUIZ
 // ═══════════════════════════════════════════════════════════════
 
 const SubmitQuiz = async (req, res) => {
@@ -168,37 +145,23 @@ const SubmitQuiz = async (req, res) => {
     const { quizSessionId, answers } = req.body;
 
     if (!quizSessionId || !answers || !Array.isArray(answers)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid quiz submission'
-      });
+      return res.status(400).json({ success: false, message: 'Invalid quiz submission' });
     }
 
-    // Get the quiz session
     global.activeQuizSessions = global.activeQuizSessions || {};
     const session = global.activeQuizSessions[quizSessionId];
 
     if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Quiz session not found or expired'
-      });
+      return res.status(404).json({ success: false, message: 'Quiz session not found or expired' });
     }
 
     if (session.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: 'Unauthorized'
-      });
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
     }
 
-    // Calculate time spent
     const timeSpent = Math.floor((Date.now() - session.startTime) / 1000);
-
-    // Grade the quiz
     const result = quizGenerator.gradeQuiz(session.questions, answers);
 
-    // Update verification record
     const verification = await VerificationModel.findOne({
       userId,
       subject: session.subject
@@ -215,11 +178,10 @@ const SubmitQuiz = async (req, res) => {
 
     await verification.save();
 
-    // Update user's verification status if passed
+    // ✅ Update user + send notification if passed
     if (result.passed) {
       const user = await UserModel.findById(userId);
-      
-      // Add to verifiedSubjects if not already there
+
       const alreadyVerified = user.verifiedSubjects?.some(
         vs => vs.subject === session.subject
       );
@@ -232,15 +194,26 @@ const SubmitQuiz = async (req, res) => {
         });
       }
 
-      // Set overall verified status if not already verified
-      if (!user.isVerified) {
-        user.isVerified = true;
-      }
-
+      if (!user.isVerified) user.isVerified = true;
       await user.save();
+
+      // ✅ Send verified notification to user
+      try {
+        const io = getIo();
+        await createNotification({
+          recipient: userId,
+          sender: userId,
+          type: 'quiz_verified',
+          title: '🎉 You are now Verified!',
+          message: `Congratulations! You passed the ${session.subject} quiz and earned your verified badge.`,
+          link: '/verification',
+          io,
+        });
+      } catch (notifError) {
+        console.warn('⚠️ Notification skipped:', notifError.message);
+      }
     }
 
-    // Clean up session
     delete global.activeQuizSessions[quizSessionId];
 
     res.json({
@@ -264,10 +237,7 @@ const SubmitQuiz = async (req, res) => {
 
   } catch (error) {
     console.error('Submit quiz error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to submit quiz'
-    });
+    res.status(500).json({ success: false, message: 'Failed to submit quiz' });
   }
 };
 
@@ -281,25 +251,17 @@ const GetQuizHistory = async (req, res) => {
     const { subject } = req.query;
 
     let filter = { userId };
-    if (subject) {
-      filter.subject = subject;
-    }
+    if (subject) filter.subject = subject;
 
     const verifications = await VerificationModel.find(filter)
       .select('subject attempts isVerified verifiedAt totalAttempts bestScore')
       .sort({ createdAt: -1 });
 
-    res.json({
-      success: true,
-      verifications
-    });
+    res.json({ success: true, verifications });
 
   } catch (error) {
     console.error('Get quiz history error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get quiz history'
-    });
+    res.status(500).json({ success: false, message: 'Failed to get quiz history' });
   }
 };
 

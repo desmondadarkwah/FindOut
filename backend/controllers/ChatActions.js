@@ -77,31 +77,31 @@ const DeleteChat = async (req, res) => {
 // ═══════════════════════════════════════════════
 // REPORT USER
 // ═══════════════════════════════════════════════
-const ReportUser = async (req, res) => {
-  try {
-    const { reportedUserId, reason, chatId } = req.body;
-    const userId = req.authenticatedUser.id;
+// const ReportUser = async (req, res) => {
+//   try {
+//     const { reportedUserId, reason, chatId } = req.body;
+//     const userId = req.authenticatedUser.id;
 
-    if (!reason) {
-      return res.status(400).json({ success: false, message: 'Please provide a reason' });
-    }
+//     if (!reason) {
+//       return res.status(400).json({ success: false, message: 'Please provide a reason' });
+//     }
 
-    await UserModel.findByIdAndUpdate(reportedUserId, {
-      $push: {
-        reports: {
-          reportedBy: userId,
-          reason,
-          chatId,
-          reportedAt: new Date()
-        }
-      }
-    });
+//     await UserModel.findByIdAndUpdate(reportedUserId, {
+//       $push: {
+//         reports: {
+//           reportedBy: userId,
+//           reason,
+//           chatId,
+//           reportedAt: new Date()
+//         }
+//       }
+//     });
 
-    res.json({ success: true, message: 'User reported successfully' });
-  } catch (error) {
-    console.error('Report user error:', error);
-    res.status(500).json({ success: false, message: 'Failed to report user' });
-  }
-};
+//     res.json({ success: true, message: 'User reported successfully' });
+//   } catch (error) {
+//     console.error('Report user error:', error);
+//     res.status(500).json({ success: false, message: 'Failed to report user' });
+//   }
+// };
 
-module.exports = { BlockUser, UnblockUser, DeleteChat, ReportUser };
+module.exports = { BlockUser, UnblockUser, DeleteChat };
