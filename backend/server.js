@@ -14,7 +14,9 @@ const app = express();
 const httpServer = createServer(app);
 
 // Initialize WebSocket
-initializeSocket(httpServer);
+// initializeSocket(httpServer);
+
+global.socketIo = initializeSocket(httpServer);
 
 app.use(express.json());
 

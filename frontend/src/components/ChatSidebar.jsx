@@ -6,7 +6,7 @@ import { IoIosSearch } from "react-icons/io";
 import { HiDotsVertical } from "react-icons/hi";
 import { RxDashboard } from "react-icons/rx";
 import { BeatLoader } from 'react-spinners';
-import { MdOutlineKeyboardVoice } from "react-icons/md";
+import { MdOutlineKeyboardVoice, MdBlock } from "react-icons/md";
 import moment from 'moment';
 import socket from '../socket/socket';
 
@@ -142,7 +142,7 @@ const ChatSidebar = ({ showChatSidebar }) => {
 
   if (loading) {
     return (
-      <div className="w-full md:w-auto lg:min-w-[33%] flex items-center justify-center text-gray-300 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 h-screen p-4 gap-3">
+      <div className="w-full md:w-auto lg:min-w-[33%] flex items-center justify-center text-[var(--text-secondary)] bg-[var(--bg-primary)] h-screen p-4 gap-3">
         <div className="flex flex-col items-center gap-3">
           <BeatLoader color="#6366f1" size={8} />
           <span className="text-sm font-medium">Loading chats...</span>
@@ -154,9 +154,8 @@ const ChatSidebar = ({ showChatSidebar }) => {
   return (
     <div
       className={`
-        bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 
-        backdrop-blur-xl text-white h-screen overflow-hidden 
-        flex flex-col border-r border-gray-800/50 shadow-2xl
+        bg-[var(--bg-primary)] text-[var(--text-primary)] h-screen overflow-hidden 
+        flex flex-col border-r border-[var(--border)] shadow-2xl
         transition-all duration-300
         ${barsToHidden ? 'w-full fixed inset-0 z-50' : 'hidden'} 
         ${showChatSidebar ? 'md:flex md:relative md:w-auto lg:min-w-[33%]' : 'md:hidden'}
@@ -164,29 +163,29 @@ const ChatSidebar = ({ showChatSidebar }) => {
       onClick={() => setShowChatOptions(false)}
     >
       {/* Header */}
-      <div className="p-4 flex items-center justify-between md:block border-b border-gray-700/30 text-center bg-gray-900/20 backdrop-blur-sm">
-        <RxDashboard className="lg:hidden text-gray-300 hover:text-white transition-colors cursor-pointer" />
-        <h4 className="text-lg font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+      <div className="p-4 flex items-center justify-between md:block border-b border-[var(--border)] text-center bg-[var(--bg-secondary)] backdrop-blur-sm">
+        <RxDashboard className="lg:hidden text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer" />
+        <h4 className="text-lg font-semibold text-[var(--text-primary)]">
           Your Chats
         </h4>
-        <HiDotsVertical className="lg:hidden text-gray-300 hover:text-white transition-colors cursor-pointer" />
+        <HiDotsVertical className="lg:hidden text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer" />
       </div>
 
       {/* Search */}
       <div className="flex items-center justify-center relative p-4">
         <div className="relative w-full max-w-sm">
-          <IoIosSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg z-10" />
+          <IoIosSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] text-lg z-10" />
           <input
             type="text"
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-800/40 backdrop-blur-sm text-white border border-gray-700/30 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-300 placeholder-gray-400"
+            className="w-full pl-12 pr-4 py-3 rounded-2xl bg-[var(--bg-card-hover)] backdrop-blur-sm text-[var(--text-primary)] border border-[var(--border)] outline-none focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all duration-300 placeholder-gray-400"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               ✕
             </button>
@@ -196,7 +195,7 @@ const ChatSidebar = ({ showChatSidebar }) => {
 
       {/* Chat List */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <style jsx>{`
+        <style>{`
           .custom-scrollbar::-webkit-scrollbar { width: 4px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: rgba(31,41,55,0.3); }
           .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.5); border-radius: 10px; }
@@ -213,7 +212,7 @@ const ChatSidebar = ({ showChatSidebar }) => {
               return (
                 <div
                   key={chat._id}
-                  className="group flex items-center px-4 py-4 cursor-pointer rounded-2xl transition-all duration-300 hover:bg-gray-800/50 hover:backdrop-blur-sm hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] mx-2"
+                  className="group flex items-center px-4 py-4 cursor-pointer rounded-2xl transition-colors duration-200 hover:bg-[var(--bg-card-hover)] mx-2"
                   onClick={() => {
                     setSelectedChat(chat);
                     setBarsToHidden(false);
@@ -222,10 +221,10 @@ const ChatSidebar = ({ showChatSidebar }) => {
                 >
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
-                    <div className={`flex items-center justify-center w-12 h-12 text-white rounded-2xl shadow-lg transition-all duration-300 ${
+                    <div className={`flex items-center justify-center w-12 h-12 text-[var(--text-primary)] rounded-2xl shadow-lg transition-all duration-300 ${
                       isBlocked
-                        ? 'bg-gradient-to-br from-red-900/40 to-gray-800'
-                        : 'bg-gradient-to-br from-gray-600 to-gray-700 group-hover:shadow-xl'
+                        ? 'bg-[#ef4444]/10'
+                        : 'bg-[var(--bg-card-hover)]'
                     }`}>
                       {chat.isGroup ? (
                         chat.groupProfile ? (
@@ -236,10 +235,10 @@ const ChatSidebar = ({ showChatSidebar }) => {
                                 : `${import.meta.env.VITE_BACKEND_URL}/uploads/${chat.groupProfile}`
                             }
                             alt={chat.groupName || 'Group'}
-                            className="w-12 h-12 rounded-2xl object-cover ring-2 ring-gray-600 group-hover:ring-indigo-500/30 transition-all duration-300"
+                            className="w-12 h-12 rounded-2xl object-cover ring-2 ring-[var(--border)] group-hover:ring-[#6366f1]/30 transition-all duration-300"
                           />
                         ) : (
-                          <RxAvatar className="text-gray-300 text-xl" />
+                          <RxAvatar className="text-[var(--text-secondary)] text-xl" />
                         )
                       ) : (
                         chat.participants.length > 0 && chat.participants[0].profilePicture ? (
@@ -251,24 +250,24 @@ const ChatSidebar = ({ showChatSidebar }) => {
                             }
                             alt={chat.participants[0]?.name || 'User'}
                             className={`w-12 h-12 rounded-2xl object-cover ring-2 transition-all duration-300 ${
-                              isBlocked ? 'ring-red-800/50 opacity-60' : 'ring-gray-600 group-hover:ring-indigo-500/30'
+                              isBlocked ? 'ring-[#ef4444]/40 opacity-60' : 'ring-[var(--border)] group-hover:ring-[#6366f1]/30'
                             }`}
                           />
                         ) : (
-                          <RxAvatar className="w-6 h-6 text-gray-300" />
+                          <RxAvatar className="w-6 h-6 text-[var(--text-secondary)]" />
                         )
                       )}
                     </div>
 
                     {/* Online indicator - hide if blocked */}
                     {!chat.isGroup && isUserOnline && !isBlocked && (
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900 shadow-sm"></div>
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#22c55e] rounded-full border-2 border-[var(--bg-primary)] shadow-sm"></div>
                     )}
 
                     {/* Blocked indicator */}
                     {isBlocked && (
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-500/80 rounded-full border-2 border-gray-900 flex items-center justify-center">
-                        <span style={{ fontSize: 8 }}>🚫</span>
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#ef4444]/80 rounded-full border-2 border-[var(--bg-primary)] flex items-center justify-center">
+                        <MdBlock size={8} color="#fff" />
                       </div>
                     )}
                   </div>
@@ -277,7 +276,7 @@ const ChatSidebar = ({ showChatSidebar }) => {
                   <div className="flex-1 ml-4 min-w-0">
                     <div className="flex justify-between items-center mb-1">
                       <span className={`text-sm font-semibold truncate transition-colors ${
-                        isBlocked ? 'text-gray-400' : 'text-white group-hover:text-indigo-200'
+                        isBlocked ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)] group-hover:text-[#818cf8]'
                       }`}>
                         {chat.isGroup
                           ? chat.groupName
@@ -297,7 +296,7 @@ const ChatSidebar = ({ showChatSidebar }) => {
                           Blocked
                         </span>
                       ) : (
-                        <span className="text-xxs text-gray-400 font-medium flex-shrink-0 ml-2">
+                        <span className="text-[10px] text-[var(--text-secondary)] font-medium flex-shrink-0 ml-2">
                           {chat.lastMessage?.createdAt
                             ? moment(chat.lastMessage.createdAt).fromNow()
                             : ''}
@@ -316,12 +315,12 @@ const ChatSidebar = ({ showChatSidebar }) => {
                         ) : chat.lastMessage?.senderId?._id === userId ? (
                           <>
                             {chat.lastMessage.type === 'audio' ? (
-                              <span className="flex items-center gap-1 text-gray-400">
+                              <span className="flex items-center gap-1 text-[var(--text-secondary)]">
                                 <MdOutlineKeyboardVoice size={14} />
                                 You: Voice message
                               </span>
                             ) : (
-                              <span className="flex items-center gap-1 text-gray-400">
+                              <span className="flex items-center gap-1 text-[var(--text-secondary)]">
                                 You: {chat.lastMessage.content}
                               </span>
                             )}
@@ -329,16 +328,16 @@ const ChatSidebar = ({ showChatSidebar }) => {
                         ) : chat.lastMessage?.content ? (
                           <>
                             {chat.lastMessage.type === 'audio' ? (
-                              <span className="flex items-center gap-1 text-gray-200">
+                              <span className="flex items-center gap-1 text-[var(--text-primary)]">
                                 <MdOutlineKeyboardVoice size={14} />
                                 {chat.isGroup && chat.lastMessage?.senderId?.name
                                   ? `${chat.lastMessage.senderId.name}: ` : ''}
                                 Voice message
                               </span>
                             ) : (
-                              <span className="flex gap-1 text-white font-bold">
+                              <span className="flex gap-1 text-[var(--text-primary)] font-bold">
                                 {chat.isGroup && chat.lastMessage?.senderId?.name && (
-                                  <span className="text-gray-300 font-normal">
+                                  <span className="text-[var(--text-secondary)] font-normal">
                                     {chat.lastMessage.senderId.name}:
                                   </span>
                                 )}
@@ -349,14 +348,14 @@ const ChatSidebar = ({ showChatSidebar }) => {
                             )}
                           </>
                         ) : (
-                          <span className="text-gray-500">No recent messages</span>
+                          <span className="text-[var(--text-muted)]">No recent messages</span>
                         )}
                       </div>
 
                       {/* Unread badge - hide for blocked */}
                       {!isBlocked && chat.unreadCount > 0 && (
                         <div className="ml-2 flex-shrink-0">
-                          <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-indigo-500 text-white text-xs font-bold rounded-full shadow-lg">
+                          <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-[#6366f1] text-white text-xs font-bold rounded-full shadow-lg">
                             {chat.unreadCount}
                           </span>
                         </div>
@@ -369,25 +368,25 @@ const ChatSidebar = ({ showChatSidebar }) => {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-64 text-center px-4">
-            <div className="w-16 h-16 bg-gray-800/50 rounded-2xl flex items-center justify-center mb-4">
-              <RxAvatar className="w-8 h-8 text-gray-500" />
+            <div className="w-16 h-16 bg-[var(--bg-card-hover)] rounded-2xl flex items-center justify-center mb-4">
+              <RxAvatar className="w-8 h-8 text-[var(--text-muted)]" />
             </div>
             {searchQuery ? (
               <>
-                <h3 className="text-gray-300 font-medium mb-2">No results found</h3>
-                <p className="text-gray-500 text-sm">Try searching with a different name</p>
+                <h3 className="text-[var(--text-secondary)] font-medium mb-2">No results found</h3>
+                <p className="text-[var(--text-muted)] text-sm">Try searching with a different name</p>
               </>
             ) : (
               <>
-                <h3 className="text-gray-300 font-medium mb-2">No conversations yet</h3>
-                <p className="text-gray-500 text-sm">Start a new chat to begin messaging</p>
+                <h3 className="text-[var(--text-secondary)] font-medium mb-2">No conversations yet</h3>
+                <p className="text-[var(--text-muted)] text-sm">Start a new chat to begin messaging</p>
               </>
             )}
           </div>
         )}
       </div>
 
-      <div className="h-4 bg-gradient-to-t from-gray-950 to-transparent pointer-events-none"></div>
+      <div className="h-4 bg-gradient-to-t from-[var(--bg-primary)] to-transparent pointer-events-none"></div>
     </div>
   );
 };

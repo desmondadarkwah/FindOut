@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users, FileText, Users as GroupIcon, Activity,
   TrendingUp, Award, BookOpen, LogOut, Menu, X,
-  Shield
+  Shield, Flag
 } from 'lucide-react';
 import { useAdminContext } from '../Context/AdminContext';
 import axiosInstance from '../utils/axiosInstance';
@@ -17,7 +17,7 @@ const AdminDashboard = () => {
   const [statsLoading, setStatsLoading] = useState(true);
   const [showSidebar, setShowSidebar] = useState(false);
 
-  // ✅ Only redirect if no admin AND no token
+  // Only redirect if no admin AND no token
   useEffect(() => {
     if (admin) return; // Admin already set from login
 
@@ -27,7 +27,7 @@ const AdminDashboard = () => {
     }
   }, [admin, navigate]);
 
-  // ✅ Fetch stasts when admin is set
+  // Fetch stats when admin is set
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -42,7 +42,6 @@ const AdminDashboard = () => {
         });
 
         if (response.data.success) {
-          console.log('📊 Stats received:', response.data.stats);
           setStats(response.data.stats);
         }
       } catch (error) {
@@ -64,63 +63,75 @@ const AdminDashboard = () => {
   }, [admin, navigate]);
 
   const handleLogout = async () => {
-    const confirm = window.confirm('Are you sure you want to logout?');
-    if (confirm) {
+    const confirmed = window.confirm('Are you sure you want to logout?');
+    if (confirmed) {
       await logout();
       navigate('/admin-login');
     }
   };
 
   if (statsLoading) {
-    return (
-      <FindOutLoader />
-    );
+    return <FindOutLoader />;
   }
 
+  const navItems = [
+    { label: 'Dashboard', icon: Activity, to: '/admin-dashboard', active: true },
+    { label: 'Users', icon: Users, to: '/admin-users' },
+    { label: 'Posts', icon: FileText, to: '/admin-posts' },
+    { label: 'Reports', icon: Flag, to: '/admin-reports' },
+    { label: 'Analytics', icon: TrendingUp, to: '/admin-analytics' },
+  ];
+
+  const postTypeCounts = [
+    { label: 'Resources', value: stats?.posts?.byType?.find(t => t._id === 'resource')?.count || 0 },
+    { label: 'Help', value: stats?.posts?.byType?.find(t => t._id === 'help')?.count || 0 },
+    { label: 'Explanations', value: stats?.posts?.byType?.find(t => t._id === 'explanation')?.count || 0 },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800">
+    <div className="min-h-screen bg-[#0a0a0f]">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setShowSidebar(!showSidebar)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-gray-800/90 backdrop-blur-sm border border-gray-700/50 rounded-xl text-white"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-[var(--text-secondary)]"
       >
-        {showSidebar ? <X size={20} /> : <Menu size={20} />}
+        {showSidebar ? <X size={18} /> : <Menu size={18} />}
       </button>
 
       {/* Sidebar */}
       <div className={`
-        fixed top-0 left-0 h-full w-64 bg-gray-900/95 backdrop-blur-sm border-r border-gray-700/50 z-40
-        transform transition-transform duration-300 lg:translate-x-0
+        fixed top-0 left-0 h-full w-64 bg-[var(--bg-secondary)] border-r border-[var(--border)] z-40
+        transform transition-transform duration-200 lg:translate-x-0
         ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="p-6">
+        <div className="p-5 flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <Shield size={24} className="text-white" />
+          <div className="flex items-center gap-2.5 mb-8 px-1">
+            <div className="w-8 h-8 bg-white/[0.06] border border-[var(--border)] rounded-lg flex items-center justify-center">
+              <Shield size={16} className="text-[var(--text-secondary)]" />
             </div>
             <div>
-              <h2 className="text-white font-bold">Admin Panel</h2>
-              <p className="text-gray-400 text-xs">FindOut</p>
+              <h2 className="text-[var(--text-primary)] font-semibold text-sm leading-tight">FindOut</h2>
+              <p className="text-[var(--text-muted)] text-xs leading-tight">Admin</p>
             </div>
           </div>
 
           {/* Admin Info */}
-          <div className="bg-gray-800/50 rounded-xl p-4 mb-6">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3.5 mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-sm">
+              <div className="w-9 h-9 bg-white/[0.06] border border-[var(--border)] rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-[var(--text-primary)] font-semibold text-xs">
                   {admin?.name?.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white font-medium text-sm truncate">{admin?.name}</p>
-                <p className="text-gray-400 text-xs truncate">{admin?.email}</p>
+                <p className="text-[var(--text-primary)] font-medium text-sm truncate">{admin?.name}</p>
+                <p className="text-[var(--text-muted)] text-xs truncate">{admin?.email}</p>
               </div>
             </div>
             {admin?.isSuperAdmin && (
-              <div className="mt-3 pt-3 border-t border-gray-700/50">
-                <span className="inline-flex items-center gap-1 text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded-full">
+              <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                <span className="inline-flex items-center gap-1.5 text-xs text-amber-400/90">
                   <Shield size={12} />
                   Super Admin
                 </span>
@@ -129,199 +140,183 @@ const AdminDashboard = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="space-y-2">
-            <button
-              onClick={() => navigate('/admin-dashboard')}
-              className="w-full flex items-center gap-3 px-4 py-3 text-white bg-blue-500/20 border border-blue-500/50 rounded-xl transition-colors"
-            >
-              <Activity size={18} />
-              <span className="font-medium">Dashboard</span>
-            </button>
-
-            <button
-              onClick={() => navigate('/admin-users')}
-              className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-xl transition-colors"
-            >
-              <Users size={18} />
-              <span className="font-medium">Users</span>
-            </button>
-
-            <button
-              onClick={() => navigate('/admin-posts')}
-              className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-xl transition-colors"
-            >
-              <FileText size={18} />
-              <span className="font-medium">Posts</span>
-            </button>
-
-            <button
-              onClick={() => navigate('/admin-analytics')}
-              className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-xl transition-colors"
-            >
-              <TrendingUp size={18} />
-              <span className="font-medium">Analytics</span>
-            </button>
+          <nav className="space-y-0.5 flex-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => navigate(item.to)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border-l-2 ${
+                    item.active
+                      ? 'text-white bg-white/[0.05] border-[#6366f1]'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/[0.03] border-transparent'
+                  }`}
+                >
+                  <Icon size={17} />
+                  {item.label}
+                </button>
+              );
+            })}
           </nav>
 
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 mt-6 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-lg transition-colors text-sm font-medium"
           >
-            <LogOut size={18} />
-            <span className="font-medium">Logout</span>
+            <LogOut size={17} />
+            Logout
           </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="lg:ml-64 p-4 lg:p-8">
+      <div className="lg:ml-64 px-4 py-6 lg:px-10 lg:py-10">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-            Dashboard Overview
-          </h1>
-          <p className="text-gray-400">Welcome back, {admin?.name}!</p>
+        <div className="flex items-start justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-1">Dashboard</h1>
+            <p className="text-[var(--text-muted)] text-sm">Welcome back, {admin?.name}</p>
+          </div>
+
+          <button
+            onClick={() => navigate('/admin-reports')}
+            className="hidden sm:inline-flex items-center gap-2 px-4 py-2 bg-white/[0.04] hover:bg-white/[0.07] border border-white/10 rounded-lg text-[var(--text-secondary)] text-sm font-medium transition-colors"
+          >
+            <Flag size={15} className="text-[#eab308]" />
+            View Reports
+          </button>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {/* Total Users */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                <Users size={24} className="text-blue-400" />
+              <div className="w-9 h-9 bg-white/[0.05] rounded-lg flex items-center justify-center">
+                <Users size={17} className="text-[var(--text-secondary)]" />
               </div>
-              <span className="text-green-400 text-sm font-medium">
+              <span className="text-[#22c55e]/90 text-xs font-medium">
                 +{stats?.users?.recentSignups || 0} this week
               </span>
             </div>
-            <h3 className="text-3xl font-bold text-white mb-1">
+            <h3 className="text-2xl font-semibold text-[var(--text-primary)] mb-0.5">
               {stats?.users?.total || 0}
             </h3>
-            <p className="text-gray-400 text-sm">Total Users</p>
-            <div className="mt-4 flex items-center gap-4 text-xs">
-              <span className="text-blue-400">
-                {stats?.users?.teachers || 0} Teachers
-              </span>
-              <span className="text-purple-400">
-                {stats?.users?.learners || 0} Learners
-              </span>
+            <p className="text-[var(--text-muted)] text-sm">Total Users</p>
+            <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center gap-4 text-xs text-[var(--text-muted)]">
+              <span>{stats?.users?.teachers || 0} Teachers</span>
+              <span>{stats?.users?.learners || 0} Learners</span>
             </div>
           </div>
 
           {/* Total Posts */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                <FileText size={24} className="text-purple-400" />
+              <div className="w-9 h-9 bg-white/[0.05] rounded-lg flex items-center justify-center">
+                <FileText size={17} className="text-[var(--text-secondary)]" />
               </div>
-              <span className="text-xs text-gray-400">All time</span>
+              <span className="text-xs text-[var(--text-muted)]">All time</span>
             </div>
-            <h3 className="text-3xl font-bold text-white mb-1">
+            <h3 className="text-2xl font-semibold text-[var(--text-primary)] mb-0.5">
               {stats?.posts?.total || 0}
             </h3>
-            <p className="text-gray-400 text-sm">Total Posts</p>
-            <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
-              <span>📚 {stats?.posts?.byType?.find(t => t._id === 'resource')?.count || 0}</span>
-              <span>❓ {stats?.posts?.byType?.find(t => t._id === 'help')?.count || 0}</span>
-              <span>💡 {stats?.posts?.byType?.find(t => t._id === 'explanation')?.count || 0}</span>
+            <p className="text-[var(--text-muted)] text-sm">Total Posts</p>
+            <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center gap-3 text-xs text-[var(--text-muted)]">
+              {postTypeCounts.map((t) => (
+                <span key={t.label}>{t.label} {t.value}</span>
+              ))}
             </div>
           </div>
 
           {/* Total Groups */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
-                <GroupIcon size={24} className="text-green-400" />
+              <div className="w-9 h-9 bg-white/[0.05] rounded-lg flex items-center justify-center">
+                <GroupIcon size={17} className="text-[var(--text-secondary)]" />
               </div>
-              <span className="text-xs text-gray-400">Active</span>
+              <span className="text-xs text-[var(--text-muted)]">Active</span>
             </div>
-            <h3 className="text-3xl font-bold text-white mb-1">
+            <h3 className="text-2xl font-semibold text-[var(--text-primary)] mb-0.5">
               {stats?.groups?.total || 0}
             </h3>
-            <p className="text-gray-400 text-sm">Learning Groups</p>
+            <p className="text-[var(--text-muted)] text-sm">Learning Groups</p>
           </div>
 
           {/* Online Users */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center">
-                <Activity size={24} className="text-yellow-400" />
+              <div className="w-9 h-9 bg-white/[0.05] rounded-lg flex items-center justify-center">
+                <Activity size={17} className="text-[var(--text-secondary)]" />
               </div>
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              <span className="w-2 h-2 bg-[#22c55e] rounded-full" />
             </div>
-            <h3 className="text-3xl font-bold text-white mb-1">
+            <h3 className="text-2xl font-semibold text-[var(--text-primary)] mb-0.5">
               {stats?.users?.online || 0}
             </h3>
-            <p className="text-gray-400 text-sm">Users Online</p>
+            <p className="text-[var(--text-muted)] text-sm">Users Online</p>
           </div>
         </div>
 
         {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Top Subjects */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                <BookOpen size={20} className="text-blue-400" />
-              </div>
-              <h3 className="text-xl font-bold text-white">Popular Subjects</h3>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5">
+            <div className="flex items-center gap-2.5 mb-5">
+              <BookOpen size={17} className="text-[var(--text-muted)]" />
+              <h3 className="text-base font-semibold text-[var(--text-primary)]">Popular Subjects</h3>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-1">
               {stats?.topSubjects?.slice(0, 5).map((subject, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-900/50 rounded-xl">
+                <div key={index} className="flex items-center justify-between py-2.5 px-1 border-b border-[var(--border)] last:border-0">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">
-                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📚'}
-                    </span>
-                    <span className="text-white font-medium">{subject._id}</span>
+                    <span className="text-xs font-medium text-[var(--text-muted)] w-4">{index + 1}</span>
+                    <span className="text-[var(--text-primary)] text-sm font-medium">{subject._id}</span>
                   </div>
-                  <span className="text-blue-400 font-bold">{subject.count} posts</span>
+                  <span className="text-[var(--text-muted)] text-sm">{subject.count} posts</span>
                 </div>
               )) || (
-                  <p className="text-gray-400 text-center py-8">No subjects yet</p>
-                )}
+                <p className="text-[var(--text-muted)] text-sm text-center py-8">No subjects yet</p>
+              )}
             </div>
           </div>
 
           {/* Top Contributors */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-yellow-500/20 rounded-xl flex items-center justify-center">
-                <Award size={20} className="text-yellow-400" />
-              </div>
-              <h3 className="text-xl font-bold text-white">Top Contributors</h3>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5">
+            <div className="flex items-center gap-2.5 mb-5">
+              <Award size={17} className="text-[var(--text-muted)]" />
+              <h3 className="text-base font-semibold text-[var(--text-primary)]">Top Contributors</h3>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-1">
               {stats?.topContributors?.slice(0, 5).map((user) => (
-                <div key={user._id} className="flex items-center justify-between p-3 bg-gray-900/50 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                <div key={user._id} className="flex items-center justify-between py-2.5 px-1 border-b border-[var(--border)] last:border-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 bg-white/[0.06] rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
                       {user.profilePicture ? (
                         <img
                           src={`${import.meta.env.VITE_BACKEND_URL}${user.profilePicture}`}
                           alt={user.name}
-                          className="w-full h-full rounded-full object-cover"
+                          className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span className="text-white font-bold text-sm">
+                        <span className="text-[var(--text-primary)] font-medium text-xs">
                           {user.name?.charAt(0).toUpperCase()}
                         </span>
                       )}
                     </div>
-                    <div>
-                      <p className="text-white font-medium text-sm">{user.name}</p>
-                      <p className="text-gray-400 text-xs">{user.email}</p>
+                    <div className="min-w-0">
+                      <p className="text-[var(--text-primary)] text-sm font-medium truncate">{user.name}</p>
+                      <p className="text-[var(--text-muted)] text-xs truncate">{user.email}</p>
                     </div>
                   </div>
-                  <span className="text-yellow-400 font-bold">⭐ {user.reputation}</span>
+                  <span className="text-[var(--text-muted)] text-sm font-medium flex-shrink-0">{user.reputation} pts</span>
                 </div>
               )) || (
-                  <p className="text-gray-400 text-center py-8">No contributors yet</p>
-                )}
+                <p className="text-[var(--text-muted)] text-sm text-center py-8">No contributors yet</p>
+              )}
             </div>
           </div>
         </div>

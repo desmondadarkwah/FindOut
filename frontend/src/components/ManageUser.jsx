@@ -3,45 +3,72 @@ import UserProfile from "./UserProfile";
 import { useEditUser } from "../Context/EditUserContext";
 import { IoClose } from "react-icons/io5";
 import { SettingsContext } from "../Context/SettingsContext";
+import { useToast } from "../Context/ToastContext";
 
 const ManageUser = () => {
   const { userData, editUserDetails, fetchUserDetails } = useEditUser();
   const { setOpenManageUser } = useContext(SettingsContext);
+  const { toast } = useToast();
 
   const [subject, setSubject] = useState(userData.subject);
   const [status, setStatus] = useState(userData.status);
+  // FIX: this field had no state, no onChange, and wasn't included in the
+  // save payload — it was a textarea that looked editable and saved
+  // nothing, with a "2/150" counter that was just static text regardless
+  // of what was typed. Wired up for real, initialized from userData.bio
+  // the same way subject/status already are.
+  const [bio, setBio] = useState(userData.bio || '');
   const [allowUpload, setAllowUploads] = useState(false);
   const [changePhoto, setChangePhoto] = useState(false);
 
+  // FIX: this called document.getElementById("file-input").click() — but
+  // no element with id="file-input" was ever rendered anywhere in this
+  // component. That call returns null, and .click() on null throws,
+  // meaning "Upload Photo" crashed on click rather than doing anything.
+  // UserProfile is already given `allowUpload` as a prop, which strongly
+  // suggests it owns its own upload affordance internally when that's
+  // true — so this just hands off to that instead of reaching for a
+  // DOM node that was never there.
   const handleChangePhotoClick = () => {
     setAllowUploads(true);
-    document.getElementById("file-input").click();
+    setChangePhoto(false);
+  };
+
+  // FIX: had no onClick at all — clicking "Remove Current Photo" did
+  // nothing, silently. There's no user-photo-removal endpoint visible
+  // from this file to call, so rather than guess at one (and fail
+  // silently in a different way), this is honest about not being wired
+  // up yet, the same way "Report a Problem" is in SettingsMenu.jsx.
+  const handleRemovePhotoClick = () => {
+    toast.info('Photo removal is coming soon.');
+    setChangePhoto(false);
   };
 
   const handleSaveChanges = async () => {
     const updates = {
       subjects: subject,
-      status: status
+      status: status,
+      bio: bio,
     };
 
     await editUserDetails(updates);
     fetchUserDetails();
-    alert("Profile updated successfully!");
+    toast.success("Profile updated successfully!");
     setOpenManageUser(false);
   };
 
   return (
-    <div className="fixed right-0 top-0 w-full h-full md:w-1/3 md:h-full flex flex-col bg-gradient-to-br from-gray-900 via-black to-gray-800 backdrop-blur-xl border-l border-gray-700/50 z-50">
+    <div className="fixed right-0 top-0 w-full h-full md:w-1/3 md:h-full flex flex-col bg-[var(--bg-primary)] border-l border-[var(--border)] z-50">
       {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b border-gray-700/50 bg-gray-900/50 backdrop-blur-sm">
-        <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+      <div className="flex items-center justify-between p-6 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+        <h1 className="text-xl font-semibold text-[var(--text-primary)]">
           Manage Profile
         </h1>
         <button
           onClick={() => setOpenManageUser(false)}
-          className="p-2 rounded-full bg-gray-800/50 border border-gray-600/50 hover:bg-gray-700/50 hover:border-gray-500/50 transition-all duration-200 group"
+          className="p-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-card-hover)] transition-colors group"
         >
-          <IoClose className="text-gray-400 group-hover:text-white transition-colors" size={20} />
+          <IoClose className="text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors" size={20} />
         </button>
       </div>
 
@@ -50,23 +77,23 @@ const ManageUser = () => {
         <div className="max-w-md mx-auto">
           {/* Profile Section */}
           <div className="relative mb-8">
-            <div className="bg-gradient-to-r from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl">
+            <div className="bg-[var(--bg-card)] rounded-xl p-6 border border-[var(--border)]">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-4">
                   <div className="relative">
                     <UserProfile allowUpload={allowUpload} />
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 border-2 border-gray-900 rounded-full flex items-center justify-center">
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#22c55e] border-2 border-[var(--bg-secondary)] rounded-full flex items-center justify-center">
                       <div className="w-2 h-2 bg-white rounded-full"></div>
                     </div>
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-white">{userData.name}</h2>
-                    <p className="text-gray-400 text-sm">{status}</p>
+                    <h2 className="text-xl font-semibold text-[var(--text-primary)]">{userData.name}</h2>
+                    <p className="text-[var(--text-secondary)] text-sm">{status}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setChangePhoto(true)}
-                  className="px-4 py-2 text-sm font-medium text-blue-300 bg-blue-500/10 border border-blue-500/30 rounded-lg hover:bg-blue-500/20 hover:border-blue-500/50 transition-all duration-200"
+                  className="px-4 py-2 text-sm font-medium text-[#818cf8] bg-[#6366f1]/10 border border-[#6366f1]/25 rounded-lg hover:bg-[#6366f1]/18 transition-colors"
                 >
                   Change Photo
                 </button>
@@ -74,25 +101,25 @@ const ManageUser = () => {
 
               {/* Change Photo Menu */}
               {changePhoto && (
-                <div className="absolute top-full left-6 right-6 mt-2 bg-gray-900/95 backdrop-blur-lg border border-gray-600/50 rounded-xl p-4 shadow-2xl z-10">
-                  <div className="space-y-3">
+                <div className="absolute top-full left-6 right-6 mt-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4 shadow-2xl z-10">
+                  <div className="space-y-1">
                     <button
                       onClick={handleChangePhotoClick}
-                      className="w-full text-left px-4 py-3 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all duration-200 flex items-center space-x-3"
+                      className="w-full text-left px-4 py-3 text-[#818cf8] hover:bg-[#6366f1]/10 rounded-lg transition-colors"
                     >
-                      <span>📁</span>
-                      <span>Upload Photo</span>
+                      Upload Photo
                     </button>
-                    <button className="w-full text-left px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-200 flex items-center space-x-3">
-                      <span>🗑️</span>
-                      <span>Remove Current Photo</span>
+                    <button
+                      onClick={handleRemovePhotoClick}
+                      className="w-full text-left px-4 py-3 text-[#f87171] hover:bg-[#ef4444]/10 rounded-lg transition-colors"
+                    >
+                      Remove Current Photo
                     </button>
                     <button
                       onClick={() => setChangePhoto(false)}
-                      className="w-full text-left px-4 py-3 text-gray-400 hover:bg-gray-500/10 rounded-lg transition-all duration-200 flex items-center space-x-3"
+                      className="w-full text-left px-4 py-3 text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] rounded-lg transition-colors"
                     >
-                      <span>❌</span>
-                      <span>Cancel</span>
+                      Cancel
                     </button>
                   </div>
                 </div>
@@ -104,64 +131,56 @@ const ManageUser = () => {
           <div className="space-y-6">
             {/* Subject Field */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300 flex items-center space-x-2">
-                <span>📚</span>
-                <span>Subject</span>
+              <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                Subject
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Enter your subjects"
-                  className="w-full p-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-xl border border-gray-600/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 placeholder-gray-400"
-                />
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/5 to-purple-500/5 pointer-events-none opacity-0 focus-within:opacity-100 transition-opacity duration-200"></div>
-              </div>
+              <input
+                type="text"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Enter your subjects"
+                className="w-full p-4 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-xl border border-[var(--border)] outline-none focus:ring-2 focus:ring-[#6366f1]/50 focus:border-[#6366f1]/50 transition-colors"
+              />
             </div>
 
             {/* Bio Field */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300 flex items-center space-x-2">
-                <span>✏️</span>
-                <span>Bio</span>
+              <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                Bio
               </label>
-              <div className="relative">
-                <textarea
-                  placeholder="Tell us about yourself..."
-                  className="w-full p-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-xl border border-gray-600/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 placeholder-gray-400 resize-none"
-                  rows="4"
-                />
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-green-500/5 to-blue-500/5 pointer-events-none opacity-0 focus-within:opacity-100 transition-opacity duration-200"></div>
-              </div>
-              <p className="text-gray-500 text-xs flex justify-between">
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value.slice(0, 150))}
+                placeholder="Tell us about yourself..."
+                className="w-full p-4 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-xl border border-[var(--border)] outline-none focus:ring-2 focus:ring-[#6366f1]/50 focus:border-[#6366f1]/50 transition-colors resize-none"
+                rows="4"
+              />
+              <p className="text-[var(--text-muted)] text-xs flex justify-between">
                 <span>Share your interests and goals</span>
-                <span>2/150</span>
+                <span>{bio.length}/150</span>
               </p>
             </div>
 
             {/* Status Field */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300 flex items-center space-x-2">
-                <span>🎯</span>
-                <span>Status</span>
+              <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                Status
               </label>
               <div className="relative">
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className="w-full p-4 bg-gray-800/50 backdrop-blur-sm text-white rounded-xl border border-gray-600/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 appearance-none cursor-pointer"
+                  className="w-full p-4 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-xl border border-[var(--border)] outline-none focus:ring-2 focus:ring-[#6366f1]/50 focus:border-[#6366f1]/50 transition-colors appearance-none cursor-pointer"
                 >
                   <option value="Later">Later</option>
                   <option value="Ready To Teach">Ready To Teach</option>
                   <option value="Ready To Learn">Ready To Learn</option>
                 </select>
                 <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </div>
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-500/5 to-pink-500/5 pointer-events-none opacity-0 focus-within:opacity-100 transition-opacity duration-200"></div>
               </div>
             </div>
           </div>
@@ -169,12 +188,12 @@ const ManageUser = () => {
       </div>
 
       {/* Footer */}
-      <div className="p-6 border-t border-gray-700/50 bg-gray-900/50 backdrop-blur-sm">
+      <div className="p-6 border-t border-[var(--border)] bg-[var(--bg-secondary)]">
         <button
           onClick={handleSaveChanges}
-          className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl border border-blue-500/30 hover:border-blue-400/50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2"
+          className="w-full py-4 bg-gradient-to-r from-[#3b82f6] to-[#6366f1] hover:opacity-90 text-white font-semibold rounded-xl transition-opacity"
         >
-          <span>Save Changes</span>
+          Save Changes
         </button>
       </div>
     </div>

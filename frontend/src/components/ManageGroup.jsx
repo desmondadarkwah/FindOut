@@ -357,8 +357,6 @@ const ManageGroup = () => {
 
       if (response.data.success) {
         setPrivacy(newPrivacy);
-        // Fixed: was `newPrivacy ? 'Private' : 'Public'`, which is always
-        // truthy for a non-empty string and so always said "Private".
         toast.success(
           `Group is now ${newPrivacy === 'private' ? 'Private' : 'Public'}`,
           'Privacy Updated'
@@ -423,7 +421,7 @@ const ManageGroup = () => {
   // RENDER
   // ─────────────────────────────────────────
   return (
-    <div className="fixed right-0 top-0 w-full h-full max-w-[806px] mx-auto flex flex-col items-center bg-gray-950 z-50">
+    <div className="fixed right-0 top-0 w-full h-full max-w-[806px] mx-auto flex flex-col items-center bg-[var(--bg-primary)] z-50">
       <input
         type="file"
         id="group-file-input"
@@ -433,18 +431,18 @@ const ManageGroup = () => {
       />
 
       {/* Close Button */}
-      <span className="cursor-default flex justify-end w-full text-red-500 font-bold p-4">
+      <span className="cursor-default flex justify-end w-full text-[var(--text-muted)] font-bold p-4">
         <IoClose
           onClick={(e) => {
             e.stopPropagation();
             setOpenGroupManager(false);
           }}
-          className="cursor-pointer"
+          className="cursor-pointer hover:text-[var(--text-primary)] transition-colors"
           size={28}
         />
       </span>
 
-      <div className="w-full shadow-lg p-4 bg-gray-950 overflow-y-auto cursor-default">
+      <div className="w-full shadow-lg p-4 bg-[var(--bg-primary)] overflow-y-auto cursor-default">
 
         {/* ─── GROUP PROFILE ─── */}
         <div className="flex flex-col items-center mb-6">
@@ -454,17 +452,17 @@ const ManageGroup = () => {
             <GroupProfile allowUpload={allowUpload} width="w-24" height="h-24" />
           </div>
 
-          <span className="text-white font-semibold text-lg mt-2">
+          <span className="text-[var(--text-primary)] font-semibold text-lg mt-2">
             {selectedChat.groupName}
           </span>
-          <span className="text-gray-400 text-sm">
+          <span className="text-[var(--text-[#3b82f6])] text-sm">
             {members.length} member{members.length !== 1 ? 's' : ''}
           </span>
 
-          {/* Privacy Badge */}
+          {/* Privacy Badge — Public = secondary (blue), Private = primary (indigo) */}
           <span className={`mt-1 text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${privacy === 'private'
-            ? 'bg-purple-900/50 text-purple-400 border border-purple-700'
-            : 'bg-blue-900/50 text-blue-400 border border-blue-700'
+            ? 'bg-[#6366f1]/10 text-[#6366f1] border border-[#6366f1]/30'
+            : 'bg-[#3b82f6]/10 text-[#3b82f6] border border-[#3b82f6]/30'
             }`}>
             {privacy === 'private' ? <MdLock size={10} /> : <MdPublic size={10} />}
             {privacy === 'private' ? 'Private Group' : 'Public Group'}
@@ -472,7 +470,7 @@ const ManageGroup = () => {
 
           {/* Admin Badge */}
           {isAdmin && (
-            <span className="mt-2 text-xs px-2 py-0.5 rounded-full flex items-center gap-1 bg-yellow-900/50 text-yellow-400 border border-yellow-700">
+            <span className="mt-2 text-xs px-2 py-0.5 rounded-full flex items-center gap-1 bg-[#eab308]/10 text-[#eab308] border border-[#eab308]/30">
               <FaCrown size={10} />
               Group Admin
             </span>
@@ -480,20 +478,20 @@ const ManageGroup = () => {
 
           {/* Admin Only: Photo Change Options */}
           {isAdmin && changePhoto && (
-            <div className="bg-gray-800 absolute mt-32 p-3 w-64 flex flex-col items-center gap-3 shadow-lg border border-gray-700 rounded-lg z-10">
+            <div className="bg-[var(--bg-[#3b82f6])] absolute mt-32 p-3 w-64 flex flex-col items-center gap-3 shadow-lg border border-[var(--border)] rounded-lg z-10">
               <span
                 onClick={handleChangePhotoClick}
-                className={`block text-blue-400 cursor-pointer hover:underline ${uploadingPhoto ? 'opacity-50 pointer-events-none' : ''}`}>
+                className={`block text-[#3b82f6] cursor-pointer hover:underline ${uploadingPhoto ? 'opacity-50 pointer-events-none' : ''}`}>
                 {uploadingPhoto ? 'Uploading...' : 'Upload Photo'}
               </span>
               <span
                 onClick={handleRemovePhoto}
-                className={`block text-red-500 cursor-pointer hover:underline ${removingPhoto ? 'opacity-50 pointer-events-none' : ''}`}>
+                className={`block text-[#ef4444] cursor-pointer hover:underline ${removingPhoto ? 'opacity-50 pointer-events-none' : ''}`}>
                 {removingPhoto ? 'Removing...' : 'Remove Current Photo'}
               </span>
               <span
                 onClick={() => setChangePhoto(false)}
-                className="block text-gray-300 cursor-pointer hover:underline">
+                className="block text-[var(--text-[#3b82f6])] cursor-pointer hover:underline">
                 Cancel
               </span>
             </div>
@@ -502,22 +500,22 @@ const ManageGroup = () => {
 
         {/* ─── INVITE LINK ─── */}
         {inviteLink && (
-          <div className="mb-6 p-4 bg-gray-900 rounded-lg border border-gray-800">
+          <div className="mb-6 p-4 bg-[var(--bg-[#3b82f6])] rounded-lg border border-[var(--border)]">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-white font-medium text-sm">Group Invite Link</span>
-              <CiLink size={20} className="text-gray-500" />
+              <span className="text-[var(--text-primary)] font-medium text-sm">Group Invite Link</span>
+              <CiLink size={20} className="text-[var(--text-muted)]" />
             </div>
 
             <a href={inviteLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="block p-3 bg-gray-800 text-blue-500 rounded-lg mb-3 text-sm hover:bg-gray-700 transition break-all border border-gray-700">
+              className="block p-3 bg-[var(--bg-card)] text-[#3b82f6] rounded-lg mb-3 text-sm hover:bg-[var(--bg-card-hover)] transition break-all border border-[var(--border)]">
               {inviteLink}
             </a>
 
             <button
               onClick={handleCopyLink}
-              className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center justify-center gap-2">
+              className="w-full p-3 bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white rounded-lg transition flex items-center justify-center gap-2">
               {copied ? (
                 <>
                   <FiCheck size={18} />
@@ -531,7 +529,7 @@ const ManageGroup = () => {
               )}
             </button>
 
-            <p className="text-gray-500 text-xs mt-3 text-center">
+            <p className="text-[var(--text-muted)] text-xs mt-3 text-center">
               Share this link to invite others
             </p>
           </div>
@@ -539,9 +537,9 @@ const ManageGroup = () => {
 
         {/* ─── MEMBERS SECTION ─── */}
         <div className="mb-6">
-          <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+          <h3 className="text-[var(--text-primary)] font-semibold mb-3 flex items-center gap-2">
             Members
-            <span className="text-gray-400 text-sm">({members.length})</span>
+            <span className="text-[var(--text-[#3b82f6])] text-sm">({members.length})</span>
           </h3>
 
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
@@ -554,7 +552,7 @@ const ManageGroup = () => {
               return (
                 <div
                   key={memberId}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition border border-gray-700">
+                  className="flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--bg-card-hover)] transition border border-[var(--border)]">
 
                   {/* Avatar */}
                   <div
@@ -567,7 +565,7 @@ const ManageGroup = () => {
                         className="w-12 h-12 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center">
+                      <div className="w-12 h-12 bg-[var(--bg-card-hover)] rounded-full flex items-center justify-center">
                         <RxAvatar size={24} />
                       </div>
                     )}
@@ -578,21 +576,21 @@ const ManageGroup = () => {
                     onClick={() => !isCurrentUser && handleMemberClick(memberId)}
                     className={`flex-1 min-w-0 ${!isCurrentUser ? 'cursor-pointer' : ''}`}>
                     <div className="flex items-center gap-2">
-                      <p className="text-white font-medium truncate">
+                      <p className="text-[var(--text-primary)] font-medium truncate">
                         {member.name || 'Unknown'}
                       </p>
                       {isGroupAdmin && (
-                        <FaCrown className="text-yellow-500" size={14} title="Admin" />
+                        <FaCrown className="text-[#eab308]" size={14} title="Admin" />
                       )}
                       {isCurrentUser && (
-                        <span className="text-xs text-blue-400">(You)</span>
+                        <span className="text-xs text-[#3b82f6]">(You)</span>
                       )}
                     </div>
-                    <p className="text-gray-400 text-sm truncate">
+                    <p className="text-[var(--text-[#3b82f6])] text-sm truncate">
                       {member.email || ''}
                     </p>
                     {!isCurrentUser && (
-                      <p className="text-gray-500 text-xs">Click to message</p>
+                      <p className="text-[var(--text-muted)] text-xs">Click to message</p>
                     )}
                   </div>
 
@@ -601,7 +599,7 @@ const ManageGroup = () => {
                     <button
                       onClick={() => handleRemoveMember(memberId, member.name)}
                       disabled={isRemoving}
-                      className="p-2 bg-red-600 hover:bg-red-700 rounded-lg transition disabled:opacity-50"
+                      className="p-2 bg-[#ef4444] hover:bg-[#ef4444]/90 rounded-lg transition disabled:opacity-50"
                       title="Remove member">
                       {isRemoving ? (
                         <BeatLoader color="white" size={8} />
@@ -620,18 +618,18 @@ const ManageGroup = () => {
         {/* ADMIN-ONLY SETTINGS */}
         {/* ─────────────────────────────────────── */}
         {isAdmin && (
-          <div className="border-t border-gray-700 pt-4">
-            <h3 className="text-white font-semibold mb-4">Admin Settings</h3>
+          <div className="border-t border-[var(--border)] pt-4">
+            <h3 className="text-[var(--text-primary)] font-semibold mb-4">Admin Settings</h3>
 
             {/* Privacy Toggle */}
-            <div className="mb-6 p-4 bg-gray-900 rounded-lg border border-gray-800">
+            <div className="mb-6 p-4 bg-[var(--bg-[#3b82f6])] rounded-lg border border-[var(--border)]">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-white font-medium text-sm">Group Privacy</p>
-                  <p className="text-gray-500 text-xs mt-1">
+                  <p className="text-[var(--text-primary)] font-medium text-sm">Group Privacy</p>
+                  <p className="text-[var(--text-muted)] text-xs mt-1">
                     {privacy === 'private'
-                      ? '🔒 Members must request to join'
-                      : '🌍 Anyone can join instantly'}
+                      ? 'Members must request to join'
+                      : 'Anyone can join instantly'}
                   </p>
                 </div>
                 {updatingPrivacy && <BeatLoader color="white" size={8} />}
@@ -642,8 +640,8 @@ const ManageGroup = () => {
                   onClick={() => handlePrivacyToggle('public')}
                   disabled={updatingPrivacy}
                   className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${privacy === 'public'
-                    ? 'bg-blue-600/20 border-blue-500 text-blue-400'
-                    : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
+                    ? 'bg-[#3b82f6]/10 border-[#3b82f6] text-[#3b82f6]'
+                    : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-hover)]'
                     }`}>
                   <MdPublic size={20} />
                   <span className="text-xs font-medium">Public</span>
@@ -653,8 +651,8 @@ const ManageGroup = () => {
                   onClick={() => handlePrivacyToggle('private')}
                   disabled={updatingPrivacy}
                   className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${privacy === 'private'
-                    ? 'bg-purple-600/20 border-purple-500 text-purple-400'
-                    : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
+                    ? 'bg-[#6366f1]/10 border-[#6366f1] text-[#6366f1]'
+                    : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-hover)]'
                     }`}>
                   <MdLock size={20} />
                   <span className="text-xs font-medium">Private</span>
@@ -664,16 +662,16 @@ const ManageGroup = () => {
 
             {/* Pending Join Requests */}
             {privacy === 'private' && (
-              <div className="mb-6 p-4 bg-gray-900 rounded-lg border border-gray-800">
+              <div className="mb-6 p-4 bg-[var(--bg-[#3b82f6])] rounded-lg border border-[var(--border)]">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-white font-medium text-sm">Join Requests</p>
-                  <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
+                  <p className="text-[var(--text-primary)] font-medium text-sm">Join Requests</p>
+                  <span className="bg-[#3b82f6] text-white text-xs px-2 py-0.5 rounded-full">
                     {pendingRequests.length}
                   </span>
                 </div>
 
                 {pendingRequests.length === 0 ? (
-                  <p className="text-gray-500 text-sm text-center py-2">
+                  <p className="text-[var(--text-muted)] text-sm text-center py-2">
                     No pending requests
                   </p>
                 ) : (
@@ -687,7 +685,7 @@ const ManageGroup = () => {
                       return (
                         <div
                           key={reqUserId}
-                          className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg border border-gray-700">
+                          className="flex items-center gap-3 p-3 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]">
 
                           {reqUserPic ? (
                             <img
@@ -696,16 +694,16 @@ const ManageGroup = () => {
                               className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
+                            <div className="w-10 h-10 bg-[var(--bg-card-hover)] rounded-full flex items-center justify-center flex-shrink-0">
                               <RxAvatar size={20} />
                             </div>
                           )}
 
                           <div className="flex-1 min-w-0">
-                            <p className="text-white text-sm font-medium truncate">
+                            <p className="text-[var(--text-primary)] text-sm font-medium truncate">
                               {reqUserName}
                             </p>
-                            <p className="text-gray-500 text-xs">Wants to join</p>
+                            <p className="text-[var(--text-muted)] text-xs">Wants to join</p>
                           </div>
 
                           {isHandling ? (
@@ -714,12 +712,12 @@ const ManageGroup = () => {
                             <div className="flex gap-2 flex-shrink-0">
                               <button
                                 onClick={() => handleJoinRequest(reqUserId, 'approve', reqUserName)}
-                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition">
+                                className="px-3 py-1 bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white text-xs rounded-lg transition">
                                 Approve
                               </button>
                               <button
                                 onClick={() => handleJoinRequest(reqUserId, 'deny', reqUserName)}
-                                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded-lg transition">
+                                className="px-3 py-1 bg-[#ef4444] hover:bg-[#ef4444]/90 text-white text-xs rounded-lg transition">
                                 Deny
                               </button>
                             </div>
@@ -734,43 +732,46 @@ const ManageGroup = () => {
 
             {/* EDITABLE FIELDS FOR ADMIN */}
             <div className="mb-4">
-              <label className="block text-sm text-gray-300 mb-1">Group Name</label>
+              <label className="block text-sm text-[var(--text-[#3b82f6])] mb-1">Group Name</label>
               <input
                 type="text"
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="Enter group name..."
-                className="w-full p-3 bg-gray-800 text-white rounded-md border border-gray-700 focus:outline-none focus:ring focus:ring-blue-500"
+                className="w-full p-3 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:ring focus:ring-[#6366f1]/50"
               />
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm text-gray-300 mb-1">Group Subjects</label>
+              <label className="block text-sm text-[var(--text-[#3b82f6])] mb-1">Group Subjects</label>
               <input
                 type="text"
                 value={subjects}
                 onChange={(e) => setSubjects(e.target.value)}
                 placeholder="Math, Physics, Chemistry..."
-                className="w-full p-3 bg-gray-800 text-white rounded-md border border-gray-700 focus:outline-none focus:ring focus:ring-blue-500"
+                className="w-full p-3 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:ring focus:ring-[#6366f1]/50"
               />
-              <p className="text-gray-500 text-xs mt-1">Separate subjects with commas</p>
+              <p className="text-[var(--text-muted)] text-xs mt-1">Separate subjects with commas</p>
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm text-gray-300 mb-1">Description</label>
+              <label className="block text-sm text-[var(--text-[#3b82f6])] mb-1">Description</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="About this group..."
-                className="w-full p-3 bg-gray-800 text-white rounded-md border border-gray-700 focus:outline-none focus:ring focus:ring-blue-500"
+                className="w-full p-3 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:ring focus:ring-[#6366f1]/50"
                 rows="3"
               />
             </div>
 
+            {/* Primary save action — the one deliberate place the brand
+                gradient shows up in this panel, rather than scattered
+                across every button. */}
             <button
               onClick={handleSaveChanges}
               disabled={saving}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-md transition disabled:opacity-50 flex items-center justify-center gap-2">
+              className="w-full bg-gradient-to-br from-[#3b82f6] to-[#6366f1] hover:opacity-90 text-white py-3 rounded-md transition disabled:opacity-50 flex items-center justify-center gap-2">
               {saving ? (
                 <>
                   <BeatLoader color="white" size={8} />
@@ -787,14 +788,14 @@ const ManageGroup = () => {
         {/* MEMBER-ONLY OPTIONS */}
         {/* ─────────────────────────────────────── */}
         {!isAdmin && (
-          <div className="border-t border-gray-700 pt-4">
+          <div className="border-t border-[var(--border)] pt-4">
             <button
               onClick={handleLeaveGroup}
-              className="w-full p-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition flex items-center justify-center gap-2">
+              className="w-full p-3 bg-[#eab308] hover:bg-[#eab308]/90 text-white rounded-lg transition flex items-center justify-center gap-2">
               <MdExitToApp size={20} />
               <span className="font-medium">Leave Group</span>
             </button>
-            <p className="text-gray-500 text-xs mt-2 text-center">
+            <p className="text-[var(--text-muted)] text-xs mt-2 text-center">
               You'll no longer receive messages from this group
             </p>
           </div>

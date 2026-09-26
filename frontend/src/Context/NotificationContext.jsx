@@ -10,10 +10,8 @@ const NotificationProvider = ({ children }) => {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      // ✅ Check token directly instead of using ChatContext
       const token = localStorage.getItem('accessToken');
       if (!token) return;
-
       const response = await axiosInstance.get('/api/notifications');
       setNotifications(response.data.notifications);
       setUnreadCount(response.data.unreadCount);
@@ -22,12 +20,24 @@ const NotificationProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch on mount
+  // ✅ Fetch on mount
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // ✅ Real-time socket - no userId needed
+  // ✅ Poll every 30 seconds as fallback when socket isn't real-time
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  // ✅ Real-time socket
   useEffect(() => {
     if (!socket) return;
 

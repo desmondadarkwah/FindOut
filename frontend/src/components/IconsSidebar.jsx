@@ -1,57 +1,68 @@
-import React, { useContext, useState, useEffect, useRef } from 'react';
+import React, { useContext } from 'react';
 import { RxHamburgerMenu } from "react-icons/rx";
-import { IoHomeOutline, IoSettingsOutline } from "react-icons/io5";
-import { MdOutlineDashboard, MdOutlineNotifications, MdOutlineDoNotDisturb } from "react-icons/md";
+import { IoHomeOutline } from "react-icons/io5";
 import { BsDoorOpen } from "react-icons/bs";
 import { useNavigate } from 'react-router-dom';
 import UserProfile from './UserProfile';
 import { ProfileContext } from '../Context/ProfileContext';
+import { SettingsContext } from '../Context/SettingsContext';
+import { useToast } from '../Context/ToastContext';
+
+// FIX: Notifications and Do Not Disturb were toggle switches wired to
+// nothing — local state only, no API call, no persisted preference, no
+// actual effect on whether notifications show up anywhere else in the
+// app. They looked like real settings and did nothing. Removed rather
+// than kept as decoration; add them back for real once there's an actual
+// notification-muting system to wire them to.
+//
+// FIX: the avatar at the bottom had cursor-pointer, a hover ring, and a
+// tooltip reading "My Profile" — but no onClick handler at all. It looked
+// clickable and did nothing. Wired it to open the profile editor, the
+// same action DashSidebar.jsx's own avatar already triggers, so it's
+// consistent across the app instead of a dead-end look-alike.
 
 const IconsSidebar = ({ showChatSidebar, setShowChatSidebar }) => {
   const navigate = useNavigate();
   const { userData } = useContext(ProfileContext);
-  const [showSettings, setShowSettings] = useState(false);
-  const [notifications, setNotifications] = useState(true);
-  const [doNotDisturb, setDoNotDisturb] = useState(false);
-  const settingsRef = useRef(null);
+  const { setOpenManageUser } = useContext(SettingsContext);
+  const { confirm } = useToast();
 
-  // ✅ Close settings panel when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (settingsRef.current && !settingsRef.current.contains(e.target)) {
-        setShowSettings(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const handleLogout = async () => {
+    const confirmed = await confirm({
+      title: 'Log Out',
+      message: 'Are you sure you want to log out?',
+      confirmText: 'Log Out',
+      cancelText: 'Cancel',
+      confirmStyle: 'danger',
+    });
+    if (!confirmed) return;
 
-  // ✅ Logout handler
-  const handleLogout = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('userId');
     localStorage.removeItem('refreshToken');
     navigate('/login');
   };
 
-  return (
-    <aside className="relative flex md:flex-col items-center justify-between bg-gray-950 text-white md:min-w-[60px] md:border-r md:border-gray-800 hidden md:flex py-4">
+  const iconButtonClass = "cursor-pointer p-2 rounded-xl hover:bg-[var(--bg-card-hover)] transition-colors duration-200 group relative";
+  const tooltipClass = "absolute left-14 top-1/2 -translate-y-1/2 bg-[var(--bg-card-hover)] text-[var(--text-primary)] text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-[var(--border)]";
 
-      {/* ── TOP ICONS ── */}
+  return (
+    <aside className="relative flex md:flex-col items-center justify-between bg-[var(--bg-primary)] text-[var(--text-primary)] md:min-w-[60px] md:border-r md:border-[var(--border)] hidden md:flex py-4">
+
+      {/* TOP ICONS */}
       <span className="flex flex-col items-center gap-5">
 
         {/* Hamburger - Toggle ChatSidebar */}
         <button
           onClick={() => setShowChatSidebar(!showChatSidebar)}
-          className="cursor-pointer p-2 rounded-xl hover:bg-gray-800 transition-all duration-200 group relative"
+          className={iconButtonClass}
           aria-label="Toggle Sidebar"
         >
           <RxHamburgerMenu
-            className={`transition-colors duration-200 ${showChatSidebar ? 'text-indigo-400' : 'text-gray-400 group-hover:text-white'}`}
+            className={showChatSidebar ? 'text-[#6366f1]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors duration-200'}
             size={20}
           />
-          {/* Tooltip */}
-          <span className="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-700">
+          <span className={tooltipClass}>
             {showChatSidebar ? 'Hide Chats' : 'Show Chats'}
           </span>
         </button>
@@ -59,108 +70,39 @@ const IconsSidebar = ({ showChatSidebar, setShowChatSidebar }) => {
         {/* Home - Go to Dashboard */}
         <button
           onClick={() => navigate('/dashboard')}
-          className="cursor-pointer p-2 rounded-xl hover:bg-gray-800 transition-all duration-200 group relative"
+          className={iconButtonClass}
           aria-label="Dashboard"
         >
           <IoHomeOutline
-            className="text-gray-400 group-hover:text-white transition-colors duration-200"
+            className="text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors duration-200"
             size={21}
           />
-          {/* Tooltip */}
-          <span className="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-700">
-            Dashboard
-          </span>
+          <span className={tooltipClass}>Dashboard</span>
         </button>
 
-        {/* Settings - Opens panel */}
-        <div className="relative" ref={settingsRef}>
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="cursor-pointer p-2 rounded-xl hover:bg-gray-800 transition-all duration-200 group relative"
-            aria-label="Settings"
-          >
-            <IoSettingsOutline
-              className={`transition-colors duration-200 ${showSettings ? 'text-indigo-400 rotate-45' : 'text-gray-400 group-hover:text-white'} transition-transform`}
-              size={21}
-            />
-            {/* Tooltip - only show when panel is closed */}
-            {!showSettings && (
-              <span className="absolute left-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-700">
-                Settings
-              </span>
-            )}
-          </button>
-
-          {/* ✅ Settings Panel */}
-          {showSettings && (
-            <div className="absolute left-14 top-0 w-56 bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
-
-              {/* Panel Header */}
-              <div className="px-4 py-3 border-b border-gray-700/50">
-                <p className="text-white font-semibold text-sm">Quick Settings</p>
-                <p className="text-gray-500 text-xs mt-0.5">Manage your preferences</p>
-              </div>
-
-              {/* Notifications Toggle */}
-              <div className="px-4 py-3 flex items-center justify-between hover:bg-gray-800/50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <MdOutlineNotifications
-                    size={18}
-                    className={notifications ? 'text-indigo-400' : 'text-gray-500'}
-                  />
-                  <span className="text-sm text-gray-300">Notifications</span>
-                </div>
-                {/* Toggle Switch */}
-                <button
-                  onClick={() => setNotifications(!notifications)}
-                  className={`w-10 h-5 rounded-full transition-all duration-300 relative ${notifications ? 'bg-indigo-500' : 'bg-gray-700'}`}
-                >
-                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-300 ${notifications ? 'left-5' : 'left-0.5'}`} />
-                </button>
-              </div>
-
-              {/* Do Not Disturb Toggle */}
-              <div className="px-4 py-3 flex items-center justify-between hover:bg-gray-800/50 transition-colors border-b border-gray-700/30">
-                <div className="flex items-center gap-3">
-                  <MdOutlineDoNotDisturb
-                    size={18}
-                    className={doNotDisturb ? 'text-amber-400' : 'text-gray-500'}
-                  />
-                  <span className="text-sm text-gray-300">Do Not Disturb</span>
-                </div>
-                {/* Toggle Switch */}
-                <button
-                  onClick={() => setDoNotDisturb(!doNotDisturb)}
-                  className={`w-10 h-5 rounded-full transition-all duration-300 relative ${doNotDisturb ? 'bg-amber-500' : 'bg-gray-700'}`}
-                >
-                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-300 ${doNotDisturb ? 'left-5' : 'left-0.5'}`} />
-                </button>
-              </div>
-
-              {/* Log Out */}
-              <button
-                onClick={handleLogout}
-                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-500/10 transition-colors group"
-              >
-                <BsDoorOpen size={18} className="text-red-400" />
-                <span className="text-sm text-red-400 font-medium">Log Out</span>
-              </button>
-            </div>
-          )}
-        </div>
+        {/* Log Out */}
+        <button
+          onClick={handleLogout}
+          className="cursor-pointer p-2 rounded-xl hover:bg-[#ef4444]/10 transition-colors duration-200 group relative"
+          aria-label="Log Out"
+        >
+          <BsDoorOpen size={20} className="text-[#ef4444]/80 group-hover:text-[#ef4444] transition-colors duration-200" />
+          <span className={tooltipClass}>Log Out</span>
+        </button>
       </span>
 
-      {/* ── BOTTOM: User Avatar ── */}
+      {/* BOTTOM: User Avatar */}
       <span className="flex flex-col items-center gap-3 pb-2">
-        <div className="relative group">
-          <div className="cursor-pointer rounded-xl overflow-hidden ring-2 ring-transparent hover:ring-indigo-500 transition-all duration-200">
-            <UserProfile currentImage={userData?.profilePicture} />
-          </div>
-          {/* Tooltip */}
-          <span className="absolute left-14 bottom-0 bg-gray-800 text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-700">
+        <button
+          onClick={() => setOpenManageUser(true)}
+          className="relative group cursor-pointer rounded-xl overflow-hidden ring-2 ring-transparent hover:ring-[#6366f1] transition-all duration-200"
+          aria-label="My Profile"
+        >
+          <UserProfile currentImage={userData?.profilePicture} />
+          <span className="absolute left-14 bottom-0 bg-[var(--bg-card-hover)] text-[var(--text-primary)] text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-[var(--border)]">
             {userData?.name || 'My Profile'}
           </span>
-        </div>
+        </button>
       </span>
     </aside>
   );

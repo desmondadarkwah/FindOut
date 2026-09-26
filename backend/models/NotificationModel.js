@@ -20,6 +20,9 @@ const notificationSchema = new mongoose.Schema({
       'member_joined',
       'new_match',
       'quiz_verified',
+      'post_helpful',  
+      'post_comment',  
+      'quiz_failed',   
     ],
     required: true
   },

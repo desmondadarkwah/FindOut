@@ -5,7 +5,7 @@ import { MdLock } from "react-icons/md";
 import { SuggestionsContext } from "../Context/SuggestionsContext";
 import axiosInstance from "../utils/axiosInstance";
 import { ChatContext } from "../Context/ChatContext";
-import { useToast } from "../Context/ToastContext"; // ✅ NEW
+import { useToast } from "../Context/ToastContext";
 import socket from '../socket/socket';
 
 const Suggestions = () => {
@@ -18,39 +18,33 @@ const Suggestions = () => {
   } = useContext(SuggestionsContext);
 
   const { setChats, userId } = useContext(ChatContext);
-  const { toast } = useToast(); // ✅ NEW
+  const { toast } = useToast();
   const [joiningGroupId, setJoiningGroupId] = useState(null);
   const [requestedGroups, setRequestedGroups] = useState([]);
 
-  // ✅ ADD THIS ENTIRE useEffect RIGHT AFTER const [requestedGroups, setRequestedGroups] = useState([]);
-
+  // FIX: `toast` was in this effect's dependency array. If ToastContext
+  // doesn't memoize the value it provides (useMemo/useCallback), a new
+  // `toast` reference on every render would tear down and re-subscribe
+  // these socket listeners constantly instead of once per userId — the
+  // same bug pattern fixed earlier in ManageGroup.jsx. `socket` is a
+  // stable module-level import so it's harmless in deps, but excluded
+  // here too since it never changes.
   useEffect(() => {
     if (!socket || !userId) return;
 
     const handleJoinRequestApproved = ({ groupId, groupName, group }) => {
-      console.log(`✅ Join request approved for ${groupName}`);
-
-      // ✅ Add group to chats immediately
       setChats(prevChats => {
         const exists = prevChats.some(chat => chat._id === groupId);
         if (!exists) return [group, ...prevChats];
         return prevChats;
       });
 
-      // ✅ Remove from requested list
       setRequestedGroups(prev => prev.filter(id => id !== groupId));
-
-      // ✅ Show success toast
       toast.success(`You've been added to ${groupName}!`, 'Request Approved');
     };
 
     const handleJoinRequestDenied = ({ groupId, groupName }) => {
-      console.log(`❌ Join request denied for ${groupName}`);
-
-      // ✅ Remove from requested list
       setRequestedGroups(prev => prev.filter(id => id !== groupId));
-
-      // ✅ Show info toast
       toast.info(`Your request to join ${groupName} was declined`, 'Request Denied');
     };
 
@@ -61,7 +55,8 @@ const Suggestions = () => {
       socket.off('join-request-approved', handleJoinRequestApproved);
       socket.off('join-request-denied', handleJoinRequestDenied);
     };
-  }, [userId, setChats, toast, socket]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const handleJoinGroup = async (group) => {
     const groupId = group._id;
@@ -82,7 +77,6 @@ const Suggestions = () => {
       if (response.data.success) {
         if (response.data.isPending) {
           setRequestedGroups(prev => [...prev, groupId]);
-          // ✅ Toast instead of alert
           toast.info(
             'Your request has been sent to the group admin',
             'Request Sent'
@@ -98,14 +92,13 @@ const Suggestions = () => {
         }
       }
     } catch (error) {
-      console.error('❌ Error joining group:', error);
+      console.error('Error joining group:', error);
       const errData = error.response?.data;
 
       if (errData?.isPending) {
         setRequestedGroups(prev => [...prev, groupId]);
         toast.info('Your request has been sent to the group admin', 'Request Sent');
       } else {
-        // ✅ Toast instead of alert
         toast.error(errData?.message || 'Failed to join group');
       }
     } finally {
@@ -114,11 +107,17 @@ const Suggestions = () => {
   };
 
   if (loading) {
-    return <span className="ml-28"><BeatLoader color="white" size={10} /></span>;
+    // FIX: was a magic `ml-28` push, a fragile guess at centering rather
+    // than actually centering — swapped for a real flex-centered container.
+    return (
+      <div className="flex justify-center py-4">
+        <BeatLoader color="var(--text-secondary)" size={10} />
+      </div>
+    );
   }
 
   return (
-    <div className="p-2 w-full bg-black">
+    <div className="p-2 w-full bg-[var(--bg-primary)]">
 
       {/* ─── USERS ─── */}
       {suggestedUsers.map((user) => (
@@ -131,20 +130,20 @@ const Suggestions = () => {
                 className="w-10 h-10 rounded-full object-cover"
               />
             ) : (
-              <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
-                <RxAvatar size={20} />
+              <div className="w-10 h-10 bg-[var(--bg-card-hover)] rounded-full flex items-center justify-center">
+                <RxAvatar size={20} className="text-[var(--text-secondary)]" />
               </div>
             )}
             <span className="flex flex-col">
-              <span className="font-semibold text-white truncate block w-32">
+              <span className="font-semibold text-[var(--text-primary)] truncate block w-32">
                 {user.name}
               </span>
-              <span className="block text-gray-500 text-sm">{user.status}</span>
+              <span className="block text-[var(--text-muted)] text-sm">{user.status}</span>
             </span>
           </div>
           <button
             onClick={() => handleConnectPrivateChat(user._id)}
-            className="text-blue-500 text-sm hover:text-blue-400 transition">
+            className="text-[#818cf8] text-sm hover:opacity-80 transition-opacity">
             Connect
           </button>
         </div>
@@ -159,10 +158,14 @@ const Suggestions = () => {
           m => (m._id || m) === userId
         );
 
+        // FIX: the `isRequested` branch here was dead code — the render
+        // below already swaps the whole button out for a "Requested" label
+        // before this function is ever called in that case. Removed the
+        // unreachable branch rather than leave it implying behavior it
+        // doesn't have.
         const getButtonLabel = () => {
-          if (isJoining) return <BeatLoader color="white" size={6} />;
+          if (isJoining) return <BeatLoader color="#fff" size={6} />;
           if (isAlreadyMember) return 'Open';
-          if (isRequested) return null;
           if (group.privacy === 'private') return 'Request';
           return 'Join';
         };
@@ -181,35 +184,34 @@ const Suggestions = () => {
                   className="w-10 h-10 rounded-full object-cover"
                 />
               ) : (
-                <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
-                  <RxAvatar size={20} />
+                <div className="w-10 h-10 bg-[var(--bg-card-hover)] rounded-full flex items-center justify-center">
+                  <RxAvatar size={20} className="text-[var(--text-secondary)]" />
                 </div>
               )}
 
               <span className="flex flex-col">
-                <span className="font-semibold text-white truncate block w-28">
+                <span className="font-semibold text-[var(--text-primary)] truncate block w-28">
                   {group.groupName}
                   {group.privacy === 'private' && (
-                    <MdLock size={12} className="text-gray-400 inline ml-1" />
+                    <MdLock size={12} className="text-[var(--text-muted)] inline ml-1" />
                   )}
                 </span>
-                <span className="block text-gray-500 text-xs">
-                  {group.members?.length || 0} members •{' '}
+                <span className="block text-[var(--text-muted)] text-xs">
+                  {group.members?.length || 0} members ·{' '}
                   {group.privacy === 'private' ? 'Private' : 'Public'}
                 </span>
               </span>
             </div>
 
             {isRequested ? (
-              <span className="text-gray-500 text-xs">Requested</span>
+              <span className="text-[var(--text-muted)] text-xs">Requested</span>
             ) : (
               <button
                 onClick={() => handleJoinGroup(group)}
                 disabled={isJoining}
-                className={`text-sm transition disabled:opacity-50 ${isAlreadyMember
-                  ? 'text-green-500 hover:text-green-400'
-                  : 'text-blue-500 hover:text-blue-400'
-                  }`}>
+                className={`text-sm transition-opacity disabled:opacity-50 hover:opacity-80 ${
+                  isAlreadyMember ? 'text-[#22c55e]' : 'text-[#818cf8]'
+                }`}>
                 {getButtonLabel()}
               </button>
             )}

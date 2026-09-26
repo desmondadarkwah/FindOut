@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useVerification } from '../Context/VerificationContext';
-import { Clock, CheckCircle, XCircle, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 import FindOutLoader from '../Loader/FindOutLoader';
+import { useToast } from '../Context/ToastContext';
 
 const TakeQuiz = () => {
   const { subject } = useParams();
   const navigate = useNavigate();
   const { startQuiz, submitQuiz } = useVerification();
+  const { toast, confirm } = useToast();
 
   const [quizData, setQuizData] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -17,12 +19,10 @@ const TakeQuiz = () => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Load quiz on mount
   useEffect(() => {
     loadQuiz();
   }, [subject]);
 
-  // Timer countdown
   useEffect(() => {
     if (!quizData || result) return;
 
@@ -47,7 +47,7 @@ const TakeQuiz = () => {
       setAnswers(new Array(data.questions.length).fill(null));
       setTimeRemaining(data.timeLimit || 600);
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to load quiz');
+      toast.error(error.response?.data?.message || 'Failed to load quiz');
       navigate('/verification');
     } finally {
       setLoading(false);
@@ -72,9 +72,28 @@ const TakeQuiz = () => {
     }
   };
 
-  const handleAutoSubmit = async () => {
+  // FIX: this is the actual submission call, split out from handleSubmit
+  // so the timeout path can call it directly. Previously handleAutoSubmit
+  // called handleSubmit(), which starts by checking for unanswered
+  // questions and popping a "submit anyway?" confirmation — but if the
+  // timer has already hit zero, there's no more time to answer anything,
+  // so asking "are you sure" at that exact moment is nonsensical and just
+  // leaves the quiz hanging on a dialog with the clock already frozen at
+  // 0:00.
+  const submitNow = async () => {
+    try {
+      setIsSubmitting(true);
+      const response = await submitQuiz(quizData.quizSessionId, answers);
+      setResult(response.result);
+    } catch (error) {
+      toast.error('Failed to submit quiz. Please try again.');
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAutoSubmit = () => {
     if (isSubmitting) return;
-    await handleSubmit();
+    submitNow();
   };
 
   const handleSubmit = async () => {
@@ -82,20 +101,17 @@ const TakeQuiz = () => {
 
     const unanswered = answers.filter(a => a === null).length;
     if (unanswered > 0) {
-      const confirm = window.confirm(
-        `You have ${unanswered} unanswered question(s). Submit anyway?`
-      );
-      if (!confirm) return;
+      const confirmed = await confirm({
+        title: 'Unanswered Questions',
+        message: `You have ${unanswered} unanswered question${unanswered !== 1 ? 's' : ''}. Submit anyway?`,
+        confirmText: 'Submit',
+        cancelText: 'Keep Answering',
+        confirmStyle: 'warning',
+      });
+      if (!confirmed) return;
     }
 
-    try {
-      setIsSubmitting(true);
-      const response = await submitQuiz(quizData.quizSessionId, answers);
-      setResult(response.result);
-    } catch (error) {
-      alert('Failed to submit quiz. Please try again.');
-      setIsSubmitting(false);
-    }
+    submitNow();
   };
 
   const formatTime = (seconds) => {
@@ -104,11 +120,8 @@ const TakeQuiz = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Loading state
   if (loading) {
-    return (
-      <FindOutLoader />
-    );
+    return <FindOutLoader />;
   }
 
   // Results screen
@@ -116,46 +129,45 @@ const TakeQuiz = () => {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0f0f1a, #1a1a2e)',
+        background: 'var(--bg-primary)',
         padding: '40px 20px'
       }}>
         <div style={{
           maxWidth: 800,
           margin: '0 auto',
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 24,
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 20,
           padding: 40
         }}>
           {/* Result Header */}
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
             <div style={{
-              width: 80,
-              height: 80,
+              width: 72,
+              height: 72,
               borderRadius: '50%',
-              background: result.passed
-                ? 'linear-gradient(135deg, #22c55e, #16a34a)'
-                : 'linear-gradient(135deg, #ef4444, #dc2626)',
+              background: result.passed ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+              border: `1px solid ${result.passed ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 24px'
             }}>
               {result.passed ? (
-                <CheckCircle size={40} color="#fff" />
+                <CheckCircle size={34} color="#4ade80" />
               ) : (
-                <XCircle size={40} color="#fff" />
+                <XCircle size={34} color="#f87171" />
               )}
             </div>
             <h1 style={{
-              fontSize: 32,
-              fontWeight: 800,
-              color: '#fff',
+              fontSize: 28,
+              fontWeight: 700,
+              color: 'var(--text-primary)',
               marginBottom: 8
             }}>
-              {result.passed ? 'Congratulations! 🎉' : 'Not Quite There Yet'}
+              {result.passed ? 'Congratulations!' : 'Not Quite There Yet'}
             </h1>
-            <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.6)' }}>
+            <p style={{ fontSize: 15, color: 'var(--text-secondary)' }}>
               {result.passed
                 ? `You've been verified in ${subject}!`
                 : 'Keep practicing and try again!'}
@@ -164,10 +176,10 @@ const TakeQuiz = () => {
 
           {/* Score Card */}
           <div style={{
-            background: 'rgba(0,0,0,0.3)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 16,
-            padding: 32,
+            background: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            borderRadius: 14,
+            padding: 28,
             marginBottom: 32
           }}>
             <div style={{
@@ -177,30 +189,30 @@ const TakeQuiz = () => {
               textAlign: 'center'
             }}>
               <div>
-                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
                   Score
                 </p>
-                <p style={{ fontSize: 36, fontWeight: 800, color: '#fff' }}>
+                <p style={{ fontSize: 32, fontWeight: 700, color: 'var(--text-primary)' }}>
                   {result.score}/{result.totalQuestions}
                 </p>
               </div>
               <div>
-                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
                   Percentage
                 </p>
                 <p style={{
-                  fontSize: 36,
-                  fontWeight: 800,
-                  color: result.passed ? '#22c55e' : '#ef4444'
+                  fontSize: 32,
+                  fontWeight: 700,
+                  color: result.passed ? '#4ade80' : '#f87171'
                 }}>
                   {result.percentage}%
                 </p>
               </div>
               <div>
-                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
                   Time
                 </p>
-                <p style={{ fontSize: 36, fontWeight: 800, color: '#fff' }}>
+                <p style={{ fontSize: 32, fontWeight: 700, color: 'var(--text-primary)' }}>
                   {formatTime(result.timeSpent)}
                 </p>
               </div>
@@ -210,9 +222,9 @@ const TakeQuiz = () => {
           {/* Questions Review */}
           <div style={{ marginBottom: 32 }}>
             <h3 style={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: '#fff',
+              fontSize: 16,
+              fontWeight: 600,
+              color: 'var(--text-primary)',
               marginBottom: 16
             }}>
               Review Your Answers
@@ -222,16 +234,16 @@ const TakeQuiz = () => {
                 <div
                   key={index}
                   style={{
-                    background: 'rgba(0,0,0,0.2)',
-                    border: `1px solid ${q.isCorrect ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                    background: 'var(--bg-primary)',
+                    border: `1px solid ${q.isCorrect ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)'}`,
                     borderRadius: 12,
                     padding: 16
                   }}
                 >
                   <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
                     <div style={{
-                      width: 24,
-                      height: 24,
+                      width: 22,
+                      height: 22,
                       borderRadius: '50%',
                       background: q.isCorrect ? '#22c55e' : '#ef4444',
                       display: 'flex',
@@ -240,16 +252,16 @@ const TakeQuiz = () => {
                       flexShrink: 0
                     }}>
                       {q.isCorrect ? (
-                        <CheckCircle size={14} color="#fff" />
+                        <CheckCircle size={13} color="#fff" />
                       ) : (
-                        <XCircle size={14} color="#fff" />
+                        <XCircle size={13} color="#fff" />
                       )}
                     </div>
-                    <p style={{ fontSize: 14, color: '#fff', fontWeight: 600 }}>
+                    <p style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>
                       {index + 1}. {q.question}
                     </p>
                   </div>
-                  <div style={{ marginLeft: 36 }}>
+                  <div style={{ marginLeft: 34 }}>
                     {q.options.map((option, optIndex) => {
                       const isCorrect = optIndex === q.correctAnswer;
                       const isUserAnswer = optIndex === q.userAnswer;
@@ -258,30 +270,35 @@ const TakeQuiz = () => {
                         <div
                           key={optIndex}
                           style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
                             padding: '8px 12px',
                             borderRadius: 8,
                             marginBottom: 4,
                             background: isCorrect
-                              ? 'rgba(34,197,94,0.1)'
+                              ? 'rgba(34,197,94,0.08)'
                               : isUserAnswer
-                                ? 'rgba(239,68,68,0.1)'
+                                ? 'rgba(239,68,68,0.08)'
                                 : 'transparent',
                             border: `1px solid ${isCorrect
-                                ? 'rgba(34,197,94,0.3)'
+                                ? 'rgba(34,197,94,0.25)'
                                 : isUserAnswer
-                                  ? 'rgba(239,68,68,0.3)'
+                                  ? 'rgba(239,68,68,0.25)'
                                   : 'transparent'
                               }`,
                             fontSize: 13,
-                            color: isCorrect || isUserAnswer ? '#fff' : 'rgba(255,255,255,0.6)'
+                            color: isCorrect || isUserAnswer ? 'var(--text-primary)' : 'var(--text-secondary)'
                           }}
                         >
-                          {option}
+                          <span>{option}</span>
                           {isCorrect && (
-                            <span style={{ marginLeft: 8, color: '#22c55e' }}>✓ Correct</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#4ade80', fontSize: 12 }}>
+                              <CheckCircle size={12} />Correct
+                            </span>
                           )}
                           {isUserAnswer && !isCorrect && (
-                            <span style={{ marginLeft: 8, color: '#ef4444' }}>✗ Your answer</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#f87171', fontSize: 12 }}>
+                              <XCircle size={12} />Your answer
+                            </span>
                           )}
                         </div>
                       );
@@ -289,11 +306,11 @@ const TakeQuiz = () => {
                     {q.explanation && (
                       <p style={{
                         fontSize: 12,
-                        color: 'rgba(255,255,255,0.5)',
+                        color: 'var(--text-muted)',
                         marginTop: 8,
                         fontStyle: 'italic'
                       }}>
-                        💡 {q.explanation}
+                        {q.explanation}
                       </p>
                     )}
                   </div>
@@ -332,15 +349,15 @@ const TakeQuiz = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0f0f1a, #1a1a2e)',
+      background: 'var(--bg-primary)',
       padding: '20px'
     }}>
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
         {/* Header */}
         <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 16,
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 14,
           padding: 20,
           marginBottom: 24,
           display: 'flex',
@@ -348,10 +365,10 @@ const TakeQuiz = () => {
           alignItems: 'center'
         }}>
           <div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+            <h2 style={{ fontSize: 19, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
               {subject} Verification Quiz
             </h2>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
               Question {currentQuestion + 1} of {quizData.questions.length}
             </p>
           </div>
@@ -362,13 +379,13 @@ const TakeQuiz = () => {
             padding: '8px 16px',
             background: timeRemaining < 60 ? 'rgba(239,68,68,0.1)' : 'rgba(99,102,241,0.1)',
             border: `1px solid ${timeRemaining < 60 ? 'rgba(239,68,68,0.3)' : 'rgba(99,102,241,0.3)'}`,
-            borderRadius: 12
+            borderRadius: 10
           }}>
-            <Clock size={18} color={timeRemaining < 60 ? '#ef4444' : '#6366f1'} />
+            <Clock size={17} color={timeRemaining < 60 ? '#ef4444' : '#818cf8'} />
             <span style={{
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: 700,
-              color: timeRemaining < 60 ? '#ef4444' : '#fff'
+              color: timeRemaining < 60 ? '#f87171' : 'var(--text-primary)'
             }}>
               {formatTime(timeRemaining)}
             </span>
@@ -377,8 +394,8 @@ const TakeQuiz = () => {
 
         {/* Progress Bar */}
         <div style={{
-          height: 8,
-          background: 'rgba(255,255,255,0.05)',
+          height: 6,
+          background: 'var(--bg-card)',
           borderRadius: 99,
           marginBottom: 24,
           overflow: 'hidden'
@@ -393,23 +410,23 @@ const TakeQuiz = () => {
 
         {/* Question Card */}
         <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 20,
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 18,
           padding: 32,
           marginBottom: 24
         }}>
           <h3 style={{
-            fontSize: 18,
+            fontSize: 17,
             fontWeight: 600,
-            color: '#fff',
+            color: 'var(--text-primary)',
             marginBottom: 24,
             lineHeight: 1.6
           }}>
             {question.question}
           </h3>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {question.options.map((option, index) => {
               const isSelected = answers[currentQuestion] === index;
               return (
@@ -417,33 +434,24 @@ const TakeQuiz = () => {
                   key={index}
                   onClick={() => handleAnswerSelect(currentQuestion, index)}
                   style={{
-                    padding: '16px 20px',
-                    background: isSelected
-                      ? 'rgba(99,102,241,0.15)'
-                      : 'rgba(255,255,255,0.03)',
-                    border: `2px solid ${isSelected ? '#6366f1' : 'rgba(255,255,255,0.1)'
-                      }`,
-                    borderRadius: 12,
-                    color: '#fff',
-                    fontSize: 15,
+                    padding: '15px 18px',
+                    background: isSelected ? 'rgba(99,102,241,0.12)' : 'var(--bg-primary)',
+                    border: `1.5px solid ${isSelected ? '#6366f1' : 'var(--border)'}`,
+                    borderRadius: 10,
+                    color: 'var(--text-primary)',
+                    fontSize: 14,
                     textAlign: 'left',
                     cursor: 'pointer',
-                    transition: 'all 0.2s'
+                    transition: 'border-color 0.2s, background 0.2s'
                   }}
                   onMouseEnter={e => {
-                    if (!isSelected) {
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                    }
+                    if (!isSelected) e.currentTarget.style.borderColor = 'var(--border-hover)';
                   }}
                   onMouseLeave={e => {
-                    if (!isSelected) {
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-                    }
+                    if (!isSelected) e.currentTarget.style.borderColor = 'var(--border)';
                   }}
                 >
-                  <span style={{ fontWeight: 600, marginRight: 12 }}>
+                  <span style={{ fontWeight: 600, marginRight: 12, color: 'var(--text-secondary)' }}>
                     {String.fromCharCode(65 + index)}.
                   </span>
                   {option}
@@ -464,11 +472,11 @@ const TakeQuiz = () => {
             onClick={handlePrevious}
             disabled={currentQuestion === 0}
             style={{
-              padding: '12px 24px',
-              background: currentQuestion === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 12,
-              color: currentQuestion === 0 ? 'rgba(255,255,255,0.3)' : '#fff',
+              padding: '11px 22px',
+              background: currentQuestion === 0 ? 'var(--bg-card)' : 'var(--bg-card-hover)',
+              border: '1px solid var(--border)',
+              borderRadius: 10,
+              color: currentQuestion === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
               fontSize: 14,
               fontWeight: 600,
               cursor: currentQuestion === 0 ? 'not-allowed' : 'pointer',
@@ -486,12 +494,12 @@ const TakeQuiz = () => {
               onClick={handleSubmit}
               disabled={isSubmitting}
               style={{
-                padding: '12px 32px',
+                padding: '11px 30px',
                 background: isSubmitting
                   ? 'rgba(99,102,241,0.5)'
                   : 'linear-gradient(135deg, #3b82f6, #6366f1)',
                 border: 'none',
-                borderRadius: 12,
+                borderRadius: 10,
                 color: '#fff',
                 fontSize: 14,
                 fontWeight: 600,
@@ -504,11 +512,11 @@ const TakeQuiz = () => {
             <button
               onClick={handleNext}
               style={{
-                padding: '12px 24px',
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 12,
-                color: '#fff',
+                padding: '11px 22px',
+                background: 'var(--bg-card-hover)',
+                border: '1px solid var(--border)',
+                borderRadius: 10,
+                color: 'var(--text-primary)',
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -526,12 +534,12 @@ const TakeQuiz = () => {
         {/* Question Navigator */}
         <div style={{
           marginTop: 24,
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 16,
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 14,
           padding: 20
         }}>
-          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 12 }}>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
             Quick Navigation
           </p>
           <div style={{
@@ -548,17 +556,17 @@ const TakeQuiz = () => {
                   height: 40,
                   borderRadius: 8,
                   background: answers[index] !== null
-                    ? 'rgba(34,197,94,0.2)'
+                    ? 'rgba(34,197,94,0.15)'
                     : currentQuestion === index
-                      ? 'rgba(99,102,241,0.2)'
-                      : 'rgba(255,255,255,0.05)',
+                      ? 'rgba(99,102,241,0.15)'
+                      : 'var(--bg-primary)',
                   border: `1px solid ${currentQuestion === index
                       ? '#6366f1'
                       : answers[index] !== null
-                        ? 'rgba(34,197,94,0.4)'
-                        : 'rgba(255,255,255,0.1)'
+                        ? 'rgba(34,197,94,0.35)'
+                        : 'var(--border)'
                     }`,
-                  color: '#fff',
+                  color: 'var(--text-primary)',
                   fontSize: 14,
                   fontWeight: 600,
                   cursor: 'pointer'

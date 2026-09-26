@@ -1,5 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Search, CheckCircle, MessageCircle, Users, BookOpen, Lock,
+  User, TrendingUp,
+} from 'lucide-react';
+
+// NOTE: colors on this page are intentionally hardcoded hex/rgba, not the
+// app's var(--bg-primary)/var(--text-primary) theme tokens used everywhere
+// else in the codebase. This page sits outside the theme toggle on
+// purpose — a visitor's first impression shouldn't flicker between light
+// and dark depending on some stored preference from a session they don't
+// have yet. It's fixed to dark, matching the app's own default (see
+// ThemeContext.jsx: `useState(localStorage.getItem('theme') || 'dark')`),
+// so there's no jarring switch the moment someone signs up and lands in
+// the actual product.
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -11,34 +25,38 @@ const LandingPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // FIX: dropped the "AI-powered" / "algorithm" / "intelligent" framing
+  // throughout this file — the app doesn't claim to be AI-driven anywhere
+  // else, so the landing page shouldn't either. Matching is still the
+  // real feature; it's just described honestly now.
   const features = [
     {
-      icon: '🧠',
-      title: 'Intelligent Matching',
-      description: 'Our algorithm connects you with the right study partners based on your subjects, learning goals, and availability — not just random suggestions.',
+      icon: Search,
+      title: 'Smart Matching',
+      description: 'We connect you with study partners based on your subjects, learning goals, and availability — not just random suggestions.',
     },
     {
-      icon: '✅',
+      icon: CheckCircle,
       title: 'Verified Teachers',
       description: 'Every teacher on FindOut passes a subject-specific quiz before earning their verified badge. Learn from credible, trusted peers.',
     },
     {
-      icon: '💬',
+      icon: MessageCircle,
       title: 'Real-Time Messaging',
       description: 'Chat instantly with your study partners and groups. Share resources, ask questions, and collaborate in real time.',
     },
     {
-      icon: '👥',
+      icon: Users,
       title: 'Study Groups',
       description: 'Create or join public, private, or secret study groups tailored to your subject. Manage members and discussions all in one place.',
     },
     {
-      icon: '📚',
+      icon: BookOpen,
       title: 'Learning Hub',
       description: 'Share resources, post help requests, and explore explanations from your peers. Build reputation by contributing helpful content.',
     },
     {
-      icon: '🔒',
+      icon: Lock,
       title: 'Privacy Controls',
       description: 'You decide who sees you and your groups. Choose public, private, or secret settings for total control of your learning space.',
     },
@@ -49,19 +67,19 @@ const LandingPage = () => {
       number: '01',
       title: 'Create Your Profile',
       description: 'Sign up and add your subjects, set your learning status — Ready to Teach, Ready to Learn, or Later — and let FindOut know what you need.',
-      icon: '👤',
+      icon: User,
     },
     {
       number: '02',
-      title: 'Get Matched Instantly',
-      description: 'Our intelligent algorithm finds your ideal study partners based on your subjects and goals. Browse suggestions and start a conversation in one click.',
-      icon: '🔍',
+      title: 'Get Matched',
+      description: 'FindOut surfaces study partners based on your subjects and goals. Browse suggestions and start a conversation in one click.',
+      icon: Search,
     },
     {
       number: '03',
       title: 'Learn & Grow Together',
       description: 'Join study groups, share knowledge in the Learning Hub, get verified as a teacher, and build your academic reputation with every contribution.',
-      icon: '🚀',
+      icon: TrendingUp,
     },
   ];
 
@@ -75,13 +93,13 @@ const LandingPage = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0f0f1a 0%, #0a0a0f 50%, #0d0d1a 100%)',
+      background: '#0a0a0f',
       color: '#f1f5f9',
       fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
       overflowX: 'hidden',
     }}>
 
-      {/* ── NAVBAR ── */}
+      {/* NAVBAR */}
       <nav style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
         padding: '0 24px',
@@ -98,14 +116,11 @@ const LandingPage = () => {
             width: 36, height: 36, borderRadius: 10,
             background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18, fontWeight: 800, color: '#fff',
-            boxShadow: '0 4px 14px rgba(99,102,241,0.4)',
+            fontSize: 18, fontWeight: 700, color: '#fff',
           }}>F</div>
-          <span style={{
-            fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em',
-            background: 'linear-gradient(135deg,#60a5fa,#a78bfa)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          }}>FindOut</span>
+          <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: '#f1f5f9' }}>
+            FindOut
+          </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -130,8 +145,7 @@ const LandingPage = () => {
               padding: '9px 20px', borderRadius: 10,
               background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
               border: 'none', color: '#fff',
-              fontSize: 14, fontWeight: 700, cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
+              fontSize: 14, fontWeight: 600, cursor: 'pointer',
               transition: 'all 0.2s',
             }}
             onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
@@ -142,7 +156,7 @@ const LandingPage = () => {
         </div>
       </nav>
 
-      {/* ── HERO ── */}
+      {/* HERO */}
       <section style={{
         minHeight: '100vh',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -150,71 +164,44 @@ const LandingPage = () => {
         position: 'relative', overflow: 'hidden',
         textAlign: 'center',
       }}>
-        {/* Background glow */}
+        {/* One subtle background glow — the two extra "floating orb" blobs
+            that used to sit at opposite corners were dropped as
+            decorative excess. */}
         <div style={{
           position: 'absolute', top: '20%', left: '50%',
           transform: 'translateX(-50%)',
           width: 800, height: 500,
-          background: 'radial-gradient(ellipse at center, rgba(99,102,241,0.12) 0%, rgba(59,130,246,0.06) 40%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-
-        {/* Floating orbs */}
-        <div style={{
-          position: 'absolute', top: '15%', left: '10%',
-          width: 300, height: 300, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: '20%', right: '8%',
-          width: 250, height: 250, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse at center, rgba(99,102,241,0.1) 0%, rgba(59,130,246,0.05) 40%, transparent 70%)',
           pointerEvents: 'none',
         }} />
 
         <div style={{ position: 'relative', maxWidth: 800, margin: '0 auto' }}>
-          {/* Badge */}
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '6px 16px', borderRadius: 99, marginBottom: 32,
-            background: 'rgba(99,102,241,0.1)',
-            border: '1px solid rgba(99,102,241,0.25)',
-          }}>
-            <span style={{ fontSize: 14 }}>✨</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#a5b4fc', letterSpacing: '0.02em' }}>
-              AI-Powered Peer Learning Platform
-            </span>
-          </div>
-
           {/* Headline */}
           <h1 style={{
-            fontSize: 'clamp(40px, 7vw, 72px)',
-            fontWeight: 900, lineHeight: 1.1,
+            fontSize: 'clamp(40px, 7vw, 68px)',
+            fontWeight: 700, lineHeight: 1.15,
             margin: '0 0 24px',
-            letterSpacing: '-0.03em',
+            letterSpacing: '-0.02em',
           }}>
-            <span style={{ color: '#f1f5f9' }}>Find Your </span>
-            <span style={{
-              background: 'linear-gradient(135deg,#60a5fa,#818cf8,#a78bfa)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            }}>Perfect Study</span>
+            <span style={{ color: '#f1f5f9' }}>Find your perfect </span>
+            <span style={{ color: '#818cf8' }}>study partner</span>
             <br />
-            <span style={{ color: '#f1f5f9' }}>Partner Today</span>
+            <span style={{ color: '#f1f5f9' }}>today</span>
           </h1>
 
           {/* Subheadline */}
           <p style={{
-            fontSize: 'clamp(16px, 2.5vw, 20px)',
+            fontSize: 'clamp(16px, 2.5vw, 19px)',
             color: 'rgba(255,255,255,0.45)',
             lineHeight: 1.7, margin: '0 auto 48px',
             maxWidth: 600, fontWeight: 400,
           }}>
-            FindOut intelligently connects students who want to teach with students who want to learn —
-            powered by AI matching, real-time chat, and verified peer expertise.
+            FindOut connects students who want to teach with students who want to learn —
+            through real-time chat, study groups, and verified peer expertise.
           </p>
 
-          {/* CTAs */}
+          {/* CTAs — one deliberate gradient, reserved for the two
+              conversion actions on this page */}
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
               onClick={() => navigate('/register')}
@@ -222,15 +209,13 @@ const LandingPage = () => {
                 padding: '16px 36px', borderRadius: 14,
                 background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
                 border: 'none', color: '#fff',
-                fontSize: 16, fontWeight: 700, cursor: 'pointer',
-                boxShadow: '0 6px 24px rgba(99,102,241,0.4)',
+                fontSize: 16, fontWeight: 600, cursor: 'pointer',
                 transition: 'all 0.2s',
-                display: 'flex', alignItems: 'center', gap: 8,
               }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 30px rgba(99,102,241,0.5)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(99,102,241,0.4)'; }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}
             >
-              🚀 Start Learning Free
+              Start Learning Free
             </button>
             <button
               onClick={() => navigate('/login')}
@@ -245,7 +230,7 @@ const LandingPage = () => {
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.4)'; e.currentTarget.style.color = '#fff'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
             >
-              Log In →
+              Log In
             </button>
           </div>
 
@@ -253,12 +238,9 @@ const LandingPage = () => {
           <div style={{ marginTop: 56, display: 'flex', justifyContent: 'center', gap: 40, flexWrap: 'wrap' }}>
             {stats.map(stat => (
               <div key={stat.label} style={{ textAlign: 'center' }}>
-                <div style={{
-                  fontSize: 28, fontWeight: 800,
-                  background: 'linear-gradient(135deg,#60a5fa,#a78bfa)',
-                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                  lineHeight: 1,
-                }}>{stat.value}</div>
+                <div style={{ fontSize: 26, fontWeight: 700, color: '#f1f5f9', lineHeight: 1 }}>
+                  {stat.value}
+                </div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 6, fontWeight: 500 }}>
                   {stat.label}
                 </div>
@@ -268,91 +250,74 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ── FEATURES ── */}
+      {/* FEATURES */}
       <section style={{ padding: '100px 24px', maxWidth: 1200, margin: '0 auto' }}>
-        {/* Section header */}
         <div style={{ textAlign: 'center', marginBottom: 64 }}>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '5px 14px', borderRadius: 99, marginBottom: 20,
-            background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)',
-          }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              Platform Features
-            </span>
-          </div>
           <h2 style={{
-            fontSize: 'clamp(28px, 4vw, 44px)',
-            fontWeight: 800, margin: '0 0 16px',
-            letterSpacing: '-0.02em', color: '#f1f5f9',
+            fontSize: 'clamp(28px, 4vw, 40px)',
+            fontWeight: 700, margin: '0 0 16px',
+            letterSpacing: '-0.01em', color: '#f1f5f9',
           }}>
-            Everything You Need to{' '}
-            <span style={{
-              background: 'linear-gradient(135deg,#60a5fa,#a78bfa)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            }}>Learn Together</span>
+            Everything you need to learn together
           </h2>
           <p style={{
             fontSize: 17, color: 'rgba(255,255,255,0.4)',
             maxWidth: 520, margin: '0 auto', lineHeight: 1.7,
           }}>
-            FindOut brings intelligent matching, real-time collaboration, and verified expertise into one seamless platform.
+            FindOut brings matching, real-time collaboration, and verified expertise into one place.
           </p>
         </div>
 
-        {/* Features grid */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
           gap: 20,
         }}>
-          {features.map((feature, i) => (
-            <div
-              key={i}
-              style={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                borderRadius: 20, padding: '28px 28px',
-                transition: 'all 0.25s ease',
-                cursor: 'default',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)';
-                e.currentTarget.style.background = 'rgba(99,102,241,0.05)';
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 40px rgba(99,102,241,0.1)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)';
-                e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <div style={{
-                width: 52, height: 52, borderRadius: 14,
-                background: 'rgba(99,102,241,0.12)',
-                border: '1px solid rgba(99,102,241,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 24, marginBottom: 20,
-              }}>
-                {feature.icon}
+          {features.map((feature, i) => {
+            const Icon = feature.icon;
+            return (
+              <div
+                key={i}
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                  borderRadius: 16, padding: '28px',
+                  transition: 'border-color 0.2s, background 0.2s',
+                  cursor: 'default',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)';
+                  e.currentTarget.style.background = 'rgba(99,102,241,0.04)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                }}
+              >
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12,
+                  background: 'rgba(99,102,241,0.1)',
+                  border: '1px solid rgba(99,102,241,0.2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: 20,
+                }}>
+                  <Icon size={22} color="#818cf8" />
+                </div>
+                <h3 style={{
+                  fontSize: 16, fontWeight: 600,
+                  color: '#f1f5f9', margin: '0 0 10px',
+                }}>{feature.title}</h3>
+                <p style={{
+                  fontSize: 14, color: 'rgba(255,255,255,0.4)',
+                  lineHeight: 1.7, margin: 0,
+                }}>{feature.description}</p>
               </div>
-              <h3 style={{
-                fontSize: 17, fontWeight: 700,
-                color: '#f1f5f9', margin: '0 0 10px',
-                letterSpacing: '-0.01em',
-              }}>{feature.title}</h3>
-              <p style={{
-                fontSize: 14, color: 'rgba(255,255,255,0.4)',
-                lineHeight: 1.7, margin: 0,
-              }}>{feature.description}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ── */}
+      {/* HOW IT WORKS */}
       <section style={{
         padding: '100px 24px',
         background: 'rgba(99,102,241,0.03)',
@@ -360,145 +325,103 @@ const LandingPage = () => {
         borderBottom: '1px solid rgba(255,255,255,0.04)',
       }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          {/* Section header */}
-          <div style={{ textAlign: 'center', marginBottom: 72 }}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '5px 14px', borderRadius: 99, marginBottom: 20,
-              background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)',
-            }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#a78bfa', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                How It Works
-              </span>
-            </div>
+          <div style={{ textAlign: 'center', marginBottom: 64 }}>
             <h2 style={{
-              fontSize: 'clamp(28px, 4vw, 44px)',
-              fontWeight: 800, margin: '0 0 16px',
-              letterSpacing: '-0.02em', color: '#f1f5f9',
+              fontSize: 'clamp(28px, 4vw, 40px)',
+              fontWeight: 700, margin: '0 0 16px',
+              letterSpacing: '-0.01em', color: '#f1f5f9',
             }}>
-              Up and Running in{' '}
-              <span style={{
-                background: 'linear-gradient(135deg,#a78bfa,#60a5fa)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-              }}>3 Simple Steps</span>
+              Up and running in 3 steps
             </h2>
             <p style={{
               fontSize: 17, color: 'rgba(255,255,255,0.4)',
               maxWidth: 480, margin: '0 auto', lineHeight: 1.7,
             }}>
-              Getting started with FindOut is simple. Join thousands of students already learning together.
+              Getting started with FindOut is simple.
             </p>
           </div>
 
-          {/* Steps */}
+          {/* FIX: each step used to carry a "connector line" div that was
+              unconditionally `display: 'none'` with a comment claiming it
+              was "hidden on mobile, shown on desktop via media query
+              workaround" — no such media query existed anywhere, so the
+              line never rendered on any screen size. Removed the dead
+              element rather than keep a comment describing behavior that
+              didn't exist. */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: 32, alignItems: 'start',
           }}>
-            {steps.map((step, i) => (
-              <div key={i} style={{ position: 'relative' }}>
-                {/* Connector line */}
-                {i < steps.length - 1 && (
-                  <div style={{
-                    position: 'absolute', top: 32, left: 'calc(50% + 60px)',
-                    width: 'calc(100% - 20px)', height: 1,
-                    background: 'linear-gradient(to right, rgba(99,102,241,0.3), transparent)',
-                    display: 'none', // hidden on mobile, shown on desktop via media query workaround
-                  }} />
-                )}
-
-                <div style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: 24, padding: '36px 28px',
-                  textAlign: 'center',
-                  transition: 'all 0.25s',
-                }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)';
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 12px 40px rgba(99,102,241,0.1)';
+            {steps.map((step, i) => {
+              const Icon = step.icon;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 18, padding: '32px 28px',
+                    textAlign: 'center',
+                    transition: 'border-color 0.2s',
                   }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                    e.currentTarget.style.transform = 'none';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
                 >
-                  {/* Step number */}
                   <div style={{
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: 44, height: 44, borderRadius: 12,
-                    background: 'linear-gradient(135deg,rgba(59,130,246,0.2),rgba(99,102,241,0.2))',
-                    border: '1px solid rgba(99,102,241,0.3)',
-                    fontSize: 13, fontWeight: 800, color: '#818cf8',
-                    letterSpacing: '0.05em', marginBottom: 20,
+                    width: 40, height: 40, borderRadius: 10,
+                    background: 'rgba(99,102,241,0.12)',
+                    border: '1px solid rgba(99,102,241,0.25)',
+                    fontSize: 13, fontWeight: 700, color: '#818cf8',
+                    letterSpacing: '0.02em', marginBottom: 20,
                   }}>
                     {step.number}
                   </div>
 
-                  {/* Icon */}
                   <div style={{
-                    width: 64, height: 64, borderRadius: 18,
-                    background: 'linear-gradient(135deg,rgba(59,130,246,0.15),rgba(99,102,241,0.15))',
+                    width: 56, height: 56, borderRadius: 16,
+                    background: 'rgba(99,102,241,0.1)',
                     border: '1px solid rgba(99,102,241,0.2)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 30, margin: '0 auto 24px',
+                    margin: '0 auto 24px',
                   }}>
-                    {step.icon}
+                    <Icon size={24} color="#818cf8" />
                   </div>
 
                   <h3 style={{
-                    fontSize: 18, fontWeight: 700,
+                    fontSize: 17, fontWeight: 600,
                     color: '#f1f5f9', margin: '0 0 12px',
-                    letterSpacing: '-0.01em',
                   }}>{step.title}</h3>
                   <p style={{
                     fontSize: 14, color: 'rgba(255,255,255,0.4)',
                     lineHeight: 1.7, margin: 0,
                   }}>{step.description}</p>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* ── CTA SECTION ── */}
+      {/* CTA SECTION */}
       <section style={{ padding: '100px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-        {/* Background glow */}
         <div style={{
           position: 'absolute', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
           width: 600, height: 400,
-          background: 'radial-gradient(ellipse at center, rgba(99,102,241,0.1) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse at center, rgba(99,102,241,0.08) 0%, transparent 70%)',
           pointerEvents: 'none',
         }} />
 
         <div style={{ position: 'relative', maxWidth: 680, margin: '0 auto' }}>
-          {/* Badge */}
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '6px 16px', borderRadius: 99, marginBottom: 28,
-            background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)',
-          }}>
-            <span style={{ fontSize: 14 }}>🎓</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#a5b4fc' }}>
-              Free for all students
-            </span>
-          </div>
-
           <h2 style={{
-            fontSize: 'clamp(32px, 5vw, 56px)',
-            fontWeight: 900, margin: '0 0 20px',
-            letterSpacing: '-0.03em', lineHeight: 1.1,
+            fontSize: 'clamp(30px, 5vw, 48px)',
+            fontWeight: 700, margin: '0 0 20px',
+            letterSpacing: '-0.02em', lineHeight: 1.15,
           }}>
-            <span style={{ color: '#f1f5f9' }}>Ready to Find Your </span>
-            <span style={{
-              background: 'linear-gradient(135deg,#60a5fa,#a78bfa)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            }}>Study Partner?</span>
+            <span style={{ color: '#f1f5f9' }}>Ready to find your </span>
+            <span style={{ color: '#818cf8' }}>study partner?</span>
           </h2>
 
           <p style={{
@@ -507,7 +430,7 @@ const LandingPage = () => {
             maxWidth: 500,
           }}>
             Join FindOut today and connect with students who share your subjects,
-            goals, and passion for learning.
+            goals, and passion for learning. Free for all students.
           </p>
 
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -517,15 +440,13 @@ const LandingPage = () => {
                 padding: '16px 40px', borderRadius: 14,
                 background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
                 border: 'none', color: '#fff',
-                fontSize: 16, fontWeight: 700, cursor: 'pointer',
-                boxShadow: '0 8px 28px rgba(99,102,241,0.45)',
+                fontSize: 16, fontWeight: 600, cursor: 'pointer',
                 transition: 'all 0.2s',
-                display: 'flex', alignItems: 'center', gap: 8,
               }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 36px rgba(99,102,241,0.55)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(99,102,241,0.45)'; }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}
             >
-              🚀 Create Free Account
+              Create Free Account
             </button>
             <button
               onClick={() => navigate('/login')}
@@ -540,13 +461,13 @@ const LandingPage = () => {
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.4)'; e.currentTarget.style.color = '#fff'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
             >
-              Already have an account? →
+              Already have an account?
             </button>
           </div>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
+      {/* FOOTER */}
       <footer style={{
         borderTop: '1px solid rgba(255,255,255,0.06)',
         padding: '32px 24px',
@@ -556,16 +477,12 @@ const LandingPage = () => {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
-            width: 28, height: 28, borderRadius: 8,
+            width: 26, height: 26, borderRadius: 8,
             background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 14, fontWeight: 800, color: '#fff',
+            fontSize: 13, fontWeight: 700, color: '#fff',
           }}>F</div>
-          <span style={{
-            fontSize: 16, fontWeight: 700,
-            background: 'linear-gradient(135deg,#60a5fa,#a78bfa)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          }}>FindOut</span>
+          <span style={{ fontSize: 15, fontWeight: 600, color: '#f1f5f9' }}>FindOut</span>
         </div>
 
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.25)', margin: 0 }}>

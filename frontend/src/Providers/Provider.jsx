@@ -13,38 +13,41 @@ import ToastProvider from '../Context/ToastContext'; // ✅ ADD THIS
 import AdminContextProvider from '../Context/AdminContext';
 import VerificationProvider from '../Context/VerificationContext';
 import NotificationProvider from '../Context/NotificationContext';
+import ThemeProvider from '../Context/ThemeContext';
 
 
 const Provider = ({ children }) => {
   return (
     <ToastProvider> {/* ✅ Outermost so toasts show above everything */}
-      <SettingsProvider>
-        <ProfileProvider>
-          <EditUserProvider>
-            <AdminContextProvider>
-              <ChatContextProvider>
-                <SuggestionsProvider>
-                  <FetchAllGroupsProvider>
-                    <DeleteGroupProvider>
-                      <GroupProfileProvider>
-                        <VerificationProvider>
-                          <PostContextProvider>
-                            <CommentContextProvider>
-                              <NotificationProvider>
-                                {children}
-                              </NotificationProvider>
-                            </CommentContextProvider>
-                          </PostContextProvider>
-                        </VerificationProvider>
-                      </GroupProfileProvider>
-                    </DeleteGroupProvider>
-                  </FetchAllGroupsProvider>
-                </SuggestionsProvider>
-              </ChatContextProvider>
-            </AdminContextProvider>
-          </EditUserProvider>
-        </ProfileProvider>
-      </SettingsProvider>
+      <ThemeProvider>
+        <SettingsProvider>
+          <ProfileProvider>
+            <EditUserProvider>
+              <AdminContextProvider>
+                <ChatContextProvider>
+                  <SuggestionsProvider>
+                    <FetchAllGroupsProvider>
+                      <DeleteGroupProvider>
+                        <GroupProfileProvider>
+                          <VerificationProvider>
+                            <PostContextProvider>
+                              <CommentContextProvider>
+                                <NotificationProvider>
+                                  {children}
+                                </NotificationProvider>
+                              </CommentContextProvider>
+                            </PostContextProvider>
+                          </VerificationProvider>
+                        </GroupProfileProvider>
+                      </DeleteGroupProvider>
+                    </FetchAllGroupsProvider>
+                  </SuggestionsProvider>
+                </ChatContextProvider>
+              </AdminContextProvider>
+            </EditUserProvider>
+          </ProfileProvider>
+        </SettingsProvider>
+      </ThemeProvider>
     </ToastProvider>
   );
 };

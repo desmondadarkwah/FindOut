@@ -20,6 +20,8 @@ import ExploreGroups from './Pages/ExploreGroups';
 import VerificationDashboard from './Pages/VerificationDashboard';
 import TakeQuiz from './Pages/TakeQuiz';
 import LandingPage from './Pages/LandingPage';
+import AdminReports from './Pages/AdminReports';
+
 
 function App() {
   return (
@@ -44,10 +46,13 @@ function App() {
         <Route path="/admin-users" element={<AdminUsers />} />
         <Route path="/admin-posts" element={<AdminPosts />} />
         <Route path="/admin-analytics" element={<AdminAnalytics />} />
+        <Route path="/admin-reports" element={<AdminReports />} />
+
         <Route path="/explore-groups" element={<ExploreGroups />} />
 
         <Route path="/verification" element={<VerificationDashboard />} />
         <Route path="/take-quiz/:subject" element={<TakeQuiz />} />
+
 
       </Routes>
       {/* </Router> */}

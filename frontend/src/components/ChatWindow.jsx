@@ -4,7 +4,7 @@ import socket from '../socket/socket';
 import { RxAvatar } from "react-icons/rx";
 import { FiPhone, FiPaperclip } from "react-icons/fi";
 import { HiOutlineVideoCamera, HiDotsVertical } from "react-icons/hi";
-import { MdOutlineKeyboardVoice, MdOutlineEmojiEmotions, MdDelete, MdSend } from "react-icons/md";
+import { MdOutlineKeyboardVoice, MdOutlineEmojiEmotions, MdDelete, MdSend, MdBlock } from "react-icons/md";
 import { IoMdSend, IoMdArrowBack } from "react-icons/io";
 import { BsPauseFill, BsPlayFill } from "react-icons/bs";
 import moment from 'moment';
@@ -195,7 +195,7 @@ const ChatWindow = () => {
         const response = await axiosInstance.get(`/api/messages/${selectedChat._id}`);
         setMessages(response.data);
       } catch (error) {
-        console.error('❌ Error fetching messages:', error);
+        console.error('Error fetching messages:', error);
       }
     };
 
@@ -317,7 +317,7 @@ const ChatWindow = () => {
           })
         );
       } else {
-        console.error('❌ Error sending message:', response.error);
+        console.error('Error sending message:', response.error);
       }
     });
     setShowEmojiPicker(false);
@@ -341,7 +341,7 @@ const ChatWindow = () => {
         customAudioPlayerRefs.current[audioPlayingId].pause();
         if (progressIntervals.current[audioPlayingId]) clearInterval(progressIntervals.current[audioPlayingId]);
       }
-      audioElement.play().catch(e => console.error("❌ Audio play error:", e));
+      audioElement.play().catch(e => console.error("Audio play error:", e));
       setAudioPlayingId(audioId);
       progressIntervals.current[audioId] = setInterval(() => {
         if (audioElement.duration) {
@@ -399,7 +399,7 @@ const ChatWindow = () => {
         prevMessages.map(msg => msg._id === messageId ? { ...msg, localAudioUrl: blobUrl } : msg)
       );
     } catch (error) {
-      console.error('❌ Error fetching audio:', error);
+      console.error('Error fetching audio:', error);
     }
   };
 
@@ -476,7 +476,7 @@ const ChatWindow = () => {
       setMediaRecorder(recorder);
       setIsRecording(true);
     } catch (error) {
-      console.error("❌ Error starting recording:", error);
+      console.error("Error starting recording:", error);
     }
   };
 
@@ -504,13 +504,13 @@ const ChatWindow = () => {
         const messageWithLocalUrl = { ...response.data.message, localAudioUrl: audioURL };
         setMessages((prevMessages) => [...prevMessages, messageWithLocalUrl]);
         socket.emit('send-audio-message', { messageId: response.data.message._id, chatId: selectedChat._id }, (response) => {
-          if (response.status !== 'success') console.error('❌ Error notifying about audio message:', response.error);
+          if (response.status !== 'success') console.error('Error notifying about audio message:', response.error);
         });
       }
       setAudioBlob(null);
       setAudioURL(null);
     } catch (error) {
-      console.error("❌ Error sending voice message:", error);
+      console.error("Error sending voice message:", error);
     }
   };
 
@@ -554,27 +554,27 @@ const ChatWindow = () => {
     switch (status) {
       case 'sending':
         return (
-          <svg className="w-3 h-3 text-gray-400" viewBox="0 0 16 16" fill="currentColor">
+          <svg className="w-3 h-3 text-[var(--text-secondary)]" viewBox="0 0 16 16" fill="currentColor">
             <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="2" fill="none" />
             <path d="M8 4v4l3 3" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
           </svg>
         );
       case 'sent':
         return (
-          <svg className="w-4 h-4 text-gray-400" viewBox="0 0 16 16" fill="none">
+          <svg className="w-4 h-4 text-[var(--text-secondary)]" viewBox="0 0 16 16" fill="none">
             <path d="M13.5 4.5L6 12l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         );
       case 'delivered':
         return (
-          <svg className="w-4 h-4 text-gray-400" viewBox="0 0 16 16" fill="none">
+          <svg className="w-4 h-4 text-[var(--text-secondary)]" viewBox="0 0 16 16" fill="none">
             <path d="M14.5 4.5L7 12l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M11.5 4.5L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         );
       case 'read':
         return (
-          <svg className="w-4 h-4 text-blue-500" viewBox="0 0 16 16" fill="none">
+          <svg className="w-4 h-4 text-[#3b82f6]" viewBox="0 0 16 16" fill="none">
             <path d="M14.5 4.5L7 12l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M11.5 4.5L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -586,7 +586,7 @@ const ChatWindow = () => {
 
   if (!selectedChat) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-900 text-gray-400 h-screen">
+      <div className="flex-1 flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-secondary)] h-screen">
         Select a chat to start messaging.
       </div>
     );
@@ -594,13 +594,13 @@ const ChatWindow = () => {
 
   const groupedItems = groupMessagesByDate();
 
-  // ✅ Get other participant and blocked state
+  // Get other participant and blocked state
   const otherParticipant = !selectedChat.isGroup
     ? selectedChat.participants?.find(p => p._id !== userId)
     : null;
   const isBlockedChat = selectedChat.isBlockedChat || false;
 
-  // ✅ Unblock handler for the blocked bar
+  // Unblock handler for the blocked bar
   const handleUnblockFromBar = async () => {
     try {
       await axiosInstance.post('/api/unblock-user', { userIdToUnblock: otherParticipant?._id });
@@ -614,10 +614,10 @@ const ChatWindow = () => {
   };
 
   return (
-    <div className="flex flex-col w-full h-screen bg-gray-950 text-white">
+    <div className="flex flex-col w-full h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
 
       {/* ── HEADER ── */}
-      <header className="flex justify-between items-center bg-gray-950 p-1.5 border-b border-gray-900">
+      <header className="flex justify-between items-center bg-[var(--bg-primary)] p-1.5 border-b border-[var(--border)]">
         <IoMdArrowBack
           size={20}
           className='block lg:hidden cursor-pointer'
@@ -645,16 +645,16 @@ const ChatWindow = () => {
                               : `${import.meta.env.VITE_BACKEND_URL}/uploads/${otherParticipant.profilePicture}`
                           }
                           alt={otherParticipant.name}
-                          className={`w-12 h-12 rounded-full object-cover border ${isBlockedChat ? 'border-red-800/50 opacity-60' : 'border-gray-700'}`}
+                          className={`w-12 h-12 rounded-full object-cover border ${isBlockedChat ? 'border-[#ef4444]/40 opacity-60' : 'border-[var(--border)]'}`}
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-                          <RxAvatar size={24} className="text-gray-400" />
+                        <div className="w-10 h-10 rounded-full bg-[var(--bg-card-hover)] flex items-center justify-center">
+                          <RxAvatar size={24} className="text-[var(--text-secondary)]" />
                         </div>
                       )}
                       {/* Only show online dot if not blocked */}
                       {isUserOnline && !isBlockedChat && (
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-950"></div>
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#22c55e] rounded-full border-2 border-[var(--bg-primary)]"></div>
                       )}
                     </>
                   );
@@ -669,14 +669,14 @@ const ChatWindow = () => {
                   : otherParticipant?.name || "Unknown User"}
               </h2>
 
-              {/* ✅ Show blocked status or online status */}
+              {/* Show blocked status or online status */}
               {!selectedChat.isGroup && (
                 isBlockedChat ? (
-                  <span className="text-xs text-red-400/70">Blocked</span>
+                  <span className="text-xs text-[#f87171]/70">Blocked</span>
                 ) : (() => {
                   const userStatus = otherParticipant && onlineUsers[otherParticipant._id];
-                  if (userStatus?.isOnline) return <span className="text-xs text-green-400">Online</span>;
-                  if (userStatus?.lastSeen) return <span className="text-xs text-gray-400">Last seen {moment(userStatus.lastSeen).fromNow()}</span>;
+                  if (userStatus?.isOnline) return <span className="text-xs text-[#22c55e]">Online</span>;
+                  if (userStatus?.lastSeen) return <span className="text-xs text-[var(--text-secondary)]">Last seen {moment(userStatus.lastSeen).fromNow()}</span>;
                   return null;
                 })()
               )}
@@ -697,7 +697,7 @@ const ChatWindow = () => {
             className="cursor-pointer"
             onClick={(e) => { e.stopPropagation(); setShowChatOptions(!showChatOptions); }}
           />
-          {/* ✅ Pass isBlockedChat to IndividualChatOptions */}
+          {/* Pass isBlockedChat to IndividualChatOptions */}
           {showChatOptions && (
             selectedChat.isGroup ? <GroupOptions /> : (
               <IndividualChatOptions
@@ -720,7 +720,7 @@ const ChatWindow = () => {
           if (item.type === 'date') {
             return (
               <div key={item.id} className="flex justify-center my-3">
-                <div className="bg-gray-800 text-gray-300 text-xs font-medium px-4 py-1 rounded-full">
+                <div className="bg-[var(--bg-card-hover)] text-[var(--text-secondary)] text-xs font-medium px-4 py-1 rounded-full">
                   {formatDateHeader(item.date)}
                 </div>
               </div>
@@ -732,8 +732,8 @@ const ChatWindow = () => {
           if (msg.type === 'system') {
             return (
               <div key={item.id} className="flex justify-center my-2">
-                <div className="bg-gray-800 text-gray-400 text-xs px-3 py-1 rounded-full">
-                  <span className="font-medium text-blue-400">{msg.senderId?.name || 'Someone'}</span>
+                <div className="bg-[var(--bg-card-hover)] text-[var(--text-secondary)] text-xs px-3 py-1 rounded-full">
+                  <span className="font-medium" style={{ color: '#818cf8' }}>{msg.senderId?.name || 'Someone'}</span>
                   {' '}{msg.content}
                 </div>
               </div>
@@ -767,12 +767,12 @@ const ChatWindow = () => {
                           ? `${import.meta.env.VITE_BACKEND_URL}${msg.senderId.profilePicture}`
                           : `${import.meta.env.VITE_BACKEND_URL}/uploads/${msg.senderId.profilePicture}`
                       }
-                      className="w-8 h-8 rounded-full object-cover border border-gray-700"
+                      className="w-8 h-8 rounded-full object-cover border border-[var(--border)]"
                       alt={msg.senderId.name}
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
-                      <RxAvatar size={24} className="text-gray-400" />
+                    <div className="w-8 h-8 rounded-full bg-[var(--bg-card-hover)] flex items-center justify-center">
+                      <RxAvatar size={24} className="text-[var(--text-secondary)]" />
                     </div>
                   )}
                 </div>
@@ -780,7 +780,7 @@ const ChatWindow = () => {
 
               <div className={`flex flex-col ${!isCurrentUserMessage && isGroupChat ? 'ml-1' : ''} max-w-[75%]`}>
                 {shouldShowSenderName && (
-                  <span className="text-xs font-medium" style={{ color: '#5dadec' }}>
+                  <span className="text-xs font-medium" style={{ color: '#818cf8' }}>
                     <span onClick={() => handleConnectPrivateChat(msg.senderId._id)} className='text-xs cursor-pointer'>
                       {msg.senderId.name || "Unknown User"}
                     </span>
@@ -789,7 +789,7 @@ const ChatWindow = () => {
 
                 <div className={`px-3 py-2 rounded-lg shadow-sm flex ${
                   msg.type === 'audio' ? 'bg-transparent'
-                  : isCurrentUserMessage ? 'bg-blue-700 text-white' : 'bg-gray-800 text-white'
+                  : isCurrentUserMessage ? 'bg-[var(--message-own-bg)] text-[var(--text-primary)]' : 'bg-[var(--message-bg)] text-[var(--text-primary)]'
                 }`}>
                   <div className="flex-1 break-words pr-1">
                     {msg.type === 'audio' ? (
@@ -802,14 +802,14 @@ const ChatWindow = () => {
                           onError={(e) => handleAudioError(e, msg)}
                           className="hidden"
                         />
-                        <div className={`rounded-full ${isCurrentUserMessage ? 'bg-blue-700' : 'bg-gray-700'} flex items-center p-1`}>
+                        <div className={`rounded-full ${isCurrentUserMessage ? 'bg-[var(--message-own-bg)]' : 'bg-[#3f4354]'} flex items-center p-1`}>
                           <button
                             onClick={() => toggleAudioPlayback(audioId, audioSrc)}
                             className="bg-white rounded-full p-1 flex items-center justify-center"
                           >
                             {audioPlayingId === audioId
-                              ? <BsPauseFill size={16} className="text-blue-600" />
-                              : <BsPlayFill size={16} className="text-blue-600 ml-0.5" />
+                              ? <BsPauseFill size={16} className="text-[#6366f1]" />
+                              : <BsPlayFill size={16} className="text-[#6366f1] ml-0.5" />
                             }
                           </button>
                           <div className="flex-1 mx-2 cursor-pointer" onClick={(e) => handleWaveformClick(audioId, e)}>
@@ -828,7 +828,7 @@ const ChatWindow = () => {
                               ))}
                             </div>
                           </div>
-                          <div className="bg-white text-blue-600 px-2 py-1 rounded-full text-xs font-medium">
+                          <div className="bg-white text-[#6366f1] px-2 py-1 rounded-full text-xs font-medium">
                             {audioDurations[audioId] !== undefined
                               ? formatAudioTime(currentProgress * audioDurations[audioId])
                               : '0:00'}
@@ -837,7 +837,7 @@ const ChatWindow = () => {
                       </div>
                     ) : msg.content}
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] text-gray-400 self-end ml-1">
+                  <div className="flex items-center gap-1 text-[10px] text-[var(--text-secondary)] self-end ml-1">
                     <span>{msg.createdAt ? moment(msg.createdAt).format('h:mm A') : ''}</span>
                     {renderMessageStatus(msg)}
                   </div>
@@ -853,12 +853,12 @@ const ChatWindow = () => {
                           ? `${import.meta.env.VITE_BACKEND_URL}${msg.senderId.profilePicture}`
                           : `${import.meta.env.VITE_BACKEND_URL}/uploads/${msg.senderId.profilePicture}`
                       }
-                      className="w-8 h-8 rounded-full object-cover border border-gray-700"
+                      className="w-8 h-8 rounded-full object-cover border border-[var(--border)]"
                       alt={msg.senderId.name}
                     />
                   ) : msg.senderId._id !== userId && (
-                    <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
-                      <RxAvatar size={24} className="text-gray-400" />
+                    <div className="w-8 h-8 rounded-full bg-[var(--bg-card-hover)] flex items-center justify-center">
+                      <RxAvatar size={24} className="text-[var(--text-secondary)]" />
                     </div>
                   )}
                 </div>
@@ -871,8 +871,8 @@ const ChatWindow = () => {
 
       {/* ── RECORDING UI ── */}
       {isRecording && (
-        <div className="bg-gray-900 p-3 border-t border-gray-800">
-          <div className="rounded-full bg-blue-600 flex items-center justify-between p-1 w-full">
+        <div className="bg-[var(--bg-secondary)] p-3 border-t border-[var(--border)]">
+          <div className="rounded-full bg-[#6366f1] flex items-center justify-between p-1 w-full">
             <div className="p-1">
               <div className="bg-white rounded-full p-1 flex items-center justify-center">
                 <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse"></div>
@@ -881,15 +881,15 @@ const ChatWindow = () => {
             <div className="flex-1 flex items-center justify-center">
               <canvas ref={canvasRef} height="40" width="100%" className="px-2" />
             </div>
-            <div className="bg-white text-blue-600 px-2 py-1 rounded-full text-xs font-medium">
+            <div className="bg-white text-[#6366f1] px-2 py-1 rounded-full text-xs font-medium">
               {formatTime(recordingTime)}
             </div>
           </div>
           <div className="flex justify-end mt-2">
-            <button onClick={cancelRecording} className="p-2 bg-gray-700 rounded-full hover:bg-gray-600 mr-2">
+            <button onClick={cancelRecording} className="p-2 bg-[var(--bg-card-hover)] rounded-full hover:opacity-80 mr-2">
               <MdDelete size={20} />
             </button>
-            <button onClick={stopRecording} className="p-2 bg-indigo-700 rounded-full hover:bg-indigo-600">
+            <button onClick={stopRecording} className="p-2 bg-[#6366f1] rounded-full hover:opacity-90">
               <MdSend size={20} />
             </button>
           </div>
@@ -898,13 +898,13 @@ const ChatWindow = () => {
 
       {/* ── PREVIEW UI ── */}
       {audioURL && !isRecording && (
-        <div className="bg-gray-900 p-3 border-t border-gray-800">
-          <div className="rounded-full bg-blue-600 flex items-center p-1 w-full">
+        <div className="bg-[var(--bg-secondary)] p-3 border-t border-[var(--border)]">
+          <div className="rounded-full bg-[#6366f1] flex items-center p-1 w-full">
             <button
               onClick={() => { const audio = new Audio(audioURL); audio.play(); }}
               className="bg-white rounded-full p-1 flex items-center justify-center"
             >
-              <BsPlayFill size={16} className="text-blue-600 ml-0.5" />
+              <BsPlayFill size={16} className="text-[#6366f1] ml-0.5" />
             </button>
             <div className="flex-1 mx-2">
               <div className="flex items-center h-8">
@@ -917,22 +917,22 @@ const ChatWindow = () => {
                 })}
               </div>
             </div>
-            <div className="bg-white text-blue-600 px-2 py-1 rounded-full text-xs font-medium">
+            <div className="bg-white text-[#6366f1] px-2 py-1 rounded-full text-xs font-medium">
               {formatTime(recordingTime)}
             </div>
           </div>
           <div className="flex justify-end mt-2">
-            <button onClick={cancelRecording} className="p-2 bg-gray-700 rounded-full hover:bg-gray-600 mr-2">
+            <button onClick={cancelRecording} className="p-2 bg-[var(--bg-card-hover)] rounded-full hover:opacity-80 mr-2">
               <MdDelete size={20} />
             </button>
-            <button onClick={sendVoiceMessage} className="p-2 bg-indigo-700 rounded-full hover:bg-indigo-600">
+            <button onClick={sendVoiceMessage} className="p-2 bg-[#6366f1] rounded-full hover:opacity-90">
               <MdSend size={20} />
             </button>
           </div>
         </div>
       )}
 
-      {/* ✅ BLOCKED BAR - replaces input when chat is blocked */}
+      {/* BLOCKED BAR - replaces input when chat is blocked */}
       {isBlockedChat ? (
         <div style={{
           padding: '14px 16px',
@@ -941,7 +941,7 @@ const ChatWindow = () => {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 20 }}>🚫</span>
+            <MdBlock size={18} color="rgba(248,113,113,0.85)" />
             <div>
               <p style={{ color: 'rgba(248,113,113,0.85)', fontSize: 13, fontWeight: 600, margin: 0 }}>
                 You blocked {otherParticipant?.name || 'this user'}
@@ -984,11 +984,11 @@ const ChatWindow = () => {
         </div>
       ) : !isRecording && !audioURL && (
         /* ── NORMAL INPUT ── */
-        <form onSubmit={handleSendMessage} className="flex items-center p-3 bg-gray-950 border-t border-gray-900">
-          <FiPaperclip size={25} className="text-gray-400 cursor-pointer mr-2" />
+        <form onSubmit={handleSendMessage} className="flex items-center p-3 bg-[var(--bg-primary)] border-t border-[var(--border)]">
+          <FiPaperclip size={25} className="text-[var(--text-secondary)] cursor-pointer mr-2" />
           <MdOutlineEmojiEmotions
             size={25}
-            className="text-gray-400 cursor-pointer mr-2 emoji-trigger"
+            className="text-[var(--text-secondary)] cursor-pointer mr-2 emoji-trigger"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
           />
           {showEmojiPicker && (
@@ -1001,16 +1001,16 @@ const ChatWindow = () => {
             placeholder="Type a message"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="flex-1 p-2 text-white bg-gray-900 rounded-lg"
+            className="flex-1 p-2 text-[var(--text-primary)] bg-[var(--bg-secondary)] rounded-lg"
           />
           {input.trim() ? (
             <button type="submit" className="ml-2">
-              <IoMdSend size={25} className="text-indigo-500" />
+              <IoMdSend size={25} className="text-[#6366f1]" />
             </button>
           ) : (
             <MdOutlineKeyboardVoice
               size={27}
-              className="text-indigo-500 cursor-pointer ml-2"
+              className="text-[#6366f1] cursor-pointer ml-2"
               onClick={startRecording}
             />
           )}

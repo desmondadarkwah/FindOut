@@ -6,7 +6,6 @@ import {
   FiSettings,
   FiBellOff,
   FiFileText,
-  FiArchive,
   FiTrash2,
   FiLogOut,
 } from "react-icons/fi";
@@ -23,7 +22,7 @@ const GroupOptions = () => {
   const [showReport, setShowReport] = useState(false);
   const { toast, confirm } = useToast();
 
-  // ✅ Check if current user is admin
+  // Check if current user is admin
   const isAdmin = selectedChat?.groupAdmin?._id === userId || selectedChat?.groupAdmin === userId;
 
   const hideOptions = () => {
@@ -73,77 +72,78 @@ const GroupOptions = () => {
 
   return (
     <>
-      <div className="absolute w-56 flex flex-col gap-1 right-0 top-10 bg-gray-950 p-3 shadow-lg rounded-md border border-gray-800 z-40">
-        <h3 className="text-lg font-semibold text-gray-200 mb-1">
+      {/* ✅ Design system: dropdown panel uses bg-[var(--bg-secondary)] (solid) + border-[var(--border)] */}
+      <div className="absolute w-56 flex flex-col gap-1 right-0 top-10 bg-[var(--bg-secondary)] p-3 shadow-lg rounded-md border border-[var(--border)] z-40">
+        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">
           {isAdmin ? 'Admin Options' : 'Group Options'}
         </h3>
-        
-        {/* ✅ ADMIN-ONLY OPTIONS */}
+
+        {/* ADMIN-ONLY OPTIONS */}
         {isAdmin && (
           <>
             <span
               onClick={handleInviteMembers}
-              className="flex items-center cursor-pointer border border-gray-800 p-2 rounded hover:bg-gray-700 transition">
+              className="flex items-center cursor-pointer border border-[var(--border)] text-[var(--text-secondary)] p-2 rounded hover:bg-[var(--bg-card-hover)] transition">
               <FiUserPlus size={18} className="mr-2" /> Add Members
             </span>
 
             <span
               onClick={handleManageGroup}
-              className="flex items-center cursor-pointer border border-gray-800 p-2 rounded hover:bg-gray-700 transition">
+              className="flex items-center cursor-pointer border border-[var(--border)] text-[var(--text-secondary)] p-2 rounded hover:bg-[var(--bg-card-hover)] transition">
               <FiSettings size={18} className="mr-2" /> Manage Group
             </span>
           </>
         )}
 
-        {/* ✅ COMMON OPTIONS (Both Admin & Members) */}
+        {/* COMMON OPTIONS (Both Admin & Members) */}
         <span
           onClick={hideOptions}
-          className="flex items-center cursor-pointer border border-gray-800 p-2 rounded hover:bg-gray-700 transition">
+          className="flex items-center cursor-pointer border border-[var(--border)] text-[var(--text-secondary)] p-2 rounded hover:bg-[var(--bg-card-hover)] transition">
           <FiBellOff size={18} className="mr-2" /> Mute Notifications
         </span>
-        
+
         <span
           onClick={hideOptions}
-          className="flex items-center cursor-pointer border border-gray-800 p-2 rounded hover:bg-gray-700 transition">
+          className="flex items-center cursor-pointer border border-[var(--border)] text-[var(--text-secondary)] p-2 rounded hover:bg-[var(--bg-card-hover)] transition">
           <FiFileText size={18} className="mr-2" /> Media & Files
         </span>
 
-        {/* ✅ MEMBER-ONLY: View Group Info */}
+        {/* MEMBER-ONLY: View Group Info */}
         {!isAdmin && (
           <span
             onClick={handleManageGroup}
-            className="flex items-center cursor-pointer border border-gray-800 p-2 rounded hover:bg-gray-700 transition">
+            className="flex items-center cursor-pointer border border-[var(--border)] text-[var(--text-secondary)] p-2 rounded hover:bg-[var(--bg-card-hover)] transition">
             <IoMdPeople size={18} className="mr-2" /> Group Info
           </span>
         )}
 
-        <div className="border-t border-gray-700 my-1"></div>
-        
-        {/* ✅ ADMIN-ONLY: Delete Group */}
+        <div className="border-t border-[var(--border)] my-1"></div>
+
+        {/* ADMIN-ONLY: Delete Group (destructive → error) */}
         {isAdmin ? (
           <span
             onClick={handleDeleteGroup}
-            className="flex items-center cursor-pointer border border-red-600 text-red-500 p-2 rounded hover:bg-red-700 hover:text-white transition">
+            className="flex items-center cursor-pointer border border-[#ef4444]/40 text-[#ef4444] p-2 rounded hover:bg-[#ef4444] hover:text-white transition">
             <FiTrash2 size={18} className="mr-2" /> Delete Group
           </span>
         ) : (
-          /* ✅ MEMBER-ONLY: Leave Group */
+          /* MEMBER-ONLY: Leave Group (caution, not destructive → warning) */
           <span
             onClick={handleLeaveGroup}
-            className="flex items-center cursor-pointer border border-orange-600 text-orange-400 p-2 rounded hover:bg-orange-700 hover:text-white transition">
+            className="flex items-center cursor-pointer border border-[#eab308]/40 text-[#eab308] p-2 rounded hover:bg-[#eab308] hover:text-white transition">
             <FiLogOut size={18} className="mr-2" /> Leave Group
           </span>
         )}
 
-        {/* ✅ COMMON: Report Group */}
+        {/* COMMON: Report Group (pending review → warning) */}
         <span
           onClick={() => setShowReport(true)}
-          className="flex items-center cursor-pointer border border-yellow-600 text-yellow-400 p-2 rounded hover:bg-yellow-700 hover:text-white transition">
+          className="flex items-center cursor-pointer border border-[#eab308]/40 text-[#eab308] p-2 rounded hover:bg-[#eab308] hover:text-white transition">
           <FiAlertTriangle size={18} className="mr-2" /> Report Group
         </span>
       </div>
 
-      {/* ✅ Add Members Modal (Admin Only) */}
+      {/* Add Members Modal (Admin Only) */}
       {isAdmin && (
         <AddMembersModal
           isOpen={showAddMembers}
@@ -156,7 +156,7 @@ const GroupOptions = () => {
         />
       )}
 
-      {/* ✅ Report Group Modal */}
+      {/* Report Group Modal */}
       {showReport && (
         <ReportModal
           type="group"

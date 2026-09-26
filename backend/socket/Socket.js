@@ -51,7 +51,7 @@ const initializeSocket = (httpServer) => {
         const result = await MessageModel.updateMany(
           {
             chatId: { $in: allChatIds },
-            senderId: { 
+            senderId: {
               $ne: userId,
               $nin: blockedUserIds // ✅ Don't deliver messages from blocked users
             },
@@ -139,7 +139,6 @@ const initializeSocket = (httpServer) => {
             if (senderIsBlockedByOther || senderBlockedOther) {
               console.log(`🚫 Silently dropping message - blocked`);
 
-              // ✅ Tell sender success - they don't know they're blocked
               acknowledge({
                 status: 'success',
                 tempId,
@@ -148,11 +147,10 @@ const initializeSocket = (httpServer) => {
                   ...messageData,
                   senderId: sender,
                   createdAt: new Date().toISOString(),
-                  status: 'sent' // ✅ Single tick forever
+                  status: 'sent'
                 }
               });
 
-              // ✅ Save to DB - sender sees it, blocked user never will
               setImmediate(async () => {
                 try {
                   const message = new MessageModel({
@@ -162,21 +160,19 @@ const initializeSocket = (httpServer) => {
                     type: messageData.type,
                     status: 'sent',
                     deliveredAt: null,
-                    blockedMessage: true // ✅ Flag it as blocked
+                    blockedMessage: true
                   });
                   const savedMessage = await message.save();
                   const populatedMessage = await MessageModel.findById(savedMessage._id)
                     .populate('senderId', 'name email profilePicture')
                     .lean();
-
-                  // ✅ Only emit to SENDER's socket - NOT the room
                   socket.emit('message-confirmed', { tempId, message: populatedMessage });
                 } catch (error) {
                   console.error('❌ Error saving blocked message:', error);
                 }
               });
 
-              return; // ✅ STOP - no broadcast to room at all
+              return;
             }
           }
         }
@@ -204,7 +200,7 @@ const initializeSocket = (httpServer) => {
         );
         const anyRecipientOnline = recipientIds.some(r => r.isOnline === true);
 
-        // ✅ Broadcast to room - only reaches here if NOT blocked
+        // ✅ Broadcast to room
         socket.to(messageData.chatId).emit('message-received', {
           _id: tempId,
           chatId: messageData.chatId,
@@ -236,6 +232,62 @@ const initializeSocket = (httpServer) => {
                 activeViewers.push(s.data.userId);
               }
             });
+
+            // ✅ NEW: Send notification for missed messages
+            if (chat && !chat.isGroup) {
+              const otherParticipant = chat.participants.find(
+                p => p._id.toString() !== messageData.senderId.toString()
+              );
+
+              if (otherParticipant) {
+                const isRecipientViewing = activeViewers.includes(
+                  otherParticipant._id.toString()
+                );
+
+                // Only notify if recipient is NOT viewing this chat
+                if (!isRecipientViewing) {
+                  try {
+                    const { createNotification } = require('../services/notificationService');
+                    await createNotification({
+                      recipient: otherParticipant._id,
+                      sender: messageData.senderId,
+                      type: 'new_message',
+                      title: `💬 New message from ${sender.name}`,
+                      message: `${messageData.content?.substring(0, 60)}${messageData.content?.length > 60 ? '...' : ''}`,
+                      link: '/inbox',
+                      io,
+                    });
+                  } catch (notifError) {
+                    console.warn('⚠️ Message notification skipped:', notifError.message);
+                  }
+                }
+              }
+            }
+
+            // ✅ NEW: Group message notification
+            if (group) {
+              try {
+                const { createNotification } = require('../services/notificationService');
+                const offlineMembers = group.members.filter(
+                  m => m._id.toString() !== messageData.senderId.toString() &&
+                    !activeViewers.includes(m._id.toString())
+                );
+
+                for (const member of offlineMembers) {
+                  await createNotification({
+                    recipient: member._id,
+                    sender: messageData.senderId,
+                    type: 'new_message',
+                    title: `💬 New message in ${group.groupName}`,
+                    message: `${sender.name}: ${messageData.content?.substring(0, 50)}${messageData.content?.length > 50 ? '...' : ''}`,
+                    link: '/inbox',
+                    io,
+                  });
+                }
+              } catch (notifError) {
+                console.warn('⚠️ Group message notification skipped:', notifError.message);
+              }
+            }
 
             const chatUpdate = ChatModel.findByIdAndUpdate(
               messageData.chatId,
@@ -418,7 +470,7 @@ const initializeSocket = (httpServer) => {
         const result = await MessageModel.updateMany(
           {
             chatId,
-            senderId: { 
+            senderId: {
               $ne: userId,
               $nin: blockedUserIds // ✅ Don't mark blocked users' messages as read
             },

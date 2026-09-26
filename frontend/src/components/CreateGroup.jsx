@@ -3,6 +3,7 @@ import { IoClose } from "react-icons/io5";
 import { RxAvatar } from "react-icons/rx";
 import { MdLock, MdPublic } from "react-icons/md";
 import { RiGhostLine } from "react-icons/ri";
+import { Users } from 'lucide-react';
 import axiosInstance from '../utils/axiosInstance';
 
 const CreateGroup = ({ setShowCreateGroup }) => {
@@ -10,7 +11,7 @@ const CreateGroup = ({ setShowCreateGroup }) => {
     groupName: '',
     subjects: '',
     description: '',
-    privacy: 'public' // ✅ UPDATED: was isPrivate boolean
+    privacy: 'public'
   });
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
@@ -34,7 +35,7 @@ const CreateGroup = ({ setShowCreateGroup }) => {
       formData.append('groupName', groupData.groupName);
       formData.append('subjects', groupData.subjects);
       formData.append('description', groupData.description);
-      formData.append('privacy', groupData.privacy); // ✅ UPDATED
+      formData.append('privacy', groupData.privacy);
       if (image) formData.append('groupProfile', image);
 
       const response = await axiosInstance.post('/api/creategroup', formData, {
@@ -46,78 +47,87 @@ const CreateGroup = ({ setShowCreateGroup }) => {
         setTimeout(() => setShowCreateGroup(false), 1500);
       }
     } catch (err) {
-      console.error('❌ Error creating group:', err);
+      console.error('Error creating group:', err);
       setError(err.response?.data?.message || 'Failed to create group');
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Privacy options config
+  // Private = indigo, Public = blue — matches the same privacy convention
+  // already established in ManageGroup.jsx, ExploreGroups.jsx, and
+  // GlobalSearch.jsx. Secret stays neutral since there's no existing
+  // color tied to it elsewhere.
   const privacyOptions = [
     {
       value: 'public',
       icon: <MdPublic size={22} />,
       label: 'Public',
       description: 'Anyone can find and join instantly',
-      activeColor: 'bg-blue-600/20 border-blue-500/50 text-blue-400',
+      activeColor: 'bg-[#3b82f6]/15 border-[#3b82f6]/50 text-[#60a5fa]',
     },
     {
       value: 'private',
       icon: <MdLock size={22} />,
       label: 'Private',
       description: 'Visible but needs admin approval',
-      activeColor: 'bg-purple-600/20 border-purple-500/50 text-purple-400',
+      activeColor: 'bg-[#6366f1]/15 border-[#6366f1]/50 text-[#818cf8]',
     },
     {
       value: 'secret',
       icon: <RiGhostLine size={22} />,
       label: 'Secret',
       description: 'Hidden everywhere, invite link only',
-      activeColor: 'bg-gray-600/30 border-gray-400/50 text-gray-300',
+      activeColor: 'bg-[var(--bg-card-hover)] border-[var(--border-hover)] text-[var(--text-primary)]',
     },
   ];
 
   const privacyInfo = {
-    public:  '🌐 Public: Appears on Explore and suggestions. Anyone can join instantly without approval.',
-    private: '🔒 Private: Appears on Explore. Users must request to join and wait for your approval.',
-    secret:  '👻 Secret: Completely hidden from Explore and search. Only joinable via your invite link.',
+    public:  'Public: Appears on Explore and suggestions. Anyone can join instantly without approval.',
+    private: 'Private: Appears on Explore. Users must request to join and wait for your approval.',
+    secret:  'Secret: Completely hidden from Explore and search. Only joinable via your invite link.',
   };
 
+  const privacyBannerStyle = {
+    public:  { background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', color: '#93c5fd' },
+    private: { background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', color: '#a5b4fc' },
+    secret:  { background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' },
+  }[groupData.privacy];
+
   return (
-    <div className="relative w-full max-w-md mx-auto max-h-[90vh] bg-gradient-to-br from-gray-900 via-black to-gray-800 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-      
+    <div className="relative w-full max-w-md mx-auto max-h-[90vh] bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+
       {/* Header */}
-      <div className="relative bg-gradient-to-r from-gray-800/80 to-gray-900/80 backdrop-blur-sm p-6 border-b border-gray-700/50 flex-shrink-0">
+      <div className="relative bg-[var(--bg-card)] p-6 border-b border-[var(--border)] flex-shrink-0">
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 p-2 rounded-full bg-gray-800/50 border border-gray-600/50 hover:bg-gray-700/50 transition-all duration-200 group z-10"
+          className="absolute top-4 right-4 p-2 rounded-full bg-[var(--bg-card-hover)] border border-[var(--border)] hover:opacity-80 transition-opacity group z-10"
         >
-          <IoClose className="text-gray-400 group-hover:text-white transition-colors" size={20} />
+          <IoClose className="text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors" size={20} />
         </button>
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mb-3">
-            <span className="text-xl">👥</span>
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-[#6366f1]/15 border border-[#6366f1]/30 rounded-full mb-3">
+            <Users size={20} className="text-[#818cf8]" />
           </div>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <h2 className="text-2xl font-semibold text-[var(--text-primary)]">
             Create a Group
           </h2>
-          <p className="text-gray-400 text-sm mt-1">Start building your learning community</p>
+          <p className="text-[var(--text-secondary)] text-sm mt-1">Start building your learning community</p>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+      <div className="flex-1 overflow-y-auto">
         <div className="p-6">
 
           {success && (
-            <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-              <p className="text-green-400 text-sm text-center">✅ {success}</p>
+            <div className="mb-4 p-3 bg-[#22c55e]/10 border border-[#22c55e]/25 rounded-lg">
+              <p className="text-[#4ade80] text-sm text-center">{success}</p>
             </div>
           )}
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <p className="text-red-400 text-sm text-center">❌ {error}</p>
+            <div className="mb-4 p-3 bg-[#ef4444]/10 border border-[#ef4444]/25 rounded-lg">
+              <p className="text-[#f87171] text-sm text-center">{error}</p>
             </div>
           )}
 
@@ -131,19 +141,19 @@ const CreateGroup = ({ setShowCreateGroup }) => {
                     <img
                       src={URL.createObjectURL(image)}
                       alt="Group Profile"
-                      className="w-20 h-20 rounded-full object-cover border-4 border-gray-600/50 group-hover:border-blue-500/50 transition-all duration-200"
+                      className="w-20 h-20 rounded-full object-cover border-4 border-[var(--border)] group-hover:border-[#6366f1]/50 transition-colors"
                     />
                   ) : (
-                    <div className="w-20 h-20 bg-gradient-to-r from-gray-700/50 to-gray-800/50 border-4 border-gray-600/50 group-hover:border-blue-500/50 rounded-full flex items-center justify-center transition-all duration-200">
-                      <RxAvatar size={32} className="text-gray-400 group-hover:text-blue-400 transition-colors" />
+                    <div className="w-20 h-20 bg-[var(--bg-card-hover)] border-4 border-[var(--border)] group-hover:border-[#6366f1]/50 rounded-full flex items-center justify-center transition-colors">
+                      <RxAvatar size={32} className="text-[var(--text-secondary)] group-hover:text-[#818cf8] transition-colors" />
                     </div>
                   )}
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 border-2 border-gray-900 rounded-full flex items-center justify-center">
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#6366f1] border-2 border-[var(--bg-secondary)] rounded-full flex items-center justify-center">
                     <span className="text-white text-xs">+</span>
                   </div>
                 </div>
               </label>
-              <p className="text-gray-400 text-xs">Click to upload group photo</p>
+              <p className="text-[var(--text-muted)] text-xs">Click to upload group photo</p>
               <input
                 type="file"
                 id="group-file-input"
@@ -154,8 +164,8 @@ const CreateGroup = ({ setShowCreateGroup }) => {
 
             {/* Group Name */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300 flex items-center space-x-2">
-                <span>👥</span><span>Group Name</span>
+              <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                Group Name
               </label>
               <input
                 type="text"
@@ -163,15 +173,15 @@ const CreateGroup = ({ setShowCreateGroup }) => {
                 value={groupData.groupName}
                 onChange={handleChange}
                 placeholder="Enter group name"
-                className="w-full p-4 bg-gray-800/50 text-white rounded-xl border border-gray-600/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 placeholder-gray-400"
+                className="w-full p-4 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-xl border border-[var(--border)] outline-none focus:ring-2 focus:ring-[#6366f1]/50 focus:border-[#6366f1]/50 transition-colors"
                 required
               />
             </div>
 
             {/* Subjects */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300 flex items-center space-x-2">
-                <span>📚</span><span>Subjects</span>
+              <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                Subjects
               </label>
               <input
                 type="text"
@@ -179,32 +189,32 @@ const CreateGroup = ({ setShowCreateGroup }) => {
                 value={groupData.subjects}
                 onChange={handleChange}
                 placeholder="Enter subjects (comma-separated)"
-                className="w-full p-4 bg-gray-800/50 text-white rounded-xl border border-gray-600/50 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-200 placeholder-gray-400"
+                className="w-full p-4 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-xl border border-[var(--border)] outline-none focus:ring-2 focus:ring-[#6366f1]/50 focus:border-[#6366f1]/50 transition-colors"
                 required
               />
-              <p className="text-gray-500 text-xs">Example: Math, Physics, Chemistry</p>
+              <p className="text-[var(--text-muted)] text-xs">Example: Math, Physics, Chemistry</p>
             </div>
 
             {/* Description */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300 flex items-center space-x-2">
-                <span>📝</span><span>Description</span>
+              <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                Description
               </label>
               <textarea
                 name="description"
                 value={groupData.description}
                 onChange={handleChange}
                 placeholder="Tell us about your group..."
-                className="w-full p-4 bg-gray-800/50 text-white rounded-xl border border-gray-600/50 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-200 placeholder-gray-400 resize-none"
+                className="w-full p-4 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-xl border border-[var(--border)] outline-none focus:ring-2 focus:ring-[#6366f1]/50 focus:border-[#6366f1]/50 transition-colors resize-none"
                 rows="3"
               />
-              <p className="text-gray-500 text-xs">Optional: Share the group's purpose and goals</p>
+              <p className="text-[var(--text-muted)] text-xs">Optional: Share the group's purpose and goals</p>
             </div>
 
-            {/* ✅ UPDATED: 3-Option Privacy Selector */}
+            {/* Privacy Selector */}
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-300 flex items-center space-x-2">
-                <span>🔒</span><span>Group Privacy</span>
+              <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                Group Privacy
               </label>
               <div className="flex gap-2">
                 {privacyOptions.map((option) => (
@@ -212,25 +222,28 @@ const CreateGroup = ({ setShowCreateGroup }) => {
                     key={option.value}
                     type="button"
                     onClick={() => setGroupData(prev => ({ ...prev, privacy: option.value }))}
-                    className={`flex-1 p-3 rounded-xl border transition-all duration-200 flex flex-col items-center gap-1.5 ${
+                    className={`flex-1 p-3 rounded-xl border transition-colors flex flex-col items-center gap-1.5 ${
                       groupData.privacy === option.value
                         ? option.activeColor
-                        : 'bg-gray-800/50 border-gray-600/50 text-gray-400 hover:border-gray-500'
+                        : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-hover)]'
                     }`}
                   >
                     {option.icon}
-                    <span className="text-xs font-700">{option.label}</span>
-                    <span className="text-xs text-center opacity-60 leading-tight">{option.description}</span>
+                    {/* FIX: was `font-700`, not a real Tailwind class (the
+                        real utilities are font-bold/font-semibold, not a
+                        raw numeric name) — silently did nothing, so this
+                        label was never actually bold. */}
+                    <span className="text-xs font-semibold">{option.label}</span>
+                    <span className="text-xs text-center opacity-70 leading-tight">{option.description}</span>
                   </button>
                 ))}
               </div>
 
               {/* Dynamic info banner */}
-              <div className={`p-3 rounded-lg border text-xs leading-relaxed text-center transition-all duration-200 ${
-                groupData.privacy === 'public'  ? 'bg-blue-500/10 border-blue-500/20 text-blue-200/80' :
-                groupData.privacy === 'private' ? 'bg-purple-500/10 border-purple-500/20 text-purple-200/80' :
-                'bg-gray-500/10 border-gray-500/20 text-gray-300/80'
-              }`}>
+              <div
+                className="p-3 rounded-lg text-xs leading-relaxed text-center transition-colors"
+                style={privacyBannerStyle}
+              >
                 {privacyInfo[groupData.privacy]}
               </div>
             </div>
@@ -239,9 +252,9 @@ const CreateGroup = ({ setShowCreateGroup }) => {
             <button
               onClick={handleSubmit}
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl border border-blue-500/30 transition-all duration-200 shadow-lg flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full py-4 bg-gradient-to-r from-[#3b82f6] to-[#6366f1] hover:opacity-90 text-white font-semibold rounded-xl transition-opacity flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? <span>Creating...</span> : <><span>✨</span><span>Create Group</span></>}
+              {loading ? 'Creating...' : 'Create Group'}
             </button>
           </div>
         </div>

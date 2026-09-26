@@ -2,13 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, X, Users, MessageCircle, FileText, Sparkles,
-  Clock, TrendingUp, CheckCircle, Lock, Unlock, UserPlus
+  Clock, CheckCircle, Lock, Unlock, GraduationCap, BookOpen,
+  Star, ThumbsUp,
 } from 'lucide-react';
 import axiosInstance from '../utils/axiosInstance';
+import { useToast } from '../Context/ToastContext';
 
 const GlobalSearch = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const searchInputRef = useRef(null);
+  const { toast } = useToast();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -59,8 +62,6 @@ const GlobalSearch = ({ isOpen, onClose }) => {
 
       if (response.data.success) {
         setResults(response.data.results);
-
-        // Save to recent searches
         saveRecentSearch(searchQuery);
       }
     } catch (error) {
@@ -76,6 +77,7 @@ const GlobalSearch = ({ isOpen, onClose }) => {
     localStorage.setItem('recentSearches', JSON.stringify(updated));
   };
 
+  // FIX: replaced alert() with toast — matches the rest of the app.
   const handleStartDM = async (userId) => {
     try {
       const response = await axiosInstance.post('/api/start-new-chat', { userId });
@@ -85,7 +87,7 @@ const GlobalSearch = ({ isOpen, onClose }) => {
       }
     } catch (error) {
       console.error('Error starting DM:', error);
-      alert('Failed to start conversation');
+      toast.error('Failed to start conversation');
     }
   };
 
@@ -95,22 +97,26 @@ const GlobalSearch = ({ isOpen, onClose }) => {
 
       if (response.data.success) {
         if (response.data.isPending) {
-          alert('Join request sent!');
+          toast.info('Join request sent!');
         } else if (response.data.alreadyMember) {
           navigate('/inbox');
         } else {
-          alert('Joined successfully!');
+          toast.success('Joined successfully!');
           navigate('/inbox');
         }
         onClose();
       }
     } catch (error) {
       console.error('Error joining group:', error);
-      alert(error.response?.data?.message || 'Failed to join group');
+      toast.error(error.response?.data?.message || 'Failed to join group');
     }
   };
 
   const handleViewPost = (postId) => {
+    // NOTE: this navigates to the feed generally rather than deep-linking
+    // to this specific post — left as-is since there's no per-post detail
+    // route visible in this file to link to; worth wiring up if/when one
+    // exists.
     navigate('/feed');
     onClose();
   };
@@ -132,27 +138,39 @@ const GlobalSearch = ({ isOpen, onClose }) => {
 
   const displayResults = activeTab === 'all' ? allResults : results[activeTab] || [];
 
+  // One consistent neutral avatar treatment instead of a different
+  // gradient per result type (blue/purple for users, green/blue for
+  // groups, yellow/orange for posts) — matches the plain-avatar
+  // convention already established across AllPost, ChatSidebar, and
+  // Suggestions.
+  const Avatar = ({ src, alt, fallback }) => (
+    <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-[var(--bg-card-hover)] border border-[var(--border)]">
+      {src ? (
+        <img src={src} alt={alt} className="w-full h-full object-cover" />
+      ) : fallback}
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/80 backdrop-blur-sm pt-20 px-4">
-      {/* Modal */}
-      <div className="w-full max-w-3xl bg-gray-900 border border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="w-full max-w-3xl bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden">
         {/* Search Header */}
-        <div className="p-6 border-b border-gray-700/50">
+        <div className="p-6 border-b border-[var(--border)]">
           <div className="flex items-center gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={20} />
               <input
                 ref={searchInputRef}
                 type="text"
                 placeholder="Search users, groups, posts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-800/50 border border-gray-600/50 text-white placeholder-gray-400 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+                className="w-full pl-12 pr-4 py-3 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-primary)] rounded-xl outline-none focus:ring-2 focus:ring-[#6366f1]/50 focus:border-[#6366f1]/50"
               />
             </div>
             <button
               onClick={onClose}
-              className="p-3 bg-gray-800/50 text-gray-400 hover:text-white rounded-xl transition-colors"
+              className="p-3 bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-xl transition-colors"
             >
               <X size={20} />
             </button>
@@ -166,9 +184,9 @@ const GlobalSearch = ({ isOpen, onClose }) => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap ${activeTab === tab.id
-                      ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
+                      ? 'bg-[#6366f1]/15 text-[#818cf8] border border-[#6366f1]/40'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] border border-transparent'
                     }`}
                 >
                   <Icon size={16} />
@@ -185,8 +203,8 @@ const GlobalSearch = ({ isOpen, onClose }) => {
             /* Recent Searches */
             <div className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <Clock size={16} className="text-gray-400" />
-                <h3 className="text-white font-medium">Recent Searches</h3>
+                <Clock size={16} className="text-[var(--text-muted)]" />
+                <h3 className="text-[var(--text-primary)] font-medium">Recent Searches</h3>
               </div>
               {recentSearches.length > 0 ? (
                 <div className="space-y-2">
@@ -194,74 +212,70 @@ const GlobalSearch = ({ isOpen, onClose }) => {
                     <button
                       key={index}
                       onClick={() => setSearchQuery(query)}
-                      className="w-full text-left px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-xl transition-colors"
+                      className="w-full text-left px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] rounded-xl transition-colors"
                     >
                       {query}
                     </button>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-sm">No recent searches</p>
+                <p className="text-[var(--text-muted)] text-sm">No recent searches</p>
               )}
             </div>
           ) : loading ? (
             /* Loading */
             <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : displayResults.length === 0 ? (
             /* No Results */
             <div className="flex flex-col items-center justify-center py-12">
-              <Search size={48} className="text-gray-600 mb-4" />
-              <p className="text-gray-400">No results found for "{searchQuery}"</p>
+              <Search size={40} className="text-[var(--text-muted)] mb-4" />
+              <p className="text-[var(--text-secondary)]">No results found for "{searchQuery}"</p>
             </div>
           ) : (
             /* Results List */
-            <div className="divide-y divide-gray-700/30">
+            <div className="divide-y divide-[var(--border)]">
               {displayResults.map((item, index) => {
                 if (item.type === 'user' || (!item.type && item.email)) {
                   return (
-                    <div key={`user-${item._id || index}`} className="p-4 hover:bg-gray-800/30 transition-colors">
+                    <div key={`user-${item._id || index}`} className="p-4 hover:bg-[var(--bg-card-hover)] transition-colors">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          {item.profilePicture ? (
-                            <img
-                              src={`${import.meta.env.VITE_BACKEND_URL}${item.profilePicture}`}
-                              alt={item.name}
-                              className="w-full h-full rounded-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-white font-bold">
-                              {item.name?.charAt(0).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
+                        <Avatar
+                          src={item.profilePicture && `${import.meta.env.VITE_BACKEND_URL}${item.profilePicture}`}
+                          alt={item.name}
+                          fallback={<span className="text-[var(--text-primary)] font-semibold">{item.name?.charAt(0).toUpperCase()}</span>}
+                        />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-white font-medium">{item.name}</p>
+                            <p className="text-[var(--text-primary)] font-medium">{item.name}</p>
                             {item.isVerified && (
-                              <CheckCircle size={16} className="text-blue-400" />
+                              <CheckCircle size={16} className="text-[#3b82f6]" />
                             )}
                             {item.isOnline && (
-                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                              <span className="w-2 h-2 bg-[#22c55e] rounded-full"></span>
                             )}
                           </div>
-                          <p className="text-gray-400 text-sm">{item.email}</p>
+                          <p className="text-[var(--text-secondary)] text-sm">{item.email}</p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${item.status === 'Ready To Teach'
-                                ? 'bg-blue-500/20 text-blue-400'
-                                : 'bg-purple-500/20 text-purple-400'
+                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${item.status === 'Ready To Teach'
+                                ? 'bg-[#3b82f6]/15 text-[#60a5fa]'
+                                : 'bg-[#6366f1]/15 text-[#818cf8]'
                               }`}>
-                              {item.status === 'Ready To Teach' ? '👨‍🏫 Teacher' : '📚 Learner'}
+                              {item.status === 'Ready To Teach'
+                                ? <><GraduationCap size={11} />Teacher</>
+                                : <><BookOpen size={11} />Learner</>}
                             </span>
                             {item.reputation > 0 && (
-                              <span className="text-xs text-yellow-400">⭐ {item.reputation}</span>
+                              <span className="inline-flex items-center gap-1 text-xs text-[#eab308]">
+                                <Star size={11} />{item.reputation}
+                              </span>
                             )}
                           </div>
                         </div>
                         <button
                           onClick={() => handleStartDM(item._id)}
-                          className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/30 transition-colors text-sm font-medium"
+                          className="px-4 py-2 bg-[#6366f1]/15 text-[#818cf8] rounded-xl hover:bg-[#6366f1]/25 transition-colors text-sm font-medium"
                         >
                           Message
                         </button>
@@ -272,30 +286,27 @@ const GlobalSearch = ({ isOpen, onClose }) => {
 
                 if (item.type === 'group' || (!item.type && item.groupName)) {
                   return (
-                    <div key={`group-${item._id || index}`} className="p-4 hover:bg-gray-800/30 transition-colors">
+                    <div key={`group-${item._id || index}`} className="p-4 hover:bg-[var(--bg-card-hover)] transition-colors">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          {item.groupPicture ? (
-                            <img
-                              src={`${import.meta.env.VITE_BACKEND_URL}${item.groupPicture}`}
-                              alt={item.groupName}
-                              className="w-full h-full rounded-full object-cover"
-                            />
-                          ) : (
-                            <Users size={24} className="text-white" />
-                          )}
-                        </div>
+                        <Avatar
+                          src={item.groupPicture && `${import.meta.env.VITE_BACKEND_URL}${item.groupPicture}`}
+                          alt={item.groupName}
+                          fallback={<Users size={22} className="text-[var(--text-secondary)]" />}
+                        />
                         <div className="flex-1 min-w-0">
-                          <p className="text-white font-medium">{item.groupName}</p>
-                          <p className="text-gray-400 text-sm line-clamp-1">{item.description}</p>
+                          <p className="text-[var(--text-primary)] font-medium">{item.groupName}</p>
+                          <p className="text-[var(--text-secondary)] text-sm line-clamp-1">{item.description}</p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-[var(--text-muted)]">
                               {item.memberCount} members
                             </span>
+                            {/* Private = indigo, Public = blue — matches the
+                                same privacy badge convention used in
+                                ManageGroup.jsx and ExploreGroups.jsx */}
                             {item.privacy === 'private' ? (
-                              <Lock size={12} className="text-orange-400" />
+                              <Lock size={12} className="text-[#818cf8]" />
                             ) : (
-                              <Unlock size={12} className="text-green-400" />
+                              <Unlock size={12} className="text-[#60a5fa]" />
                             )}
                           </div>
                         </div>
@@ -305,14 +316,14 @@ const GlobalSearch = ({ isOpen, onClose }) => {
                               navigate('/inbox');
                               onClose();
                             }}
-                            className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-xl text-sm font-medium"
+                            className="px-4 py-2 bg-[#22c55e]/15 text-[#4ade80] rounded-xl text-sm font-medium"
                           >
                             Open
                           </button>
                         ) : (
                           <button
                             onClick={() => handleJoinGroup(item._id, item.privacy === 'private')}
-                            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all text-sm font-medium"
+                            className="px-4 py-2 bg-[#6366f1] text-white rounded-xl hover:opacity-90 transition-opacity text-sm font-medium"
                           >
                             {item.privacy === 'private' ? 'Request' : 'Join'}
                           </button>
@@ -324,35 +335,27 @@ const GlobalSearch = ({ isOpen, onClose }) => {
 
                 if (item.type === 'post' || (!item.type && item.caption)) {
                   return (
-                    <div key={`post-${item._id || index}`} className="p-4 hover:bg-gray-800/30 transition-colors">
+                    <div key={`post-${item._id || index}`} className="p-4 hover:bg-[var(--bg-card-hover)] transition-colors">
                       <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          {item.author?.profilePicture ? (
-                            <img
-                              src={`${import.meta.env.VITE_BACKEND_URL}${item.author.profilePicture}`}
-                              alt={item.author.name}
-                              className="w-full h-full rounded-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-white font-bold">
-                              {item.author?.name?.charAt(0).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
+                        <Avatar
+                          src={item.author?.profilePicture && `${import.meta.env.VITE_BACKEND_URL}${item.author.profilePicture}`}
+                          alt={item.author?.name}
+                          fallback={<span className="text-[var(--text-primary)] font-semibold">{item.author?.name?.charAt(0).toUpperCase()}</span>}
+                        />
                         <div className="flex-1 min-w-0">
-                          <p className="text-white font-medium">{item.author?.name}</p>
-                          <p className="text-gray-300 text-sm line-clamp-2 mt-1">{item.caption}</p>
-                          <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
-                            <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded-full">
+                          <p className="text-[var(--text-primary)] font-medium">{item.author?.name}</p>
+                          <p className="text-[var(--text-secondary)] text-sm line-clamp-2 mt-1">{item.caption}</p>
+                          <div className="flex items-center gap-3 mt-2 text-xs text-[var(--text-muted)]">
+                            <span className="px-2 py-1 bg-[#6366f1]/12 text-[#818cf8] rounded-full">
                               {item.subject}
                             </span>
-                            <span>👍 {item.helpfulCount || 0}</span>
-                            <span>💬 {item.comments?.length || 0}</span>
+                            <span className="inline-flex items-center gap-1"><ThumbsUp size={11} />{item.helpfulCount || 0}</span>
+                            <span className="inline-flex items-center gap-1"><MessageCircle size={11} />{item.comments?.length || 0}</span>
                           </div>
                         </div>
                         <button
                           onClick={() => handleViewPost(item._id)}
-                          className="px-4 py-2 bg-gray-700/50 text-white rounded-xl hover:bg-gray-600/50 transition-colors text-sm font-medium"
+                          className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-primary)] rounded-xl hover:bg-[var(--bg-card-hover)] transition-colors text-sm font-medium"
                         >
                           View
                         </button>
