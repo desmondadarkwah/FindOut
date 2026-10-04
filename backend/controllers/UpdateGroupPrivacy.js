@@ -2,16 +2,21 @@ const GroupModel = require('../models/GroupModel');
 
 const UpdateGroupPrivacy = async (req, res) => {
   try {
-    const { groupId, isPrivate } = req.body;
+    const { groupId, privacy } = req.body; // ✅ Changed from isPrivate to privacy
+
+    if (!['public', 'private', 'secret'].includes(privacy)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Privacy must be public, private or secret'
+      });
+    }
+
     const adminId = req.authenticatedUser.id;
 
     const group = await GroupModel.findById(groupId);
 
     if (!group) {
-      return res.status(404).json({
-        success: false,
-        message: 'Group not found'
-      });
+      return res.status(404).json({ success: false, message: 'Group not found' });
     }
 
     if (group.groupAdmin.toString() !== adminId) {
@@ -21,18 +26,18 @@ const UpdateGroupPrivacy = async (req, res) => {
       });
     }
 
-    // Update using updateOne to avoid validation issues
+    // ✅ Save privacy field correctly
     await GroupModel.updateOne(
       { _id: groupId },
-      { $set: { isPrivate: isPrivate } }
+      { $set: { privacy: privacy } }
     );
 
-    console.log(`✅ Group ${group.groupName} privacy set to ${isPrivate ? 'Private' : 'Public'}`);
+    console.log(`✅ Group ${group.groupName} privacy set to ${privacy}`);
 
     res.status(200).json({
       success: true,
-      message: `Group is now ${isPrivate ? 'Private' : 'Public'}`,
-      isPrivate
+      message: `Group is now ${privacy}`,
+      privacy // ✅ Return privacy not isPrivate
     });
 
   } catch (error) {

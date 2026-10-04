@@ -1,48 +1,102 @@
 import React, { useContext } from 'react';
 import { SuggestionsContext } from '../Context/SuggestionsContext';
 import { RxAvatar } from "react-icons/rx";
-
+import { MdLock } from 'react-icons/md';
+import { BeatLoader } from 'react-spinners';
 
 const MobileViewSuggest = () => {
-  const { suggestedUsers, suggestedGroups, loading, handleConnectPrivateChat } = useContext(SuggestionsContext);
+  const {
+    suggestedUsers,
+    suggestedGroups,
+    loading,
+    handleConnectPrivateChat,
+    handleOpenGroupChat
+  } = useContext(SuggestionsContext);
 
   if (loading) {
-    const totalSuggestions = (suggestedUsers?.length) + (suggestedGroups?.length);
-
     return (
-      <div className="block md:hidden flex overflow-x-auto space-x-4 p-1 bg-black">
-        {Array.from({ length: totalSuggestions }).map((_, index) => (
-          <div key={index} className="flex flex-col items-center animate-pulse">
-            <div className="w-16 h-16 rounded-full bg-gray-700"></div>
-            <div className="w-12 h-3 bg-gray-700 rounded mt-2"></div>
-            <div className="w-16 h-2 bg-gray-800 rounded mt-1"></div>
-          </div>
-        ))}
+      <div className="block md:hidden flex justify-center py-4"
+        style={{ background: 'var(--bg-primary)' }}>
+        <BeatLoader color="var(--text-secondary)" size={8} />
+      </div>
+    );
+  }
+
+  if (!suggestedUsers?.length && !suggestedGroups?.length) {
+    return (
+      <div className="block md:hidden py-3 text-center"
+        style={{ background: 'var(--bg-primary)' }}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          Add subjects to get suggestions
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="block md:hidden flex overflow-x-auto space-x-4 p-1 bg-black">
-      <span className='flex gap-4'>
+    <div
+      className="block md:hidden"
+      style={{
+        background: 'var(--bg-primary)',
+        borderBottom: '1px solid var(--border)',
+        overflowX: 'auto',
+        padding: '10px 12px',
+      }}>
+      <div style={{ display: 'flex', gap: 16, minWidth: 'max-content' }}>
+
+        {/* ── USERS ── */}
         {suggestedUsers.map((user) => (
-          <div key={user._id} className="flex flex-col items-center">
-            <img
-              src={`${import.meta.env.VITE_BACKEND_URL}${user.profilePicture}`}
-              alt={user.name}
-              className="w-14 h-14 rounded-full object-cover border-2 border-blue-600"
-            />
-            <span
-              onClick={() => handleConnectPrivateChat(user._id)}
-              className="text-gray-200 text-sm hover:text-blue-600 cursor-pointer">{user.name}</span>
-            <span className="text-gray-400 text-xs">{user.status}</span>
+          <div
+            key={user._id}
+            onClick={() => handleConnectPrivateChat(user._id)}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', minWidth: 60 }}>
+            {user.profilePicture ? (
+              <img
+                src={`${import.meta.env.VITE_BACKEND_URL}${user.profilePicture}`}
+                alt={user.name}
+                style={{
+                  width: 52, height: 52, borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '2px solid #3b82f6',
+                }}
+              />
+            ) : (
+              <div style={{
+                width: 52, height: 52, borderRadius: '50%',
+                background: 'rgba(99,102,241,0.15)',
+                border: '2px solid #3b82f6',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <RxAvatar size={28} color="var(--text-secondary)" />
+              </div>
+            )}
+            <span style={{
+              fontSize: 11, color: 'var(--text-primary)',
+              marginTop: 4, fontWeight: 600,
+              maxWidth: 56, overflow: 'hidden',
+              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              textAlign: 'center',
+            }}>{user.name}</span>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'center' }}>
+              {user.status === 'Ready To Teach' ? '👨‍🏫' : user.status === 'Ready To Learn' ? '📖' : '⏰'}
+            </span>
           </div>
         ))}
-      </span>
 
-      <span className='flex gap-4'>
+        {/* Divider between users and groups */}
+        {suggestedUsers.length > 0 && suggestedGroups.length > 0 && (
+          <div style={{
+            width: 1, background: 'var(--border)',
+            margin: '0 4px', flexShrink: 0,
+          }} />
+        )}
+
+        {/* ── GROUPS ── */}
         {suggestedGroups.map((group) => (
-          <div key={group._id} className="flex flex-col items-center">
+          <div
+            key={group._id}
+            onClick={() => handleOpenGroupChat(group._id)}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', minWidth: 60 }}>
             {group.groupProfile ? (
               <img
                 src={
@@ -51,18 +105,39 @@ const MobileViewSuggest = () => {
                     : `${import.meta.env.VITE_BACKEND_URL}/uploads/${group.groupProfile}`
                 }
                 alt={group.groupName}
-                className="w-14 h-14 rounded-full object-cover border-2 border-green-500"
+                style={{
+                  width: 52, height: 52, borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '2px solid #22c55e',
+                }}
               />
             ) : (
-              <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center border-2 border-green-500">
-                <RxAvatar size={32} />
+              <div style={{
+                width: 52, height: 52, borderRadius: '50%',
+                background: 'rgba(34,197,94,0.1)',
+                border: '2px solid #22c55e',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <RxAvatar size={28} color="var(--text-secondary)" />
               </div>
             )}
-            <span className="text-gray-200 text-sm hover:text-blue-600 cursor-pointer">{group.groupName}</span>
-            <span className="text-gray-400 text-xs">{group.subjects}</span>
+            <span style={{
+              fontSize: 11, color: 'var(--text-primary)',
+              marginTop: 4, fontWeight: 600,
+              maxWidth: 56, overflow: 'hidden',
+              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              textAlign: 'center',
+              display: 'flex', alignItems: 'center', gap: 2,
+            }}>
+              {group.groupName}
+              {group.privacy === 'private' && <MdLock size={8} color="var(--text-muted)" />}
+            </span>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'center' }}>
+              {group.privacy === 'private' ? '🔒 Private' : '🌐 Public'}
+            </span>
           </div>
         ))}
-      </span>
+      </div>
     </div>
   );
 };

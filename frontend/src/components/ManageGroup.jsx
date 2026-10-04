@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useCallback } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { IoClose } from "react-icons/io5";
 import { MdDelete, MdLock, MdPublic, MdExitToApp } from "react-icons/md";
 import { FaCrown } from "react-icons/fa";
@@ -23,13 +23,12 @@ const ManageGroup = () => {
   const [copied, setCopied] = useState(false);
   const [privacy, setPrivacy] = useState(selectedChat?.privacy || 'public');
   const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
-  const [pendingRequests, setPendingRequests] = useState(selectedChat?.pendingRequests || []);
+  const [pendingRequests, setPendingRequests] = useState([]);
   const [handlingRequest, setHandlingRequest] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [removingPhoto, setRemovingPhoto] = useState(false);
 
-  // Editable fields for admin
   const [groupName, setGroupName] = useState(selectedChat?.groupName || '');
   const [subjects, setSubjects] = useState(selectedChat?.subjects?.join(', ') || '');
   const [description, setDescription] = useState(selectedChat?.description || '');
@@ -47,22 +46,17 @@ const ManageGroup = () => {
     ? `${window.location.origin}/join/${selectedChat.inviteCode}`
     : '';
 
-  // Update local state when selectedChat changes
+  // ✅ Update local state when selectedChat changes
   useEffect(() => {
     if (selectedChat) {
       setGroupName(selectedChat.groupName || '');
       setSubjects(selectedChat.subjects?.join(', ') || '');
       setDescription(selectedChat.description || '');
       setPrivacy(selectedChat?.privacy || 'public');
-      setPendingRequests(selectedChat.pendingRequests || []);
     }
   }, [selectedChat?._id]);
 
-  // Real-time + polled updates for admin
-  // NOTE: `toast` is intentionally excluded from deps below — if it's not
-  // memoized by ToastContext, including it will re-create this interval and
-  // re-subscribe the socket listeners on every render. If ToastContext later
-  // wraps its value in useMemo/useCallback, it's safe to add back.
+  // ✅ Fetch group details including populated pendingRequests
   useEffect(() => {
     if (!selectedChat?._id || !isAdmin) return;
 
@@ -109,15 +103,11 @@ const ManageGroup = () => {
         socket.off('new-join-request', handleNewJoinRequest);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat?._id, isAdmin]);
 
-  // ─────────────────────────────────────────
-  // SAVE GROUP CHANGES (Admin Only)
-  // ─────────────────────────────────────────
+  // ─── SAVE GROUP CHANGES ───
   const handleSaveChanges = async () => {
     if (!isAdmin) return;
-
     setSaving(true);
     try {
       const response = await axiosInstance.put('/api/edit-group', {
@@ -128,6 +118,7 @@ const ManageGroup = () => {
       });
 
       if (response.data.success) {
+        // ✅ Update selectedChat immediately
         setSelectedChat(prev => ({
           ...prev,
           groupName: groupName.trim(),
@@ -135,6 +126,7 @@ const ManageGroup = () => {
           description: description.trim()
         }));
 
+        // ✅ Update chats list immediately
         setChats(prevChats =>
           prevChats.map(chat =>
             chat._id === selectedChat._id
@@ -158,9 +150,7 @@ const ManageGroup = () => {
     }
   };
 
-  // ─────────────────────────────────────────
-  // COPY LINK
-  // ─────────────────────────────────────────
+  // ─── COPY LINK ───
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(inviteLink);
@@ -168,14 +158,11 @@ const ManageGroup = () => {
       setTimeout(() => setCopied(false), 2000);
       toast.success('Link copied to clipboard!', 'Copied');
     } catch (error) {
-      console.error('Failed to copy:', error);
       toast.error('Failed to copy link');
     }
   };
 
-  // ─────────────────────────────────────────
-  // PHOTO HANDLERS (Admin Only)
-  // ─────────────────────────────────────────
+  // ─── PHOTO HANDLERS ───
   const handleChangePhotoClick = () => {
     if (!isAdmin) return;
     setAllowUploads(true);
@@ -184,7 +171,6 @@ const ManageGroup = () => {
     document.getElementById("group-file-input").click();
   };
 
-  // Now actually uploads the file to the backend instead of just logging it.
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file || !selectedChat?._id) return;
@@ -201,7 +187,6 @@ const ManageGroup = () => {
 
       if (response.data.success) {
         const newPhotoUrl = response.data.profilePicture;
-
         setSelectedChat(prev => ({ ...prev, profilePicture: newPhotoUrl }));
         setChats(prevChats =>
           prevChats.map(chat =>
@@ -210,22 +195,17 @@ const ManageGroup = () => {
               : chat
           )
         );
-
         toast.success('Group photo updated!', 'Photo Updated');
       }
     } catch (error) {
-      console.error('Error uploading photo:', error);
       toast.error(error.response?.data?.message || 'Failed to upload photo');
     } finally {
       setUploadingPhoto(false);
       setAllowUploads(false);
-      // reset the input so selecting the same file again still fires onChange
       e.target.value = '';
     }
   };
 
-  // Now actually calls the backend to remove the photo instead of only
-  // resetting local UI state.
   const handleRemovePhoto = async () => {
     if (!isAdmin || !selectedChat?._id) return;
 
@@ -239,15 +219,12 @@ const ManageGroup = () => {
         setSelectedChat(prev => ({ ...prev, profilePicture: null }));
         setChats(prevChats =>
           prevChats.map(chat =>
-            chat._id === selectedChat._id
-              ? { ...chat, profilePicture: null }
-              : chat
+            chat._id === selectedChat._id ? { ...chat, profilePicture: null } : chat
           )
         );
         toast.success('Group photo removed', 'Photo Removed');
       }
     } catch (error) {
-      console.error('Error removing photo:', error);
       toast.error(error.response?.data?.message || 'Failed to remove photo');
     } finally {
       setRemovingPhoto(false);
@@ -257,9 +234,7 @@ const ManageGroup = () => {
     }
   };
 
-  // ─────────────────────────────────────────
-  // REMOVE MEMBER (Admin Only)
-  // ─────────────────────────────────────────
+  // ─── REMOVE MEMBER ───
   const handleRemoveMember = async (memberId, memberName) => {
     if (!isAdmin) return;
 
@@ -282,12 +257,10 @@ const ManageGroup = () => {
 
       if (response.data.success) {
         toast.success(`${memberName || 'Member'} has been removed`, 'Member Removed');
-
         setSelectedChat(prev => ({
           ...prev,
           members: prev.members.filter(m => (m._id || m) !== memberId)
         }));
-
         setChats(prevChats =>
           prevChats.map(chat =>
             chat._id === selectedChat._id
@@ -297,16 +270,13 @@ const ManageGroup = () => {
         );
       }
     } catch (error) {
-      console.error('Error removing member:', error);
       toast.error(error.response?.data?.message || 'Failed to remove member');
     } finally {
       setRemoving(null);
     }
   };
 
-  // ─────────────────────────────────────────
-  // LEAVE GROUP (Member Only)
-  // ─────────────────────────────────────────
+  // ─── LEAVE GROUP ───
   const handleLeaveGroup = async () => {
     const confirmed = await confirm({
       title: 'Leave Group',
@@ -328,23 +298,18 @@ const ManageGroup = () => {
         setOpenGroupManager(false);
       }
     } catch (error) {
-      console.error('Error leaving group:', error);
       toast.error(error.response?.data?.message || 'Failed to leave group');
     }
   };
 
-  // ─────────────────────────────────────────
-  // CLICK MEMBER → DM
-  // ─────────────────────────────────────────
+  // ─── CLICK MEMBER → DM ───
   const handleMemberClick = (memberId) => {
     if (memberId === userId) return;
     setOpenGroupManager(false);
     handleConnectPrivateChat(memberId);
   };
 
-  // ─────────────────────────────────────────
-  // PRIVACY TOGGLE (Admin Only)
-  // ─────────────────────────────────────────
+  // ─── PRIVACY TOGGLE ───
   const handlePrivacyToggle = async (newPrivacy) => {
     if (!isAdmin || newPrivacy === privacy) return;
 
@@ -357,22 +322,32 @@ const ManageGroup = () => {
 
       if (response.data.success) {
         setPrivacy(newPrivacy);
+
+        // ✅ Update selectedChat so refresh doesn't reset
+        setSelectedChat(prev => ({ ...prev, privacy: newPrivacy }));
+
+        // ✅ Update chats list
+        setChats(prevChats =>
+          prevChats.map(chat =>
+            chat._id === selectedChat._id
+              ? { ...chat, privacy: newPrivacy }
+              : chat
+          )
+        );
+
         toast.success(
-          `Group is now ${newPrivacy === 'private' ? 'Private' : 'Public'}`,
+          `Group is now ${newPrivacy === 'private' ? 'Private' : newPrivacy === 'secret' ? 'Secret' : 'Public'}`,
           'Privacy Updated'
         );
       }
     } catch (error) {
-      console.error('Error updating privacy:', error);
       toast.error(error.response?.data?.message || 'Failed to update privacy');
     } finally {
       setUpdatingPrivacy(false);
     }
   };
 
-  // ─────────────────────────────────────────
-  // HANDLE JOIN REQUEST (Admin Only)
-  // ─────────────────────────────────────────
+  // ─── HANDLE JOIN REQUEST ───
   const handleJoinRequest = async (reqUserId, action, userName) => {
     if (!isAdmin) return;
 
@@ -385,6 +360,7 @@ const ManageGroup = () => {
       });
 
       if (response.data.success) {
+        // ✅ Remove from local pending list immediately
         setPendingRequests(prev =>
           prev.filter(r => {
             const id = r.userId?._id || r.userId;
@@ -394,13 +370,22 @@ const ManageGroup = () => {
 
         if (action === 'approve') {
           toast.success(`${userName || 'User'} has been added to the group`, 'Request Approved');
+
+          // ✅ Add to members list immediately
+          if (response.data.group?.members) {
+            setSelectedChat(prev => ({
+              ...prev,
+              members: response.data.group.members
+            }));
+          }
         } else {
           toast.info(`${userName || 'User'}'s request has been declined`, 'Request Denied');
         }
 
+        // ✅ Refresh after 1 second to sync with backend
         setTimeout(async () => {
           try {
-            const refreshResponse = await axiosInstance.get(`/api/groups/${selectedChat._id}`);
+            const refreshResponse = await axiosInstance.get(`/api/group/${selectedChat._id}`);
             if (refreshResponse.data.group) {
               setPendingRequests(refreshResponse.data.group.pendingRequests || []);
             }
@@ -417,9 +402,6 @@ const ManageGroup = () => {
     }
   };
 
-  // ─────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────
   return (
     <div className="fixed right-0 top-0 w-full h-full max-w-[806px] mx-auto flex flex-col items-center bg-[var(--bg-primary)] z-50">
       <input
@@ -433,10 +415,7 @@ const ManageGroup = () => {
       {/* Close Button */}
       <span className="cursor-default flex justify-end w-full text-[var(--text-muted)] font-bold p-4">
         <IoClose
-          onClick={(e) => {
-            e.stopPropagation();
-            setOpenGroupManager(false);
-          }}
+          onClick={(e) => { e.stopPropagation(); setOpenGroupManager(false); }}
           className="cursor-pointer hover:text-[var(--text-primary)] transition-colors"
           size={28}
         />
@@ -444,7 +423,7 @@ const ManageGroup = () => {
 
       <div className="w-full shadow-lg p-4 bg-[var(--bg-primary)] overflow-y-auto cursor-default">
 
-        {/* ─── GROUP PROFILE ─── */}
+        {/* GROUP PROFILE */}
         <div className="flex flex-col items-center mb-6">
           <div
             onClick={() => isAdmin && setChangePhoto(true)}
@@ -455,30 +434,32 @@ const ManageGroup = () => {
           <span className="text-[var(--text-primary)] font-semibold text-lg mt-2">
             {selectedChat.groupName}
           </span>
-          <span className="text-[var(--text-[#3b82f6])] text-sm">
+          <span className="text-[var(--text-secondary)] text-sm">
             {members.length} member{members.length !== 1 ? 's' : ''}
           </span>
 
-          {/* Privacy Badge — Public = secondary (blue), Private = primary (indigo) */}
-          <span className={`mt-1 text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${privacy === 'private'
-            ? 'bg-[#6366f1]/10 text-[#6366f1] border border-[#6366f1]/30'
-            : 'bg-[#3b82f6]/10 text-[#3b82f6] border border-[#3b82f6]/30'
-            }`}>
-            {privacy === 'private' ? <MdLock size={10} /> : <MdPublic size={10} />}
-            {privacy === 'private' ? 'Private Group' : 'Public Group'}
+          {/* Privacy Badge */}
+          <span className={`mt-1 text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${
+            privacy === 'private'
+              ? 'bg-[#6366f1]/10 text-[#6366f1] border border-[#6366f1]/30'
+              : privacy === 'secret'
+              ? 'bg-gray-500/10 text-gray-400 border border-gray-500/30'
+              : 'bg-[#3b82f6]/10 text-[#3b82f6] border border-[#3b82f6]/30'
+          }`}>
+            {privacy === 'public' ? <MdPublic size={10} /> : <MdLock size={10} />}
+            {privacy === 'private' ? 'Private Group' : privacy === 'secret' ? 'Secret Group' : 'Public Group'}
           </span>
 
           {/* Admin Badge */}
           {isAdmin && (
             <span className="mt-2 text-xs px-2 py-0.5 rounded-full flex items-center gap-1 bg-[#eab308]/10 text-[#eab308] border border-[#eab308]/30">
-              <FaCrown size={10} />
-              Group Admin
+              <FaCrown size={10} /> Group Admin
             </span>
           )}
 
-          {/* Admin Only: Photo Change Options */}
+          {/* Photo Change Options */}
           {isAdmin && changePhoto && (
-            <div className="bg-[var(--bg-[#3b82f6])] absolute mt-32 p-3 w-64 flex flex-col items-center gap-3 shadow-lg border border-[var(--border)] rounded-lg z-10">
+            <div className="bg-[var(--bg-card)] absolute mt-32 p-3 w-64 flex flex-col items-center gap-3 shadow-lg border border-[var(--border)] rounded-lg z-10">
               <span
                 onClick={handleChangePhotoClick}
                 className={`block text-[#3b82f6] cursor-pointer hover:underline ${uploadingPhoto ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -491,57 +472,38 @@ const ManageGroup = () => {
               </span>
               <span
                 onClick={() => setChangePhoto(false)}
-                className="block text-[var(--text-[#3b82f6])] cursor-pointer hover:underline">
+                className="block text-[var(--text-secondary)] cursor-pointer hover:underline">
                 Cancel
               </span>
             </div>
           )}
         </div>
 
-        {/* ─── INVITE LINK ─── */}
+        {/* INVITE LINK */}
         {inviteLink && (
-          <div className="mb-6 p-4 bg-[var(--bg-[#3b82f6])] rounded-lg border border-[var(--border)]">
+          <div className="mb-6 p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[var(--text-primary)] font-medium text-sm">Group Invite Link</span>
               <CiLink size={20} className="text-[var(--text-muted)]" />
             </div>
-
-            <a href={inviteLink}
-              target="_blank"
-              rel="noopener noreferrer"
+            <a href={inviteLink} target="_blank" rel="noopener noreferrer"
               className="block p-3 bg-[var(--bg-card)] text-[#3b82f6] rounded-lg mb-3 text-sm hover:bg-[var(--bg-card-hover)] transition break-all border border-[var(--border)]">
               {inviteLink}
             </a>
-
             <button
               onClick={handleCopyLink}
               className="w-full p-3 bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white rounded-lg transition flex items-center justify-center gap-2">
-              {copied ? (
-                <>
-                  <FiCheck size={18} />
-                  <span className="font-medium">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <FiCopy size={18} />
-                  <span className="font-medium">Copy Invite Link</span>
-                </>
-              )}
+              {copied ? <><FiCheck size={18} /><span className="font-medium">Copied!</span></> : <><FiCopy size={18} /><span className="font-medium">Copy Invite Link</span></>}
             </button>
-
-            <p className="text-[var(--text-muted)] text-xs mt-3 text-center">
-              Share this link to invite others
-            </p>
+            <p className="text-[var(--text-muted)] text-xs mt-3 text-center">Share this link to invite others</p>
           </div>
         )}
 
-        {/* ─── MEMBERS SECTION ─── */}
+        {/* MEMBERS */}
         <div className="mb-6">
           <h3 className="text-[var(--text-primary)] font-semibold mb-3 flex items-center gap-2">
-            Members
-            <span className="text-[var(--text-[#3b82f6])] text-sm">({members.length})</span>
+            Members <span className="text-[var(--text-secondary)] text-sm">({members.length})</span>
           </h3>
-
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
             {members.map((member) => {
               const memberId = member._id || member;
@@ -550,11 +512,8 @@ const ManageGroup = () => {
               const isRemoving = removing === memberId;
 
               return (
-                <div
-                  key={memberId}
+                <div key={memberId}
                   className="flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--bg-card-hover)] transition border border-[var(--border)]">
-
-                  {/* Avatar */}
                   <div
                     onClick={() => !isCurrentUser && handleMemberClick(memberId)}
                     className={`flex-shrink-0 ${!isCurrentUser ? 'cursor-pointer' : ''}`}>
@@ -570,8 +529,6 @@ const ManageGroup = () => {
                       </div>
                     )}
                   </div>
-
-                  {/* Info */}
                   <div
                     onClick={() => !isCurrentUser && handleMemberClick(memberId)}
                     className={`flex-1 min-w-0 ${!isCurrentUser ? 'cursor-pointer' : ''}`}>
@@ -579,33 +536,20 @@ const ManageGroup = () => {
                       <p className="text-[var(--text-primary)] font-medium truncate">
                         {member.name || 'Unknown'}
                       </p>
-                      {isGroupAdmin && (
-                        <FaCrown className="text-[#eab308]" size={14} title="Admin" />
-                      )}
-                      {isCurrentUser && (
-                        <span className="text-xs text-[#3b82f6]">(You)</span>
-                      )}
+                      {isGroupAdmin && <FaCrown className="text-[#eab308]" size={14} title="Admin" />}
+                      {isCurrentUser && <span className="text-xs text-[#3b82f6]">(You)</span>}
                     </div>
-                    <p className="text-[var(--text-[#3b82f6])] text-sm truncate">
-                      {member.email || ''}
-                    </p>
                     {!isCurrentUser && (
                       <p className="text-[var(--text-muted)] text-xs">Click to message</p>
                     )}
                   </div>
-
-                  {/* Remove Button (Admin Only) */}
                   {isAdmin && !isGroupAdmin && !isCurrentUser && (
                     <button
                       onClick={() => handleRemoveMember(memberId, member.name)}
                       disabled={isRemoving}
                       className="p-2 bg-[#ef4444] hover:bg-[#ef4444]/90 rounded-lg transition disabled:opacity-50"
                       title="Remove member">
-                      {isRemoving ? (
-                        <BeatLoader color="white" size={8} />
-                      ) : (
-                        <MdDelete size={18} />
-                      )}
+                      {isRemoving ? <BeatLoader color="white" size={8} /> : <MdDelete size={18} />}
                     </button>
                   )}
                 </div>
@@ -614,66 +558,73 @@ const ManageGroup = () => {
           </div>
         </div>
 
-        {/* ─────────────────────────────────────── */}
-        {/* ADMIN-ONLY SETTINGS */}
-        {/* ─────────────────────────────────────── */}
+        {/* ADMIN SETTINGS */}
         {isAdmin && (
           <div className="border-t border-[var(--border)] pt-4">
             <h3 className="text-[var(--text-primary)] font-semibold mb-4">Admin Settings</h3>
 
             {/* Privacy Toggle */}
-            <div className="mb-6 p-4 bg-[var(--bg-[#3b82f6])] rounded-lg border border-[var(--border)]">
+            <div className="mb-6 p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]">
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <p className="text-[var(--text-primary)] font-medium text-sm">Group Privacy</p>
                   <p className="text-[var(--text-muted)] text-xs mt-1">
-                    {privacy === 'private'
-                      ? 'Members must request to join'
+                    {privacy === 'private' ? 'Members must request to join'
+                      : privacy === 'secret' ? 'Hidden everywhere, invite only'
                       : 'Anyone can join instantly'}
                   </p>
                 </div>
                 {updatingPrivacy && <BeatLoader color="white" size={8} />}
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <button
                   onClick={() => handlePrivacyToggle('public')}
                   disabled={updatingPrivacy}
-                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${privacy === 'public'
-                    ? 'bg-[#3b82f6]/10 border-[#3b82f6] text-[#3b82f6]'
-                    : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-hover)]'
-                    }`}>
+                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${
+                    privacy === 'public'
+                      ? 'bg-[#3b82f6]/10 border-[#3b82f6] text-[#3b82f6]'
+                      : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-hover)]'
+                  }`}>
                   <MdPublic size={20} />
                   <span className="text-xs font-medium">Public</span>
                 </button>
-
                 <button
                   onClick={() => handlePrivacyToggle('private')}
                   disabled={updatingPrivacy}
-                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${privacy === 'private'
-                    ? 'bg-[#6366f1]/10 border-[#6366f1] text-[#6366f1]'
-                    : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-hover)]'
-                    }`}>
+                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${
+                    privacy === 'private'
+                      ? 'bg-[#6366f1]/10 border-[#6366f1] text-[#6366f1]'
+                      : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-hover)]'
+                  }`}>
                   <MdLock size={20} />
                   <span className="text-xs font-medium">Private</span>
+                </button>
+                <button
+                  onClick={() => handlePrivacyToggle('secret')}
+                  disabled={updatingPrivacy}
+                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${
+                    privacy === 'secret'
+                      ? 'bg-gray-500/10 border-gray-400 text-gray-300'
+                      : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-hover)]'
+                  }`}>
+                  <span style={{ fontSize: 18 }}>👻</span>
+                  <span className="text-xs font-medium">Secret</span>
                 </button>
               </div>
             </div>
 
             {/* Pending Join Requests */}
             {privacy === 'private' && (
-              <div className="mb-6 p-4 bg-[var(--bg-[#3b82f6])] rounded-lg border border-[var(--border)]">
+              <div className="mb-6 p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-[var(--text-primary)] font-medium text-sm">Join Requests</p>
                   <span className="bg-[#3b82f6] text-white text-xs px-2 py-0.5 rounded-full">
                     {pendingRequests.length}
                   </span>
                 </div>
-
                 {pendingRequests.length === 0 ? (
-                  <p className="text-[var(--text-muted)] text-sm text-center py-2">
-                    No pending requests
-                  </p>
+                  <p className="text-[var(--text-muted)] text-sm text-center py-2">No pending requests</p>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {pendingRequests.map((request) => {
@@ -683,10 +634,8 @@ const ManageGroup = () => {
                       const isHandling = handlingRequest === reqUserId;
 
                       return (
-                        <div
-                          key={reqUserId}
+                        <div key={reqUserId}
                           className="flex items-center gap-3 p-3 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]">
-
                           {reqUserPic ? (
                             <img
                               src={`${import.meta.env.VITE_BACKEND_URL}${reqUserPic}`}
@@ -698,14 +647,12 @@ const ManageGroup = () => {
                               <RxAvatar size={20} />
                             </div>
                           )}
-
                           <div className="flex-1 min-w-0">
                             <p className="text-[var(--text-primary)] text-sm font-medium truncate">
                               {reqUserName}
                             </p>
                             <p className="text-[var(--text-muted)] text-xs">Wants to join</p>
                           </div>
-
                           {isHandling ? (
                             <BeatLoader color="white" size={8} />
                           ) : (
@@ -730,9 +677,9 @@ const ManageGroup = () => {
               </div>
             )}
 
-            {/* EDITABLE FIELDS FOR ADMIN */}
+            {/* Editable Fields */}
             <div className="mb-4">
-              <label className="block text-sm text-[var(--text-[#3b82f6])] mb-1">Group Name</label>
+              <label className="block text-sm text-[var(--text-secondary)] mb-1">Group Name</label>
               <input
                 type="text"
                 value={groupName}
@@ -741,9 +688,8 @@ const ManageGroup = () => {
                 className="w-full p-3 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:ring focus:ring-[#6366f1]/50"
               />
             </div>
-
             <div className="mb-4">
-              <label className="block text-sm text-[var(--text-[#3b82f6])] mb-1">Group Subjects</label>
+              <label className="block text-sm text-[var(--text-secondary)] mb-1">Group Subjects</label>
               <input
                 type="text"
                 value={subjects}
@@ -753,9 +699,8 @@ const ManageGroup = () => {
               />
               <p className="text-[var(--text-muted)] text-xs mt-1">Separate subjects with commas</p>
             </div>
-
             <div className="mb-4">
-              <label className="block text-sm text-[var(--text-[#3b82f6])] mb-1">Description</label>
+              <label className="block text-sm text-[var(--text-secondary)] mb-1">Description</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -765,28 +710,18 @@ const ManageGroup = () => {
               />
             </div>
 
-            {/* Primary save action — the one deliberate place the brand
-                gradient shows up in this panel, rather than scattered
-                across every button. */}
             <button
               onClick={handleSaveChanges}
               disabled={saving}
               className="w-full bg-gradient-to-br from-[#3b82f6] to-[#6366f1] hover:opacity-90 text-white py-3 rounded-md transition disabled:opacity-50 flex items-center justify-center gap-2">
               {saving ? (
-                <>
-                  <BeatLoader color="white" size={8} />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                'Save Changes'
-              )}
+                <><BeatLoader color="white" size={8} /><span>Saving...</span></>
+              ) : 'Save Changes'}
             </button>
           </div>
         )}
 
-        {/* ─────────────────────────────────────── */}
-        {/* MEMBER-ONLY OPTIONS */}
-        {/* ─────────────────────────────────────── */}
+        {/* MEMBER OPTIONS */}
         {!isAdmin && (
           <div className="border-t border-[var(--border)] pt-4">
             <button

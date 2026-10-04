@@ -4,6 +4,7 @@ import {
   Search, CheckCircle, MessageCircle, Users, BookOpen, Lock,
   User, TrendingUp,
 } from 'lucide-react';
+import Flogo from '../assets/Flogo.png'
 
 // NOTE: colors on this page are intentionally hardcoded hex/rgba, not the
 // app's var(--bg-primary)/var(--text-primary) theme tokens used everywhere
@@ -111,13 +112,10 @@ const LandingPage = () => {
         transition: 'all 0.3s ease',
         maxWidth: 1280, margin: '0 auto',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18, fontWeight: 700, color: '#fff',
-          }}>F</div>
+        <div style={{ display: 'flex', alignItems: 'center', }}>
+          <img src={Flogo}
+            style={{ width: 36, height: 36, objectFit: 'contain' }}
+          />
           <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: '#f1f5f9' }}>
             FindOut
           </span>
@@ -476,12 +474,9 @@ const LandingPage = () => {
         maxWidth: 1280, margin: '0 auto',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{
-            width: 26, height: 26, borderRadius: 8,
-            background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, fontWeight: 700, color: '#fff',
-          }}>F</div>
+          <img src={Flogo}
+            style={{ width: 28, height: 28, objectFit: 'contain' }}
+          />
           <span style={{ fontSize: 15, fontWeight: 600, color: '#f1f5f9' }}>FindOut</span>
         </div>
 

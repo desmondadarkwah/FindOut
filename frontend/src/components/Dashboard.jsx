@@ -19,6 +19,7 @@ import { useDelete } from "../Context/DeleteGroupContext";
 import { ChatContext } from "../Context/ChatContext";
 import { RxAvatar } from "react-icons/rx";
 import moment from "moment";
+import NotificationBell from "./NotificationBell";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -347,9 +348,8 @@ const Dashboard = () => {
                                 {timeAgo}
                               </span>
                             </div>
-                            <p className={`text-sm truncate ${
-                              chat.unreadCount > 0 ? "text-[var(--text-primary)] font-medium" : "text-[var(--text-secondary)]"
-                            }`}>
+                            <p className={`text-sm truncate ${chat.unreadCount > 0 ? "text-[var(--text-primary)] font-medium" : "text-[var(--text-secondary)]"
+                              }`}>
                               {messagePreview || "No messages yet"}
                             </p>
                           </div>
@@ -412,8 +412,8 @@ const Dashboard = () => {
                   <span className="text-[var(--text-muted)] text-xs">{userData.subjects}</span>
                 </div>
               </div>
-              <button className="text-[#818cf8] text-sm hover:opacity-80 transition-opacity">
-                Switch
+              <button>
+                <NotificationBell />
               </button>
             </div>
 

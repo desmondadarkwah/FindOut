@@ -1,7 +1,6 @@
 const GroupModel = require('../models/GroupModel');
 const { MessageModel, ChatModel } = require('../models/MessageModel');
 const { createNotification } = require('../services/notificationService');
-const { getIo } = require('../socket/socket');
 
 const HandleJoinRequest = async (req, res) => {
   try {
@@ -31,16 +30,20 @@ const HandleJoinRequest = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Group not found' });
     }
 
-    if (group.groupAdmin._id.toString() !== adminId) {
+    // ✅ FIX: Check groupAdmin exists before accessing _id
+    const groupAdminId = group.groupAdmin?._id?.toString() || group.groupAdmin?.toString();
+    if (!groupAdminId || groupAdminId !== adminId) {
       return res.status(403).json({
         success: false,
         message: 'Only group admin can handle join requests'
       });
     }
 
-    const requestExists = group.pendingRequests.some(
-      r => (r.userId._id || r.userId).toString() === userId
-    );
+    // ✅ FIX: Handle both populated and unpopulated pendingRequests
+    const requestExists = group.pendingRequests.some(r => {
+      const reqUserId = r.userId?._id?.toString() || r.userId?.toString();
+      return reqUserId === userId;
+    });
 
     if (!requestExists) {
       return res.status(404).json({
@@ -50,17 +53,13 @@ const HandleJoinRequest = async (req, res) => {
     }
 
     // Remove from pending requests
-    group.pendingRequests = group.pendingRequests.filter(
-      r => (r.userId._id || r.userId).toString() !== userId
-    );
+    group.pendingRequests = group.pendingRequests.filter(r => {
+      const reqUserId = r.userId?._id?.toString() || r.userId?.toString();
+      return reqUserId !== userId;
+    });
 
-    let io;
-    try {
-      io = getIo();
-    } catch (socketError) {
-      console.warn('⚠️ Socket.io not available:', socketError.message);
-      io = null;
-    }
+    // ✅ Use global.socketIo instead of getIo()
+    const io = global.socketIo || null;
 
     if (action === 'approve') {
       group.members.push(userId);
@@ -100,17 +99,21 @@ const HandleJoinRequest = async (req, res) => {
         console.log('⚠️ System message skipped:', msgError.message);
       }
 
-      // ✅ Notify the approved user
-      await createNotification({
-        recipient: userId,
-        sender: adminId,
-        type: 'request_approved',
-        title: '✅ Join Request Approved!',
-        message: `Your request to join "${group.groupName}" was approved. Welcome!`,
-        link: '/inbox',
-        groupId: group._id,
-        io,
-      });
+      // ✅ Notify approved user
+      try {
+        await createNotification({
+          recipient: userId,
+          sender: adminId,
+          type: 'request_approved',
+          title: '✅ Join Request Approved!',
+          message: `Your request to join "${group.groupName}" was approved. Welcome!`,
+          link: '/inbox',
+          groupId: group._id,
+          io,
+        });
+      } catch (notifError) {
+        console.warn('⚠️ Notification skipped:', notifError.message);
+      }
 
       if (io) {
         io.to(groupId).emit('member-joined', {
@@ -118,13 +121,11 @@ const HandleJoinRequest = async (req, res) => {
           newMember: userId,
           group: populatedGroup
         });
-
         io.to(userId).emit('join-request-approved', {
           groupId: group._id,
           groupName: group.groupName,
           group: populatedGroup
         });
-
         io.to(adminId).emit('pending-requests-updated', {
           groupId: group._id,
           pendingRequests: populatedGroup.pendingRequests
@@ -148,24 +149,27 @@ const HandleJoinRequest = async (req, res) => {
         .populate('groupAdmin', 'name profilePicture')
         .populate('pendingRequests.userId', 'name profilePicture');
 
-      // ✅ Notify the denied user
-      await createNotification({
-        recipient: userId,
-        sender: adminId,
-        type: 'request_rejected',
-        title: 'Join Request Not Approved',
-        message: `Your request to join "${group.groupName}" was not approved.`,
-        link: '/explore-groups',
-        groupId: group._id,
-        io,
-      });
+      // ✅ Notify denied user
+      try {
+        await createNotification({
+          recipient: userId,
+          sender: adminId,
+          type: 'request_rejected',
+          title: 'Join Request Not Approved',
+          message: `Your request to join "${group.groupName}" was not approved.`,
+          link: '/explore-groups',
+          groupId: group._id,
+          io,
+        });
+      } catch (notifError) {
+        console.warn('⚠️ Notification skipped:', notifError.message);
+      }
 
       if (io) {
         io.to(userId).emit('join-request-denied', {
           groupId: group._id,
           groupName: group.groupName
         });
-
         io.to(adminId).emit('pending-requests-updated', {
           groupId: group._id,
           pendingRequests: populatedGroup.pendingRequests

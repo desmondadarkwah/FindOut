@@ -1,12 +1,11 @@
 import React, { createContext, useState, useContext } from "react";
 import axiosInstance from "../utils/axiosInstance";
-import { toast } from 'react-toastify'
 
 export const EditUserContext = createContext();
 
 const EditUserProvider = ({ children }) => {
-  const [userData, setUserData] = useState({}); // Store user details
-  const [loading, setLoading] = useState(false); // Loading state for API calls
+  const [userData, setUserData] = useState({});
+  const [loading, setLoading] = useState(false);
 
   const fetchUserDetails = async () => {
     try {
@@ -15,22 +14,20 @@ const EditUserProvider = ({ children }) => {
       setUserData(response.data);
     } catch (error) {
       console.error("Error fetching user details:", error);
-      toast.error('Failed to fetch user details')
     } finally {
       setLoading(false);
     }
   };
 
-  // Function to edit user details
   const editUserDetails = async (updates) => {
     try {
       setLoading(true);
       const response = await axiosInstance.put("/api/edit-user", updates);
-      setUserData((prev) => ({ ...prev, ...updates }));
-      toast.success('user details updated successfully')
+      setUserData(prev => ({ ...prev, ...updates }));
+      return true; // ✅ Return success - let caller handle toast
     } catch (error) {
       console.error("Error updating user details:", error);
-      toast.error('failed to update user details')
+      return false; // ✅ Return failure - let caller handle toast
     } finally {
       setLoading(false);
     }
@@ -43,7 +40,5 @@ const EditUserProvider = ({ children }) => {
   );
 };
 
-// Custom hook for easy access to the context
 export const useEditUser = () => useContext(EditUserContext);
-
 export default EditUserProvider;

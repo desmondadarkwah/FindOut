@@ -4,7 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const { uploadSingle } = require('../config/upload');
 const { createNotification } = require('../services/notificationService');
-const { getIo } = require('../socket/socket');
 
 const AddPost = async (req, res) => {
   uploadSingle(req, res, async (err) => {
@@ -126,7 +125,7 @@ const TogglePostHelpful = async (req, res) => {
       // ✅ Notify post author when someone marks helpful
       if (post.author._id.toString() !== userId.toString()) {
         try {
-          const io = getIo();
+          const io = global.socketIo || null; // ✅ Use global instead of getIo()
           const helper = await UserModel.findById(userId).select('name');
           await createNotification({
             recipient: post.author._id,
@@ -162,7 +161,6 @@ const TogglePostHelpful = async (req, res) => {
   }
 };
 
-// ✅ ADD COMMENT with notification
 const AddComment = async (req, res) => {
   try {
     const { postId } = req.params;
@@ -197,7 +195,7 @@ const AddComment = async (req, res) => {
     // ✅ Notify post author when someone comments
     if (post.author.toString() !== userId.toString()) {
       try {
-        const io = getIo();
+        const io = global.socketIo || null; // ✅ Use global instead of getIo()
         const commenter = await UserModel.findById(userId).select('name');
         await createNotification({
           recipient: post.author,

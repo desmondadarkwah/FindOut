@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Lock, Mail, Eye, EyeOff, LogIn } from 'lucide-react';
+import { Shield, Lock, Mail, Eye, EyeOff, LogIn, ArrowLeft } from 'lucide-react';
 import { useAdminContext } from '../Context/AdminContext';
 
 const AdminLogin = () => {
@@ -10,10 +10,8 @@ const AdminLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const { login } = useAdminContext(); // ✅ REMOVED isAuthenticated check
+  const { login } = useAdminContext();
   const navigate = useNavigate();
-
-  // ✅ REMOVED the useEffect that was redirecting
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,11 +26,7 @@ const AdminLogin = () => {
 
     try {
       const result = await login(email, password);
-
-      console.log('login-result: ',result);
-      
       if (result.success) {
-        // ✅ Navigate immediately after successful login
         navigate('/admin-dashboard');
       } else {
         setErrorMessage(result.message || 'Invalid credentials');
@@ -45,33 +39,31 @@ const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#0a0a0f' }}>
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4 shadow-lg">
-            <Shield size={40} className="text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4" style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)' }}>
+            <Shield size={32} color="#818cf8" />
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+          <h1 className="text-2xl font-semibold mb-2" style={{ color: '#f1f5f9' }}>
             Admin Portal
           </h1>
-          <p className="text-gray-400">FindOut Administration Dashboard</p>
+          <p style={{ color: 'rgba(255,255,255,0.4)' }}>FindOut Administration Dashboard</p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-2xl p-8">
+        <div className="rounded-2xl shadow-2xl p-8" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Error Message */}
             {errorMessage && (
-              <div className="bg-red-500/10 border border-red-500/50 rounded-xl p-4">
-                <p className="text-red-400 text-sm text-center">{errorMessage}</p>
+              <div className="rounded-xl p-4" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                <p className="text-sm text-center" style={{ color: '#f87171' }}>{errorMessage}</p>
               </div>
             )}
 
-            {/* Email Input */}
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-white font-medium text-sm">
-                <Mail size={16} className="text-blue-400" />
+              <label className="flex items-center gap-2 font-medium text-sm" style={{ color: '#f1f5f9' }}>
+                <Mail size={16} color="rgba(255,255,255,0.4)" />
                 Email Address
               </label>
               <input
@@ -80,14 +72,16 @@ const AdminLogin = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@findout.com"
                 disabled={isLoading}
-                className="w-full p-3 bg-gray-900/50 border border-gray-600/50 text-white placeholder-gray-400 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 disabled:opacity-50"
+                className="w-full p-3 rounded-xl outline-none transition-colors disabled:opacity-50"
+                style={{ background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.08)', color: '#f1f5f9' }}
+                onFocus={e => e.currentTarget.style.borderColor = 'rgba(99,102,241,0.5)'}
+                onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
               />
             </div>
 
-            {/* Password Input */}
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-white font-medium text-sm">
-                <Lock size={16} className="text-purple-400" />
+              <label className="flex items-center gap-2 font-medium text-sm" style={{ color: '#f1f5f9' }}>
+                <Lock size={16} color="rgba(255,255,255,0.4)" />
                 Password
               </label>
               <div className="relative">
@@ -97,12 +91,16 @@ const AdminLogin = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   disabled={isLoading}
-                  className="w-full p-3 pr-12 bg-gray-900/50 border border-gray-600/50 text-white placeholder-gray-400 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 disabled:opacity-50"
+                  className="w-full p-3 pr-12 rounded-xl outline-none transition-colors disabled:opacity-50"
+                  style={{ background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.08)', color: '#f1f5f9' }}
+                  onFocus={e => e.currentTarget.style.borderColor = 'rgba(99,102,241,0.5)'}
+                  onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                  style={{ color: 'rgba(255,255,255,0.4)' }}
                   disabled={isLoading}
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -110,15 +108,15 @@ const AdminLogin = () => {
               </div>
             </div>
 
-            {/* Login Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 font-medium flex items-center justify-center gap-2 border border-blue-500/30"
+              className="w-full py-3 px-4 rounded-xl font-medium flex items-center justify-center gap-2 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)', color: '#fff', border: 'none' }}
             >
               {isLoading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: '#fff', borderTopColor: 'transparent' }}></div>
                   Logging in...
                 </>
               ) : (
@@ -130,10 +128,9 @@ const AdminLogin = () => {
             </button>
           </form>
 
-          {/* Footer */}
-          <div className="mt-6 pt-6 border-t border-gray-700/50">
-            <p className="text-center text-gray-400 text-sm">
-              🔒 Authorized personnel only
+          <div className="mt-6 pt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+            <p className="text-center text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              Authorized personnel only
             </p>
           </div>
         </div>
@@ -142,9 +139,13 @@ const AdminLogin = () => {
         <div className="mt-6 text-center">
           <button
             onClick={() => navigate('/login')}
-            className="text-gray-400 hover:text-white transition-colors text-sm"
+            className="inline-flex items-center gap-1.5 text-sm transition-colors"
+            style={{ color: 'rgba(255,255,255,0.4)' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#f1f5f9'}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
           >
-            ← Back to main site
+            <ArrowLeft size={14} />
+            Back to main site
           </button>
         </div>
       </div>

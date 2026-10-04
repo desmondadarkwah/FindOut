@@ -1,39 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, FileText, Activity, TrendingUp, LogOut, Menu, X,
-  Shield, BarChart3, PieChart, Calendar, ArrowUp, ArrowDown
+  Users, FileText, Activity, TrendingUp, LogOut, Menu, X, Shield, Flag, ArrowUp, BarChart3, PieChart
 } from 'lucide-react';
 import { useAdminContext } from '../Context/AdminContext';
 import axiosInstance from '../utils/axiosInstance';
 import FindOutLoader from '../Loader/FindOutLoader';
 
+const ACTIVE_KEY = 'analytics';
+
+const NAV_ITEMS = [
+  { key: 'dashboard', label: 'Dashboard', icon: Activity, to: '/admin-dashboard' },
+  { key: 'users', label: 'Users', icon: Users, to: '/admin-users' },
+  { key: 'posts', label: 'Posts', icon: FileText, to: '/admin-posts' },
+  { key: 'reports', label: 'Reports', icon: Flag, to: '/admin-reports' },
+  { key: 'analytics', label: 'Analytics', icon: TrendingUp, to: '/admin-analytics' },
+];
+
 const AdminAnalytics = () => {
   const { admin, logout } = useAdminContext();
   const navigate = useNavigate();
+  const [showSidebar, setShowSidebar] = useState(false);
 
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showSidebar, setShowSidebar] = useState(false);
 
   useEffect(() => {
-    if (admin) {
-      fetchStats();
-    }
+    if (admin) fetchStats();
   }, [admin]);
 
   const fetchStats = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-
       const response = await axiosInstance.get('/api/admin/dashboard/stats', {
         headers: { Authorization: `Bearer ${token}` }
       });
-
-      if (response.data.success) {
-        setStats(response.data.stats);
-      }
+      if (response.data.success) setStats(response.data.stats);
     } catch (error) {
       console.error('Error fetching stats:', error);
       if (error.response?.status === 401) {
@@ -44,65 +47,62 @@ const AdminAnalytics = () => {
       setLoading(false);
     }
   };
+  const card = { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: 20 };
+
+  if (loading) return <FindOutLoader />;
 
   const handleLogout = async () => {
-    const confirm = window.confirm('Are you sure you want to logout?');
-    if (confirm) {
+    const confirmed = window.confirm('Are you sure you want to logout?');
+    if (confirmed) {
       await logout();
       navigate('/admin-login');
     }
   };
 
-  if (loading) {
-    return (
-      <FindOutLoader />
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800">
+    <div className="min-h-screen bg-[#0a0a0f]">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setShowSidebar(!showSidebar)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-gray-800/90 backdrop-blur-sm border border-gray-700/50 rounded-xl text-white"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2.5 bg-[#0f0f1a] border border-[rgba(255,255,255,0.07)] rounded-lg text-[rgba(255,255,255,0.4)]"
       >
-        {showSidebar ? <X size={20} /> : <Menu size={20} />}
+        {showSidebar ? <X size={18} /> : <Menu size={18} />}
       </button>
 
       {/* Sidebar */}
       <div className={`
-        fixed top-0 left-0 h-full w-64 bg-gray-900/95 backdrop-blur-sm border-r border-gray-700/50 z-40
-        transform transition-transform duration-300 lg:translate-x-0
+        fixed top-0 left-0 h-full w-64 bg-[#0f0f1a] border-r border-[rgba(255,255,255,0.07)] z-40
+        transform transition-transform duration-200 lg:translate-x-0
         ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="p-6">
+        <div className="p-5 flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <Shield size={24} className="text-white" />
+          <div className="flex items-center gap-2.5 mb-8 px-1">
+            <div className="w-8 h-8 bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.07)] rounded-lg flex items-center justify-center">
+              <Shield size={16} className="text-[rgba(255,255,255,0.4)]" />
             </div>
             <div>
-              <h2 className="text-white font-bold">Admin Panel</h2>
-              <p className="text-gray-400 text-xs">FindOut</p>
+              <h2 className="text-[#f1f5f9] font-semibold text-sm leading-tight">FindOut</h2>
+              <p className="text-[rgba(255,255,255,0.2)] text-xs leading-tight">Admin</p>
             </div>
           </div>
 
           {/* Admin Info */}
-          <div className="bg-gray-800/50 rounded-xl p-4 mb-6">
+          <div className="bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.07)] rounded-xl p-3.5 mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-sm">
+              <div className="w-9 h-9 bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.07)] rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-[#f1f5f9] font-semibold text-xs">
                   {admin?.name?.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white font-medium text-sm truncate">{admin?.name}</p>
-                <p className="text-gray-400 text-xs truncate">{admin?.email}</p>
+                <p className="text-[#f1f5f9] font-medium text-sm truncate">{admin?.name}</p>
+                <p className="text-[rgba(255,255,255,0.2)] text-xs truncate">{admin?.email}</p>
               </div>
             </div>
             {admin?.isSuperAdmin && (
-              <div className="mt-3 pt-3 border-t border-gray-700/50">
-                <span className="inline-flex items-center gap-1 text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded-full">
+              <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.07)]">
+                <span className="inline-flex items-center gap-1.5 text-xs text-[rgba(251,191,36,0.9)]">
                   <Shield size={12} />
                   Super Admin
                 </span>
@@ -111,327 +111,224 @@ const AdminAnalytics = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="space-y-2">
-            <button
-              onClick={() => navigate('/admin-dashboard')}
-              className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-xl transition-colors"
-            >
-              <Activity size={18} />
-              <span className="font-medium">Dashboard</span>
-            </button>
-
-            <button
-              onClick={() => navigate('/admin-users')}
-              className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-xl transition-colors"
-            >
-              <Users size={18} />
-              <span className="font-medium">Users</span>
-            </button>
-
-            <button
-              onClick={() => navigate('/admin-posts')}
-              className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-xl transition-colors"
-            >
-              <FileText size={18} />
-              <span className="font-medium">Posts</span>
-            </button>
-
-            <button
-              onClick={() => navigate('/admin-analytics')}
-              className="w-full flex items-center gap-3 px-4 py-3 text-white bg-blue-500/20 border border-blue-500/50 rounded-xl transition-colors"
-            >
-              <TrendingUp size={18} />
-              <span className="font-medium">Analytics</span>
-            </button>
+          <nav className="space-y-0.5 flex-1">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const active = item.key === ACTIVE_KEY;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => navigate(item.to)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border-l-2 ${
+                    active
+                      ? 'text-[#f1f5f9] bg-[rgba(255,255,255,0.05)] border-[#6366f1]'
+                      : 'text-[rgba(255,255,255,0.4)] hover:text-[#f1f5f9] hover:bg-[rgba(255,255,255,0.03)] border-transparent'
+                  }`}
+                >
+                  <Icon size={17} />
+                  {item.label}
+                </button>
+              );
+            })}
           </nav>
 
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 mt-6 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-[rgba(255,255,255,0.2)] hover:text-[#ef4444] hover:bg-[rgba(239,68,68,0.1)] rounded-lg transition-colors text-sm font-medium"
           >
-            <LogOut size={18} />
-            <span className="font-medium">Logout</span>
+            <LogOut size={17} />
+            Logout
           </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="lg:ml-64 p-4 lg:p-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-            Analytics & Insights
-          </h1>
-          <p className="text-gray-400">Platform performance and user engagement metrics</p>
+      <div className="lg:ml-64 px-4 py-6 lg:px-10 lg:py-10">
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold mb-1" style={{ color: '#f1f5f9' }}>Analytics & Insights</h1>
+        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.2)' }}>Platform performance and user engagement metrics</p>
+      </div>
+
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div style={card}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <Users size={19} color="rgba(255,255,255,0.4)" />
+            </div>
+            <div className="flex items-center gap-1 text-sm font-medium" style={{ color: '#4ade80' }}>
+              <ArrowUp size={15} />{stats?.users?.recentSignups || 0}
+            </div>
+          </div>
+          <h3 className="text-2xl font-semibold mb-1" style={{ color: '#f1f5f9' }}>{stats?.users?.total || 0}</h3>
+          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.2)' }}>Total Users</p>
+          <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.2)' }}>+{stats?.users?.recentSignups || 0} this week</p>
         </div>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Total Users Growth */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                <Users size={24} className="text-blue-400" />
-              </div>
-              <div className="flex items-center gap-1 text-green-400 text-sm font-medium">
-                <ArrowUp size={16} />
-                {stats?.users?.recentSignups || 0}
-              </div>
+        <div style={card}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <Activity size={19} color="rgba(255,255,255,0.4)" />
             </div>
-            <h3 className="text-3xl font-bold text-white mb-1">
-              {stats?.users?.total || 0}
-            </h3>
-            <p className="text-gray-400 text-sm">Total Users</p>
-            <p className="text-xs text-gray-500 mt-2">+{stats?.users?.recentSignups || 0} this week</p>
-          </div>
-
-          {/* Engagement Rate */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                <Activity size={24} className="text-purple-400" />
-              </div>
-              <div className="flex items-center gap-1 text-green-400 text-sm font-medium">
-                <ArrowUp size={16} />
-                {stats?.users?.online || 0}
-              </div>
+            <div className="flex items-center gap-1 text-sm font-medium" style={{ color: '#4ade80' }}>
+              <ArrowUp size={15} />{stats?.users?.online || 0}
             </div>
-            <h3 className="text-3xl font-bold text-white mb-1">
-              {stats?.users?.total > 0
-                ? Math.round((stats?.users?.online / stats?.users?.total) * 100)
-                : 0}%
-            </h3>
-            <p className="text-gray-400 text-sm">Online Rate</p>
-            <p className="text-xs text-gray-500 mt-2">{stats?.users?.online || 0} users online now</p>
           </div>
-
-          {/* Content Created */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
-                <FileText size={24} className="text-green-400" />
-              </div>
-              <div className="flex items-center gap-1 text-blue-400 text-sm font-medium">
-                <BarChart3 size={16} />
-                Active
-              </div>
-            </div>
-            <h3 className="text-3xl font-bold text-white mb-1">
-              {stats?.posts?.total || 0}
-            </h3>
-            <p className="text-gray-400 text-sm">Total Posts</p>
-            <p className="text-xs text-gray-500 mt-2">Learning content shared</p>
-          </div>
-
-          {/* Community Groups */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center">
-                <Users size={24} className="text-yellow-400" />
-              </div>
-              <div className="flex items-center gap-1 text-purple-400 text-sm font-medium">
-                <TrendingUp size={16} />
-                Growing
-              </div>
-            </div>
-            <h3 className="text-3xl font-bold text-white mb-1">
-              {stats?.groups?.total || 0}
-            </h3>
-            <p className="text-gray-400 text-sm">Learning Groups</p>
-            <p className="text-xs text-gray-500 mt-2">Active communities</p>
-          </div>
+          <h3 className="text-2xl font-semibold mb-1" style={{ color: '#f1f5f9' }}>
+            {stats?.users?.total > 0 ? Math.round((stats?.users?.online / stats?.users?.total) * 100) : 0}%
+          </h3>
+          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.2)' }}>Online Rate</p>
+          <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.2)' }}>{stats?.users?.online || 0} users online now</p>
         </div>
 
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* User Distribution */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                <PieChart size={20} className="text-blue-400" />
-              </div>
-              <h3 className="text-xl font-bold text-white">User Distribution</h3>
+        <div style={card}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <FileText size={19} color="rgba(255,255,255,0.4)" />
             </div>
-
-            <div className="space-y-4">
-              {/* Teachers */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-400 text-sm">Teachers (Ready to Teach)</span>
-                  <span className="text-blue-400 font-bold">
-                    {stats?.users?.teachers || 0}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-900/50 rounded-full h-3 overflow-hidden">
-                  <div
-                    className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${stats?.users?.total > 0
-                        ? (stats?.users?.teachers / stats?.users?.total) * 100
-                        : 0}%`
-                    }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {stats?.users?.total > 0
-                    ? Math.round((stats?.users?.teachers / stats?.users?.total) * 100)
-                    : 0}% of total users
-                </p>
-              </div>
-
-              {/* Learners */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-400 text-sm">Learners (Ready to Learn)</span>
-                  <span className="text-purple-400 font-bold">
-                    {stats?.users?.learners || 0}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-900/50 rounded-full h-3 overflow-hidden">
-                  <div
-                    className="bg-gradient-to-r from-purple-500 to-purple-600 h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${stats?.users?.total > 0
-                        ? (stats?.users?.learners / stats?.users?.total) * 100
-                        : 0}%`
-                    }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {stats?.users?.total > 0
-                    ? Math.round((stats?.users?.learners / stats?.users?.total) * 100)
-                    : 0}% of total users
-                </p>
-              </div>
-
-              {/* Teacher to Learner Ratio */}
-              <div className="mt-6 p-4 bg-gray-900/50 rounded-xl">
-                <p className="text-gray-400 text-sm mb-2">Teacher : Learner Ratio</p>
-                <p className="text-2xl font-bold text-white">
-                  1 : {stats?.users?.teachers > 0
-                    ? (stats?.users?.learners / stats?.users?.teachers).toFixed(1)
-                    : 0}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {stats?.users?.teachers > 0 && stats?.users?.learners > stats?.users?.teachers
-                    ? 'More learners than teachers'
-                    : 'Balanced community'}
-                </p>
-              </div>
-            </div>
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>All time</span>
           </div>
-
-          {/* Post Type Distribution */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                <BarChart3 size={20} className="text-purple-400" />
-              </div>
-              <h3 className="text-xl font-bold text-white">Content Distribution</h3>
-            </div>
-
-            <div className="space-y-4">
-              {stats?.posts?.byType?.map((type) => {
-                const icons = {
-                  resource: '📚',
-                  help: '❓',
-                  explanation: '💡',
-                  challenge: '⚡',
-                  general: '📝'
-                };
-
-                const colors = {
-                  resource: { bar: 'from-blue-500 to-blue-600', text: 'text-blue-400' },
-                  help: { bar: 'from-orange-500 to-orange-600', text: 'text-orange-400' },
-                  explanation: { bar: 'from-yellow-500 to-yellow-600', text: 'text-yellow-400' },
-                  challenge: { bar: 'from-purple-500 to-purple-600', text: 'text-purple-400' },
-                  general: { bar: 'from-gray-500 to-gray-600', text: 'text-gray-400' }
-                };
-
-                const config = colors[type._id] || colors.general;
-
-                return (
-                  <div key={type._id}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-gray-400 text-sm capitalize">
-                        {icons[type._id] || '📝'} {type._id}
-                      </span>
-                      <span className={`font-bold ${config.text}`}>
-                        {type.count}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-900/50 rounded-full h-3 overflow-hidden">
-                      <div
-                        className={`bg-gradient-to-r ${config.bar} h-full rounded-full transition-all duration-500`}
-                        style={{
-                          width: `${stats?.posts?.total > 0
-                            ? (type.count / stats?.posts?.total) * 100
-                            : 0}%`
-                        }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {stats?.posts?.total > 0
-                        ? Math.round((type.count / stats?.posts?.total) * 100)
-                        : 0}% of total posts
-                    </p>
-                  </div>
-                );
-              })}
-
-              {(!stats?.posts?.byType || stats?.posts?.byType.length === 0) && (
-                <p className="text-gray-400 text-center py-8">No post data yet</p>
-              )}
-            </div>
-          </div>
+          <h3 className="text-2xl font-semibold mb-1" style={{ color: '#f1f5f9' }}>{stats?.posts?.total || 0}</h3>
+          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.2)' }}>Total Posts</p>
+          <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.2)' }}>Learning content shared</p>
         </div>
 
-        {/* Platform Health */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
+        <div style={card}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <Users size={19} color="rgba(255,255,255,0.4)" />
+            </div>
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>Active</span>
+          </div>
+          <h3 className="text-2xl font-semibold mb-1" style={{ color: '#f1f5f9' }}>{stats?.groups?.total || 0}</h3>
+          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.2)' }}>Learning Groups</p>
+          <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.2)' }}>Active communities</p>
+        </div>
+      </div>
+
+      {/* Two Column */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+        {/* User Distribution */}
+        <div style={card}>
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center">
-              <Activity size={20} className="text-green-400" />
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <PieChart size={18} color="rgba(255,255,255,0.4)" />
             </div>
-            <h3 className="text-xl font-bold text-white">Platform Health</h3>
+            <h3 className="text-base font-semibold" style={{ color: '#f1f5f9' }}>User Distribution</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-4 bg-gray-900/50 rounded-xl">
+          <div className="space-y-4">
+            <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-400 text-sm">Average Reputation</span>
-                <span className="text-yellow-400">⭐</span>
+                <span className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>Teachers (Ready to Teach)</span>
+                <span className="font-semibold" style={{ color: '#60a5fa' }}>{stats?.users?.teachers || 0}</span>
               </div>
-              <p className="text-2xl font-bold text-white">
-                {stats?.topContributors?.length > 0
-                  ? (stats.topContributors.reduce((sum, u) => sum + (u.reputation || 0), 0) / stats.topContributors.length).toFixed(1)
-                  : 0}
+              <div className="w-full rounded-full h-2.5 overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <div className="h-full rounded-full transition-all duration-500" style={{
+                  background: '#3b82f6',
+                  width: `${stats?.users?.total > 0 ? (stats?.users?.teachers / stats?.users?.total) * 100 : 0}%`
+                }} />
+              </div>
+              <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                {stats?.users?.total > 0 ? Math.round((stats?.users?.teachers / stats?.users?.total) * 100) : 0}% of total users
               </p>
             </div>
 
-            <div className="p-4 bg-gray-900/50 rounded-xl">
+            <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-400 text-sm">Posts per User</span>
-                <span className="text-blue-400">📊</span>
+                <span className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>Learners (Ready to Learn)</span>
+                <span className="font-semibold" style={{ color: '#818cf8' }}>{stats?.users?.learners || 0}</span>
               </div>
-              <p className="text-2xl font-bold text-white">
-                {stats?.users?.total > 0
-                  ? (stats.posts.total / stats.users.total).toFixed(1)
-                  : 0}
+              <div className="w-full rounded-full h-2.5 overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <div className="h-full rounded-full transition-all duration-500" style={{
+                  background: '#6366f1',
+                  width: `${stats?.users?.total > 0 ? (stats?.users?.learners / stats?.users?.total) * 100 : 0}%`
+                }} />
+              </div>
+              <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                {stats?.users?.total > 0 ? Math.round((stats?.users?.learners / stats?.users?.total) * 100) : 0}% of total users
               </p>
             </div>
 
-            <div className="p-4 bg-gray-900/50 rounded-xl">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-400 text-sm">Active Subjects</span>
-                <span className="text-purple-400">📚</span>
-              </div>
-              <p className="text-2xl font-bold text-white">
-                {stats?.topSubjects?.length || 0}
+            <div className="mt-6 p-4 rounded-lg" style={{ background: '#0a0a0f' }}>
+              <p className="text-sm mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>Teacher : Learner Ratio</p>
+              <p className="text-xl font-semibold" style={{ color: '#f1f5f9' }}>
+                1 : {stats?.users?.teachers > 0 ? (stats?.users?.learners / stats?.users?.teachers).toFixed(1) : 0}
+              </p>
+              <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                {stats?.users?.teachers > 0 && stats?.users?.learners > stats?.users?.teachers ? 'More learners than teachers' : 'Balanced community'}
               </p>
             </div>
           </div>
         </div>
+
+        {/* Content Distribution */}
+        <div style={card}>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <BarChart3 size={18} color="rgba(255,255,255,0.4)" />
+            </div>
+            <h3 className="text-base font-semibold" style={{ color: '#f1f5f9' }}>Content Distribution</h3>
+          </div>
+
+          <div className="space-y-4">
+            {stats?.posts?.byType?.map((type) => (
+              <div key={type._id}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm capitalize" style={{ color: 'rgba(255,255,255,0.3)' }}>{type._id}</span>
+                  <span className="font-semibold" style={{ color: '#818cf8' }}>{type.count}</span>
+                </div>
+                <div className="w-full rounded-full h-2.5 overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <div className="h-full rounded-full transition-all duration-500" style={{
+                    background: '#6366f1',
+                    width: `${stats?.posts?.total > 0 ? (type.count / stats?.posts?.total) * 100 : 0}%`
+                  }} />
+                </div>
+                <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                  {stats?.posts?.total > 0 ? Math.round((type.count / stats?.posts?.total) * 100) : 0}% of total posts
+                </p>
+              </div>
+            ))}
+            {(!stats?.posts?.byType || stats?.posts?.byType.length === 0) && (
+              <p className="text-center py-8" style={{ color: 'rgba(255,255,255,0.2)' }}>No post data yet</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Platform Health */}
+      <div style={card}>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.05)' }}>
+            <Activity size={18} color="rgba(255,255,255,0.4)" />
+          </div>
+          <h3 className="text-base font-semibold" style={{ color: '#f1f5f9' }}>Platform Health</h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-4 rounded-lg" style={{ background: '#0a0a0f' }}>
+            <p className="text-sm mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>Average Reputation</p>
+            <p className="text-xl font-semibold" style={{ color: '#f1f5f9' }}>
+              {stats?.topContributors?.length > 0
+                ? (stats.topContributors.reduce((sum, u) => sum + (u.reputation || 0), 0) / stats.topContributors.length).toFixed(1)
+                : 0}
+            </p>
+          </div>
+          <div className="p-4 rounded-lg" style={{ background: '#0a0a0f' }}>
+            <p className="text-sm mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>Posts per User</p>
+            <p className="text-xl font-semibold" style={{ color: '#f1f5f9' }}>
+              {stats?.users?.total > 0 ? (stats.posts.total / stats.users.total).toFixed(1) : 0}
+            </p>
+          </div>
+          <div className="p-4 rounded-lg" style={{ background: '#0a0a0f' }}>
+            <p className="text-sm mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>Active Subjects</p>
+            <p className="text-xl font-semibold" style={{ color: '#f1f5f9' }}>{stats?.topSubjects?.length || 0}</p>
+          </div>
+        </div>
+      </div>
+    </div>
       </div>
     </div>
   );

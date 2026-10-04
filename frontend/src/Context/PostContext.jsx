@@ -3,7 +3,6 @@ import axiosInstance from '../utils/axiosInstance';
 
 export const PostContext = createContext();
 
-// Custom hook to use the PostContext
 export const usePostContext = () => {
   const context = useContext(PostContext);
   if (!context) {
@@ -13,18 +12,17 @@ export const usePostContext = () => {
 };
 
 const PostContextProvider = ({ children }) => {
-  // Posts state
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState(null);
-
-  // Comments state
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsError, setCommentsError] = useState(null);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // ✅ Track which post comments belong to
+  const [currentPostId, setCurrentPostId] = useState(null);
 
   const fetchPosts = async () => {
     try {
@@ -43,7 +41,7 @@ const PostContextProvider = ({ children }) => {
       }
     } catch (err) {
       console.error('Error fetching posts:', err);
-      const errorMessage = err.response?.data?.message || 'Failed to fetch posts. Please check if the server is running.';
+      const errorMessage = err.response?.data?.message || 'Failed to fetch posts.';
       setPostsError(errorMessage);
       setError(errorMessage);
       setPosts([]);
@@ -54,42 +52,39 @@ const PostContextProvider = ({ children }) => {
     }
   };
 
-
-// REPLACE WITH THIS:
-const markHelpful = async (postId) => {
-  try {
-    const response = await axiosInstance.post(`/api/posts/${postId}/helpful`);
-    if (response.data.success) {
-      setPosts(prevPosts =>
-        prevPosts.map(post =>
-          post._id === postId
-            ? {
-                ...post,
-                helpfulCount: response.data.helpfulCount,
-                isHelpful: response.data.helpful
-              }
-            : post
-        )
-      );
-      return {
-        helpful: response.data.helpful,
-        helpfulCount: response.data.helpfulCount
-      };
-    } else {
-      throw new Error(response.data.message || 'Failed to mark helpful');
+  const markHelpful = async (postId) => {
+    try {
+      const response = await axiosInstance.post(`/api/posts/${postId}/helpful`);
+      if (response.data.success) {
+        setPosts(prevPosts =>
+          prevPosts.map(post =>
+            post._id === postId
+              ? {
+                  ...post,
+                  helpfulCount: response.data.helpfulCount,
+                  isHelpful: response.data.helpful
+                }
+              : post
+          )
+        );
+        return {
+          helpful: response.data.helpful,
+          helpfulCount: response.data.helpfulCount
+        };
+      } else {
+        throw new Error(response.data.message || 'Failed to mark helpful');
+      }
+    } catch (error) {
+      console.error('Error marking helpful:', error);
+      setError(error.message || 'Failed to mark helpful');
+      throw error;
     }
-  } catch (error) {
-    console.error('Error marking helpful:', error);
-    setError(error.message || 'Failed to mark helpful');
-    throw error;
-  }
-};
+  };
 
   const deletePost = async (postId) => {
     try {
       setError(null);
       const response = await axiosInstance.delete(`/api/posts/delete-post/${postId}`);
-      
       if (response.data.success) {
         setPosts(prevPosts => prevPosts.filter(post => post._id !== postId));
         return { success: true, message: response.data.message };
@@ -104,24 +99,16 @@ const markHelpful = async (postId) => {
     }
   };
 
-  const getPostById = (postId) => {
-    return posts.find(post => post._id === postId);
-  };
+  const getPostById = (postId) => posts.find(post => post._id === postId);
 
   const updatePost = (postId, updates) => {
     setPosts(prevPosts =>
-      prevPosts.map(post =>
-        post._id === postId
-          ? { ...post, ...updates }
-          : post
-      )
+      prevPosts.map(post => post._id === postId ? { ...post, ...updates } : post)
     );
   };
 
   const removePost = (postId) => {
-    setPosts(prevPosts =>
-      prevPosts.filter(post => post._id !== postId)
-    );
+    setPosts(prevPosts => prevPosts.filter(post => post._id !== postId));
   };
 
   const addPost = (newPost) => {
@@ -133,15 +120,20 @@ const markHelpful = async (postId) => {
     setPostsError(null);
   };
 
-  const getPostsCount = () => {
-    return posts.length;
-  };
+  const getPostsCount = () => posts.length;
 
-
+  // ✅ FIX: Clear comments FIRST before fetching new ones
   const fetchComments = async (postId) => {
     try {
       setCommentsLoading(true);
       setCommentsError(null);
+
+      // ✅ If switching to a different post, clear immediately
+      if (currentPostId !== postId) {
+        setComments([]);
+        setCurrentPostId(postId);
+      }
+
       const response = await axiosInstance.get(`/api/posts/${postId}/get-comments`);
       if (response.data.success) {
         setComments(response.data.comments);
@@ -170,7 +162,6 @@ const markHelpful = async (postId) => {
       if (response.data.success) {
         const newComment = response.data.comment;
         setComments(prevComments => [newComment, ...prevComments]);
-        
         setPosts(prevPosts =>
           prevPosts.map(post =>
             post._id === postId
@@ -178,7 +169,6 @@ const markHelpful = async (postId) => {
               : post
           )
         );
-        
         return newComment;
       } else {
         throw new Error(response.data.message || 'Failed to add comment');
@@ -194,23 +184,15 @@ const markHelpful = async (postId) => {
     try {
       setCommentsError(null);
       const response = await axiosInstance.post(`/api/comments/${commentId}/like`);
-      
       if (response.data.success) {
         setComments(prevComments =>
           prevComments.map(comment =>
             comment._id === commentId
-              ? {
-                  ...comment,
-                  likeCount: response.data.likeCount,
-                  isLiked: response.data.liked
-                }
+              ? { ...comment, likeCount: response.data.likeCount, isLiked: response.data.liked }
               : comment
           )
         );
-        return {
-          liked: response.data.liked,
-          likeCount: response.data.likeCount
-        };
+        return { liked: response.data.liked, likeCount: response.data.likeCount };
       } else {
         throw new Error(response.data.message || 'Failed to like comment');
       }
@@ -221,29 +203,21 @@ const markHelpful = async (postId) => {
     }
   };
 
+  // ✅ FIX: clearComments also resets currentPostId
   const clearComments = () => {
     setComments([]);
     setCommentsError(null);
+    setCurrentPostId(null);
   };
 
-  const getCommentsCount = () => {
-    return comments.length;
-  };
-
-  const hasComment = (commentId) => {
-    return comments.some(comment => comment._id === commentId);
-  };
-
-  const getCommentById = (commentId) => {
-    return comments.find(comment => comment._id === commentId);
-  };
+  const getCommentsCount = () => comments.length;
+  const hasComment = (commentId) => comments.some(comment => comment._id === commentId);
+  const getCommentById = (commentId) => comments.find(comment => comment._id === commentId);
 
   const updateComment = (commentId, updates) => {
     setComments(prevComments =>
       prevComments.map(comment =>
-        comment._id === commentId
-          ? { ...comment, ...updates }
-          : comment
+        comment._id === commentId ? { ...comment, ...updates } : comment
       )
     );
   };
@@ -258,12 +232,10 @@ const markHelpful = async (postId) => {
     const now = new Date();
     const postDate = new Date(date);
     const diffInSeconds = Math.floor((now - postDate) / 1000);
-
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-
     return postDate.toLocaleDateString();
   };
 
@@ -276,60 +248,22 @@ const markHelpful = async (postId) => {
   const clearAllData = () => {
     setPosts([]);
     setComments([]);
+    setCurrentPostId(null);
     clearErrors();
   };
 
   const value = {
-    // Posts state
-    posts,
-    postsLoading,
-    postsError,
-    
-    // Comments state
-    comments,
-    commentsLoading,
-    commentsError,
-    
-    // General state
-    loading,
-    error,
-    
-    // Post operations
-    fetchPosts,
-    markHelpful,
-    deletePost, // New delete functionality
-    getPostById,
-    updatePost,
-    removePost,
-    addPost,
-    clearPosts,
-    getPostsCount,
-    
-    // Comment operations
-    fetchComments,
-    addComment,
-    likeComment,
-    clearComments,
-    updateComment,
-    removeComment,
-    getCommentsCount,
-    hasComment,
-    getCommentById,
-    
-    // Utility functions
-    formatTimeAgo,
-    clearErrors,
-    clearAllData,
-    
-    // State setters (for direct manipulation if needed)
-    setPosts,
-    setComments,
-    setLoading,
-    setError,
-    setPostsLoading,
-    setPostsError,
-    setCommentsLoading,
-    setCommentsError
+    posts, postsLoading, postsError,
+    comments, commentsLoading, commentsError,
+    loading, error,
+    currentPostId, // ✅ Export so components can check
+    fetchPosts, markHelpful, deletePost,
+    getPostById, updatePost, removePost, addPost, clearPosts, getPostsCount,
+    fetchComments, addComment, likeComment,
+    clearComments, updateComment, removeComment, getCommentsCount, hasComment, getCommentById,
+    formatTimeAgo, clearErrors, clearAllData,
+    setPosts, setComments, setLoading, setError,
+    setPostsLoading, setPostsError, setCommentsLoading, setCommentsError
   };
 
   return (

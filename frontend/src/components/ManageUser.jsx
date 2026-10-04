@@ -12,50 +12,75 @@ const ManageUser = () => {
 
   const [subject, setSubject] = useState(userData.subject);
   const [status, setStatus] = useState(userData.status);
-  // FIX: this field had no state, no onChange, and wasn't included in the
-  // save payload — it was a textarea that looked editable and saved
-  // nothing, with a "2/150" counter that was just static text regardless
-  // of what was typed. Wired up for real, initialized from userData.bio
-  // the same way subject/status already are.
+
   const [bio, setBio] = useState(userData.bio || '');
   const [allowUpload, setAllowUploads] = useState(false);
   const [changePhoto, setChangePhoto] = useState(false);
 
-  // FIX: this called document.getElementById("file-input").click() — but
-  // no element with id="file-input" was ever rendered anywhere in this
-  // component. That call returns null, and .click() on null throws,
-  // meaning "Upload Photo" crashed on click rather than doing anything.
-  // UserProfile is already given `allowUpload` as a prop, which strongly
-  // suggests it owns its own upload affordance internally when that's
-  // true — so this just hands off to that instead of reaching for a
-  // DOM node that was never there.
+  // const handleChangePhotoClick = () => {
+  //   setAllowUploads(true);
+  //   setChangePhoto(false);
+  // };
+
   const handleChangePhotoClick = () => {
     setAllowUploads(true);
     setChangePhoto(false);
+    document.getElementById('user-photo-input').click();
   };
 
-  // FIX: had no onClick at all — clicking "Remove Current Photo" did
-  // nothing, silently. There's no user-photo-removal endpoint visible
-  // from this file to call, so rather than guess at one (and fail
-  // silently in a different way), this is honest about not being wired
-  // up yet, the same way "Report a Problem" is in SettingsMenu.jsx.
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('profilePicture', file);
+
+    try {
+      const response = await axiosInstance.put('/api/edit-user', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (response.data.success) {
+        toast.success('Photo updated!');
+        fetchUserDetails();
+      }
+    } catch (e) {
+      toast.error('Failed to update photo');
+    }
+    e.target.value = '';
+  };
+
   const handleRemovePhotoClick = () => {
     toast.info('Photo removal is coming soon.');
     setChangePhoto(false);
   };
 
   const handleSaveChanges = async () => {
-    const updates = {
-      subjects: subject,
-      status: status,
-      bio: bio,
-    };
+    try {
+      const updates = {
+        subjects: subject,
+        status: status,
+      };
 
-    await editUserDetails(updates);
-    fetchUserDetails();
-    toast.success("Profile updated successfully!");
-    setOpenManageUser(false);
+      const success = await editUserDetails(updates);
+
+      if (success) {
+        toast.success("Profile updated successfully!");
+        setOpenManageUser(false);
+      } else {
+        toast.error("Failed to update profile");
+      }
+    } catch (error) {
+      toast.error("Failed to update profile");
+    }
   };
+
+  <input
+  type="file"
+  id="user-photo-input"
+  accept="image/*"
+  hidden
+  onChange={handleFileChange}
+/>
 
   return (
     <div className="fixed right-0 top-0 w-full h-full md:w-1/3 md:h-full flex flex-col bg-[var(--bg-primary)] border-l border-[var(--border)] z-50">
