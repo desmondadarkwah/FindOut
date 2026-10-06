@@ -1,7 +1,5 @@
 const GroupModel = require('../models/GroupModel');
-const { MessageModel } = require('../models/MessageModel');
-const { ChatModel } = require('../models/MessageModel');
-const { getIo } = require('../socket/socket');
+const { MessageModel, ChatModel } = require('../models/MessageModel');
 
 const RemoveGroupMember = async (req, res) => {
   try {
@@ -20,10 +18,7 @@ const RemoveGroupMember = async (req, res) => {
       .populate('groupAdmin', 'name profilePicture');
 
     if (!group) {
-      return res.status(404).json({
-        success: false,
-        message: 'Group not found'
-      });
+      return res.status(404).json({ success: false, message: 'Group not found' });
     }
 
     if (group.groupAdmin._id.toString() !== adminId) {
@@ -48,32 +43,33 @@ const RemoveGroupMember = async (req, res) => {
       });
     }
 
-    // Remove member
+    // ✅ Remove member
     group.members = group.members.filter(m => m._id.toString() !== memberId);
     group.unreadCount = group.unreadCount?.filter(
       u => u.userId.toString() !== memberId
     ) || [];
-
     await group.save();
 
-    // ✅ ALSO remove from ChatModel participants
+    // ✅ Also remove from ChatModel
     await ChatModel.findByIdAndUpdate(groupId, {
       participants: group.members.map(m => m._id),
       $pull: { unreadCount: { userId: memberId } }
     });
 
-    // Re-populate
     const updatedGroup = await GroupModel.findById(groupId)
       .populate('members', 'name profilePicture')
       .populate('groupAdmin', 'name profilePicture')
       .populate('lastMessage.senderId', 'name profilePicture');
 
-    // Create system message
+    // ✅ Get io from global
+    const io = global.socketIo || null;
+
+    // ✅ System message
     try {
       const systemMessage = new MessageModel({
         chatId: group._id,
         senderId: memberId,
-        content: 'was removed by admin',
+        content: 'was removed from the group',
         type: 'system',
         createdAt: new Date()
       });
@@ -82,32 +78,27 @@ const RemoveGroupMember = async (req, res) => {
       const populatedMessage = await MessageModel.findById(systemMessage._id)
         .populate('senderId', 'name profilePicture');
 
-      // Notify via socket
-      try {
-        const io = getIo();
-        
-        // ✅ FIRST: Tell removed user to delete the chat from their sidebar
-        io.to(memberId).emit('force-remove-chat', {
+      if (io) {
+        // ✅ Emit to user's PERSONAL room - they are always in this room
+        io.to(memberId.toString()).emit('force-remove-chat', {
           groupId: group._id,
           groupName: group.groupName,
           reason: 'removed'
         });
 
-        // ✅ SECOND: Update remaining members
-        io.to(groupId).emit('member-removed', {
+        // ✅ Update remaining members
+        io.to(groupId.toString()).emit('member-removed', {
           groupId: group._id,
           removedMemberId: memberId,
           group: updatedGroup
         });
 
-        // ✅ THIRD: Send system message to group
-        io.to(groupId).emit('system-message', {
+        // ✅ System message to group
+        io.to(groupId.toString()).emit('system-message', {
           message: populatedMessage
         });
 
         console.log(`✅ User ${memberId} removed from group ${group.groupName}`);
-      } catch (socketError) {
-        console.warn('⚠️ Socket notification skipped:', socketError.message);
       }
     } catch (msgError) {
       console.log('⚠️ System message skipped:', msgError.message);

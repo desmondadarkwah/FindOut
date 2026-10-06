@@ -36,6 +36,8 @@ const LeaveGroup = require('../controllers/LeaveGroup');
 const { BlockUser, UnblockUser, DeleteChat } = require('../controllers/ChatActions'); // ✅ Add UnblockUser
 const { GetNotifications, MarkAsRead, MarkAllAsRead, DeleteNotification } = require('../controllers/NotificationController');
 const { ReportUser, ReportPost, ReportGroup, GetAllReports } = require('../controllers/ReportController');
+const RemoveProfilePicture = require('../controllers/RemoveProfilePicture');
+const GetPublicProfile = require('../controllers/GetPublicProfile');
 
 
 router.post('/register', upload.single('profilePicture'), RegisterUser);
@@ -56,6 +58,7 @@ router.get('/suggestions', authMiddleware, Suggestions);
 router.post("/profile-picture", authMiddleware, upload.single("profilePicture"), UpdateProfilePicture);
 router.post("/group-profile-picture", authMiddleware, upload.single("groupProfile"), UpdateGroupProfilePicture);
 router.post('/join-group',authMiddleware,JoinGroup);
+router.delete('/profile-picture', authMiddleware, RemoveProfilePicture);
 
 router.get("/user-details", authMiddleware, GetUserDetails);
 router.post('/logout', authMiddleware, Logout);
@@ -108,4 +111,5 @@ router.post('/report-post', authMiddleware, ReportPost);
 router.post('/report-group', authMiddleware, ReportGroup);
 router.get('/reports/all', authMiddleware, GetAllReports); // Admin use
 
+router.get('/user/:userId/profile', authMiddleware, GetPublicProfile);
 module.exports = router;

@@ -152,10 +152,13 @@ const ChatWindow = () => {
       if (selectedChat._id === groupId) setSelectedChat(group);
     };
     const handleForceRemoveChat = ({ groupId, groupName, reason }) => {
+      // ✅ Always remove from chats list regardless of which chat is open
+      setChats(prevChats => prevChats.filter(chat => chat._id !== groupId));
+
+      // ✅ If currently viewing this group, close it
       if (selectedChat?._id === groupId) {
         setSelectedChat(null);
         setBarsToHidden(true);
-        setChats(prevChats => prevChats.filter(chat => chat._id !== groupId));
       }
     };
 
@@ -165,12 +168,24 @@ const ChatWindow = () => {
     socket.on('member-left', handleMemberLeft);
     socket.on('force-remove-chat', handleForceRemoveChat);
 
+    // ✅ NEW: Handle being added to a group
+    const handleAddedToGroup = ({ groupId, groupName, group }) => {
+      setChats(prev => {
+        const exists = prev.some(c => c._id === groupId);
+        if (!exists) return [group, ...prev];
+        return prev;
+      });
+    };
+
+    socket.on('added-to-group', handleAddedToGroup);
+
     return () => {
       socket.off('members-added', handleMembersAdded);
       socket.off('member-joined', handleMemberJoined);
       socket.off('member-removed', handleMemberRemoved);
       socket.off('member-left', handleMemberLeft);
       socket.off('force-remove-chat', handleForceRemoveChat);
+      socket.off('added-to-group', handleAddedToGroup);
     };
   }, [socket, userId, selectedChat, setSelectedChat, setChats, setBarsToHidden]);
 
@@ -733,7 +748,7 @@ const ChatWindow = () => {
             return (
               <div key={item.id} className="flex justify-center my-2">
                 <div className="bg-[var(--bg-card-hover)] text-[var(--text-secondary)] text-xs px-3 py-1 rounded-full">
-                  <span className="font-medium" style={{ color: '#818cf8' }}>{msg.senderId?.name || 'Someone'}</span>
+                  <span className="font-medium text-blue-400">{msg.senderId?.name || 'Someone'}</span>
                   {' '}{msg.content}
                 </div>
               </div>
@@ -787,10 +802,9 @@ const ChatWindow = () => {
                   </span>
                 )}
 
-                <div className={`px-3 py-2 rounded-lg shadow-sm flex ${
-                  msg.type === 'audio' ? 'bg-transparent'
+                <div className={`px-3 py-2 rounded-lg shadow-sm flex ${msg.type === 'audio' ? 'bg-transparent'
                   : isCurrentUserMessage ? 'bg-[var(--message-own-bg)] text-[var(--text-primary)]' : 'bg-[var(--message-bg)] text-[var(--text-primary)]'
-                }`}>
+                  }`}>
                   <div className="flex-1 break-words pr-1">
                     {msg.type === 'audio' ? (
                       <div className="w-64 max-w-full">

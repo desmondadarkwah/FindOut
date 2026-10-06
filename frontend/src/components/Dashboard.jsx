@@ -242,13 +242,13 @@ const Dashboard = () => {
                         <div className="flex gap-3">
                           <button
                             onClick={() => handleDeleteGroup(group._id, group.groupName)}
-                            className="px-4 py-2 text-sm text-[#ef4444] bg-[#ef4444]/10 border border-[#ef4444]/30 rounded-lg hover:bg-[#ef4444]/20 transition-colors flex items-center gap-2">
+                            className="px-4 py-2 text-sm  border border-gray-800  rounded-lg hover:bg-[var(--bg-primary)] transition-colors flex items-center gap-2">
                             <FiTrash2 size={14} />
                             Delete
                           </button>
                           <button
                             onClick={() => handleOpenGroupChat(group._id)}
-                            className="px-4 py-2 text-sm text-[#818cf8] bg-[#6366f1]/10 border border-[#6366f1]/30 rounded-lg hover:bg-[#6366f1]/20 transition-colors flex items-center gap-2">
+                            className="px-4 py-2 text-sm   border border-gray-800 rounded-lg hover:bg-[var(--bg-primary)] transition-colors flex items-center gap-2">
                             <FiMessageCircle size={14} />
                             Go to Chat
                           </button>
@@ -419,7 +419,7 @@ const Dashboard = () => {
 
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-medium text-[var(--text-secondary)]">Suggested for you</span>
-              <button className="text-[#818cf8] text-sm hover:opacity-80 transition-opacity">
+              <button className=" text-sm hover:opacity-80 transition-opacity">
                 See All
               </button>
             </div>

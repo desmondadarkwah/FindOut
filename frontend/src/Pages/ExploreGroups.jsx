@@ -66,10 +66,6 @@ const PrivacyBadge = ({ privacy }) => {
   return null;
 };
 
-// Already joined = success (green, "you're in"). Pending = warning (amber,
-// matches the amber "Request Pending" state it leads into). Join/Request =
-// one consistent brand color — the two flows are distinguished by icon and
-// label, not by inventing a second CTA color.
 const JoinButton = ({ group, onJoin, onOpen }) => {
   if (group.isMember) return (
     <button
@@ -77,12 +73,12 @@ const JoinButton = ({ group, onJoin, onOpen }) => {
       style={{
         width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
         padding: '9px 0', borderRadius: 10, cursor: 'pointer',
-        background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)',
-        color: '#4ade80', fontSize: 12, fontWeight: 600, letterSpacing: '0.02em',
+        border:'1px solid rgb(31, 41, 55)',
+         fontSize: 12, fontWeight: 600, letterSpacing: '0.02em',
         transition: 'background 0.2s',
       }}
-      onMouseEnter={e => e.currentTarget.style.background = 'rgba(34,197,94,0.18)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'rgba(34,197,94,0.1)'}
+      onMouseEnter={e => e.currentTarget.style.background = ''}
+      onMouseLeave={e => e.currentTarget.style.background = ''}
     >
       <CheckCircle size={14} />Already Joined
     </button>
@@ -257,7 +253,7 @@ const GroupContent = ({
             }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: 11, fontWeight: 600, color: '#818cf8',
+              fontSize: 11, fontWeight: 600,
               letterSpacing: '0.04em', textTransform: 'uppercase', padding: '4px 8px',
             }}
           >Reset</button>

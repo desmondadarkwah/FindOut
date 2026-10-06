@@ -6,7 +6,7 @@ const EditUserDetails = async (req, res) => {
     const userId = req.authenticatedUser.id;
     const updates = req.body; 
 
-    const allowedFields = ['name', 'profilePicture', 'status', 'subjects']; 
+    const allowedFields = ['name', 'profilePicture', 'status', 'subjects', 'bio'];
     const isValidUpdate = Object.keys(updates).every((key) => allowedFields.includes(key));
 
     if (!isValidUpdate) {

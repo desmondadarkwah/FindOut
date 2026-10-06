@@ -158,11 +158,6 @@ const Suggestions = () => {
           m => (m._id || m) === userId
         );
 
-        // FIX: the `isRequested` branch here was dead code — the render
-        // below already swaps the whole button out for a "Requested" label
-        // before this function is ever called in that case. Removed the
-        // unreachable branch rather than leave it implying behavior it
-        // doesn't have.
         const getButtonLabel = () => {
           if (isJoining) return <BeatLoader color="#fff" size={6} />;
           if (isAlreadyMember) return 'Open';
