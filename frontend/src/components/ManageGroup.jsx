@@ -571,8 +571,15 @@ const ManageGroup = () => {
                       return (
                         <div key={reqUserId} className="flex items-center gap-3 p-3 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]">
                           {reqUserPic ? (
-                            <img src={`${import.meta.env.VITE_BACKEND_URL}${reqUserPic}`} alt={reqUserName}
-                              className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                            <img
+                              src={
+                                reqUserPic?.startsWith('http')
+                                  ? reqUserPic
+                                  : `${import.meta.env.VITE_BACKEND_URL}${reqUserPic}`
+                              }
+                              alt={reqUserName}
+                              className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                            />
                           ) : (
                             <div className="w-10 h-10 bg-[var(--bg-card-hover)] rounded-full flex items-center justify-center flex-shrink-0">
                               <RxAvatar size={20} />
