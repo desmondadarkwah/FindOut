@@ -55,7 +55,7 @@ const JoinGroup = async (req, res) => {
     // ✅ Get socket safely
     let io = null;
     try {
-      const { getIo } = require('../socket/socket');
+      const { getIo } = require('../socket/Socket');
       io = getIo();
     } catch (e) {
       console.warn('⚠️ Socket not available:', e.message);

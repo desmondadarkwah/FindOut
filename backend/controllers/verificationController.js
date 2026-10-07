@@ -2,7 +2,7 @@ const VerificationModel = require('../models/VerificationModel');
 const UserModel = require('../models/UserModel');
 const quizGenerator = require('../services/quizGenerator');
 const { createNotification } = require('../services/notificationService');
-const { getIo } = require('../socket/socket');
+const { getIo } = require('../socket/Socket');
 const { sendQuizVerifiedEmail } = require('../services/emailService');
 
 // ═══════════════════════════════════════════════════════════════

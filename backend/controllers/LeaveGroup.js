@@ -1,6 +1,6 @@
 const GroupModel = require('../models/GroupModel');
 const { MessageModel, ChatModel } = require('../models/MessageModel');
-const { getIo } = require('../socket/socket');
+const { getIo } = require('../socket/Socket');
 
 const LeaveGroup = async (req, res) => {
   try {

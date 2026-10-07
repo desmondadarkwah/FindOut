@@ -1,6 +1,6 @@
 const UserModel = require('../models/UserModel');
 const { MessageModel } = require('../models/MessageModel');
-const { getIo } = require('../socket/socket');
+const { getIo } = require('../socket/Socket');
 
 // ═══════════════════════════════════════════════
 // BLOCK USER
