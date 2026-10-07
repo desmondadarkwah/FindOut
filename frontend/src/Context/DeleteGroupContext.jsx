@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 import axiosInstance from "../utils/axiosInstance";
-import { FetchAllGroupsContext } from "./fetchAllGroupsContext";
+import { FetchAllGroupsContext } from "./FetchAllGroupsContext";
 import { useToast } from "./ToastContext"; // ✅ NEW
 
 export const DeleteGroupContext = createContext();
