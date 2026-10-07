@@ -38,7 +38,7 @@ const { GetNotifications, MarkAsRead, MarkAllAsRead, DeleteNotification } = requ
 const { ReportUser, ReportPost, ReportGroup, GetAllReports } = require('../controllers/ReportController');
 const RemoveProfilePicture = require('../controllers/RemoveProfilePicture');
 const GetPublicProfile = require('../controllers/GetPublicProfile');
-const GetPublicStats = require('../controllers/GetPublicStats');
+const GetPublicStats = require('../controllers/Getpublicstats');
 
 router.post('/register', upload.single('profilePicture'), RegisterUser);
 router.post('/login', LoginUser);
@@ -114,3 +114,4 @@ router.get('/user/:userId/profile', authMiddleware, GetPublicProfile);
 router.get('/public/stats', GetPublicStats);   // final URL: /api/public/stats
 
 module.exports = router;
+

@@ -6,7 +6,7 @@ const UserModel = require('../models/UserModel');
 let sendAddedToGroupEmail = null;
 try {
   // 👇 CHANGE this path to wherever your email function lives
-  ({ sendAddedToGroupEmail } = require('../utils/emailService'));
+  ({ sendAddedToGroupEmail } = require('../services/emailService'));
 } catch (err) {
   console.log('⚠️ sendAddedToGroupEmail not loaded, emails disabled:', err.message);
 }
