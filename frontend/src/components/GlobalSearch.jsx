@@ -81,7 +81,8 @@ const GlobalSearch = ({ isOpen, onClose }) => {
   const handleStartDM = async (userId) => {
     try {
       const response = await axiosInstance.post('/api/start-new-chat', { userIdToChat: userId });
-      if (response.data.success) {
+      // if (response.data.success) {
+      if (response.status === 200 && response.data.chat) {
         navigate('/inbox');
         onClose();
       }
@@ -185,8 +186,8 @@ const GlobalSearch = ({ isOpen, onClose }) => {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
-                      ? 'bg-[#6366f1]/15 text-[#818cf8] border border-[#6366f1]/40'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] border border-transparent'
+                    ? 'bg-[#6366f1]/15 text-[#818cf8] border border-[#6366f1]/40'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] border border-transparent'
                     }`}
                 >
                   <Icon size={16} />
@@ -259,8 +260,8 @@ const GlobalSearch = ({ isOpen, onClose }) => {
                           <p className="text-[var(--text-secondary)] text-sm">{item.email}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${item.status === 'Ready To Teach'
-                                ? 'bg-[#3b82f6]/15 text-[#60a5fa]'
-                                : 'bg-[#6366f1]/15 text-[#818cf8]'
+                              ? 'bg-[#3b82f6]/15 text-[#60a5fa]'
+                              : 'bg-[#6366f1]/15 text-[#818cf8]'
                               }`}>
                               {item.status === 'Ready To Teach'
                                 ? <><GraduationCap size={11} />Teacher</>
