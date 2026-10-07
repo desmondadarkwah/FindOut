@@ -139,11 +139,6 @@ const GlobalSearch = ({ isOpen, onClose }) => {
 
   const displayResults = activeTab === 'all' ? allResults : results[activeTab] || [];
 
-  // One consistent neutral avatar treatment instead of a different
-  // gradient per result type (blue/purple for users, green/blue for
-  // groups, yellow/orange for posts) — matches the plain-avatar
-  // convention already established across AllPost, ChatSidebar, and
-  // Suggestions.
   const Avatar = ({ src, alt, fallback }) => (
     <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-[var(--bg-card-hover)] border border-[var(--border)]">
       {src ? (
@@ -243,8 +238,13 @@ const GlobalSearch = ({ isOpen, onClose }) => {
                     <div key={`user-${item._id || index}`} className="p-4 hover:bg-[var(--bg-card-hover)] transition-colors">
                       <div className="flex items-center gap-4">
                         <Avatar
-                          src={item.profilePicture && `${import.meta.env.VITE_BACKEND_URL}${item.profilePicture}`}
-                          alt={item.name}
+                          src={
+                            item.profilePicture?.startsWith('http')
+                              ? item.profilePicture
+                              : item.profilePicture
+                                ? `${import.meta.env.VITE_BACKEND_URL}${item.profilePicture}`
+                                : undefined
+                          } alt={item.name}
                           fallback={<span className="text-[var(--text-primary)] font-semibold">{item.name?.charAt(0).toUpperCase()}</span>}
                         />
                         <div className="flex-1 min-w-0">
@@ -290,8 +290,13 @@ const GlobalSearch = ({ isOpen, onClose }) => {
                     <div key={`group-${item._id || index}`} className="p-4 hover:bg-[var(--bg-card-hover)] transition-colors">
                       <div className="flex items-center gap-4">
                         <Avatar
-                          src={item.groupPicture && `${import.meta.env.VITE_BACKEND_URL}${item.groupPicture}`}
-                          alt={item.groupName}
+                          src={
+                            item.groupPicture?.startsWith('http')
+                              ? item.groupPicture
+                              : item.groupPicture
+                                ? `${import.meta.env.VITE_BACKEND_URL}${item.groupPicture}`
+                                : undefined
+                          } alt={item.groupName}
                           fallback={<Users size={22} className="text-[var(--text-secondary)]" />}
                         />
                         <div className="flex-1 min-w-0">
@@ -339,8 +344,13 @@ const GlobalSearch = ({ isOpen, onClose }) => {
                     <div key={`post-${item._id || index}`} className="p-4 hover:bg-[var(--bg-card-hover)] transition-colors">
                       <div className="flex items-start gap-4">
                         <Avatar
-                          src={item.author?.profilePicture && `${import.meta.env.VITE_BACKEND_URL}${item.author.profilePicture}`}
-                          alt={item.author?.name}
+                          src={
+                            item.author?.profilePicture?.startsWith('http')
+                              ? item.author.profilePicture
+                              : item.author?.profilePicture
+                                ? `${import.meta.env.VITE_BACKEND_URL}${item.author.profilePicture}`
+                                : undefined
+                          } alt={item.author?.name}
                           fallback={<span className="text-[var(--text-primary)] font-semibold">{item.author?.name?.charAt(0).toUpperCase()}</span>}
                         />
                         <div className="flex-1 min-w-0">

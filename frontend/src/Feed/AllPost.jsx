@@ -362,7 +362,13 @@ const AllPost = () => {
                   display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
                 }}>
                   {c.profilePicture
-                    ? <img src={`${import.meta.env.VITE_BACKEND_URL}${c.profilePicture}`} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ? <img
+                      src={
+                        c.profilePicture?.startsWith('http')
+                          ? c.profilePicture
+                          : `${import.meta.env.VITE_BACKEND_URL}${c.profilePicture}`
+                      } alt={c.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : <User size={15} color="var(--text-secondary)" />}
                 </div>
 
@@ -549,7 +555,13 @@ const AllPost = () => {
                     flexShrink: 0, overflow: 'hidden',
                   }}>
                     {post.author?.profilePicture
-                      ? <img src={`${import.meta.env.VITE_BACKEND_URL}${post.author.profilePicture}`} alt={post.author.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ? <img
+                        src={
+                          post.author.profilePicture?.startsWith('http')
+                            ? post.author.profilePicture
+                            : `${import.meta.env.VITE_BACKEND_URL}${post.author.profilePicture}`
+                        } alt={post.author.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : <User size={16} color="var(--text-secondary)" />}
                   </div>
 

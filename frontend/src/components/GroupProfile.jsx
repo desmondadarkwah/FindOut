@@ -4,15 +4,9 @@ import { ChatContext } from '../Context/ChatContext';
 import { GroupProfileContext } from '../Context/groupProfileContext';
 
 const GroupProfile = ({ allowUpload = false, width = 'w-12', height = 'h-12' }) => {
-  const {  updateGroupProfilePicture } = useContext(GroupProfileContext);
+  const { updateGroupProfilePicture } = useContext(GroupProfileContext);
   const { selectedChat } = useContext(ChatContext);
-
-  // This was causing the error - selectedChat.groupProfile is not a function
-  // useEffect(() => {
-  //   if (!allowUpload) {
-  //     selectedChat.groupProfile(null);
-  //   }
-  // }, [allowUpload]);
+  ;
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -28,7 +22,11 @@ const GroupProfile = ({ allowUpload = false, width = 'w-12', height = 'h-12' }) 
           {selectedChat && selectedChat.groupProfile ? (
             <img
               // src={groupData.groupProfile.startsWith('http') ? groupData.groupProfile : `${import.meta.env.VITE_BACKEND_URL}${groupData.groupProfile}`}
-              src={`${import.meta.env.VITE_BACKEND_URL}${selectedChat.groupProfile}`}
+              src={
+                selectedChat.groupProfile?.startsWith('http')
+                  ? selectedChat.groupProfile
+                  : `${import.meta.env.VITE_BACKEND_URL}${selectedChat.groupProfile}`
+              }
               alt="Profile"
               className={`rounded-full ${width} ${height} object-cover cursor-pointer`}
               onClick={allowUpload ? () => document.getElementById('group-file-input').click() : undefined}

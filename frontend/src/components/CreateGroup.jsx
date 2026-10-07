@@ -54,10 +54,7 @@ const CreateGroup = ({ setShowCreateGroup }) => {
     }
   };
 
-  // Private = indigo, Public = blue — matches the same privacy convention
-  // already established in ManageGroup.jsx, ExploreGroups.jsx, and
-  // GlobalSearch.jsx. Secret stays neutral since there's no existing
-  // color tied to it elsewhere.
+
   const privacyOptions = [
     {
       value: 'public',

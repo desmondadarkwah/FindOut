@@ -55,13 +55,13 @@ const Dashboard = () => {
   ).length;
 
   useEffect(() => {
-  document.documentElement.classList.add('no-scrollbar');
-  document.body.classList.add('no-scrollbar');
-  return () => {
-    document.documentElement.classList.remove('no-scrollbar');
-    document.body.classList.remove('no-scrollbar');
-  };
-}, []);
+    document.documentElement.classList.add('no-scrollbar');
+    document.body.classList.add('no-scrollbar');
+    return () => {
+      document.documentElement.classList.remove('no-scrollbar');
+      document.body.classList.remove('no-scrollbar');
+    };
+  }, []);
 
   // ─────────────────────────────────────────
   // OPEN GROUP CHAT
@@ -322,8 +322,11 @@ const Dashboard = () => {
                           <div className="relative flex-shrink-0">
                             {chatInfo.avatar ? (
                               <img
-                                src={`${import.meta.env.VITE_BACKEND_URL}${chatInfo.avatar}`}
-                                alt={chatInfo.name}
+                                src={
+                                  chatInfo.avatar?.startsWith('http')
+                                    ? chatInfo.avatar
+                                    : `${import.meta.env.VITE_BACKEND_URL}${chatInfo.avatar}`
+                                } alt={chatInfo.name}
                                 className="w-11 h-11 rounded-full object-cover border border-[var(--border)]"
                               />
                             ) : (
@@ -437,11 +440,11 @@ const Dashboard = () => {
             </div>
 
             <div className="bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)]">
-<Suggestions
-  compact
-  showAll={showAllSuggestions}
-  onCloseAll={() => setShowAllSuggestions(false)}
-/>
+              <Suggestions
+                compact
+                showAll={showAllSuggestions}
+                onCloseAll={() => setShowAllSuggestions(false)}
+              />
             </div>
 
             <div className="mt-6 p-4 bg-[#eab308]/10 border border-[#eab308]/20 rounded-lg">

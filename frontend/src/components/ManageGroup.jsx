@@ -392,11 +392,10 @@ const ManageGroup = () => {
           <span className="text-[var(--text-secondary)] text-sm">
             {members.length} member{members.length !== 1 ? 's' : ''}
           </span>
-          <span className={`mt-1 text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${
-            privacy === 'private' ? 'bg-[#6366f1]/10 text-[#6366f1] border border-[#6366f1]/30'
+          <span className={`mt-1 text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${privacy === 'private' ? 'bg-[#6366f1]/10 text-[#6366f1] border border-[#6366f1]/30'
             : privacy === 'secret' ? 'bg-[var(--bg-card-hover)] text-[var(--text-secondary)] border border-[var(--border)]'
-            : 'bg-[#3b82f6]/10 text-[#3b82f6] border border-[#3b82f6]/30'
-          }`}>
+              : 'bg-[#3b82f6]/10 text-[#3b82f6] border border-[#3b82f6]/30'
+            }`}>
             {privacy === 'public' ? <MdPublic size={10} /> : privacy === 'secret' ? <MdVisibilityOff size={10} /> : <MdLock size={10} />}
             {privacy === 'private' ? 'Private Group' : privacy === 'secret' ? 'Secret Group' : 'Public Group'}
           </span>
@@ -461,12 +460,12 @@ const ManageGroup = () => {
                     {member.profilePicture ? (
                       <img
                         src={
-                          member.profilePicture.startsWith('/uploads/')
-                            ? `${import.meta.env.VITE_BACKEND_URL}${member.profilePicture}`
-                            : `${import.meta.env.VITE_BACKEND_URL}/uploads/${member.profilePicture}`
+                          member.profilePicture?.startsWith('http')
+                            ? member.profilePicture
+                            : `${import.meta.env.VITE_BACKEND_URL}${member.profilePicture}`
                         }
                         alt={member.name}
-                        className="w-12 h-12 rounded-full object-cover"
+                        className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                       />
                     ) : (
                       <div className="w-12 h-12 bg-[var(--bg-card-hover)] rounded-full flex items-center justify-center">
@@ -521,33 +520,30 @@ const ManageGroup = () => {
                   <p className="text-[var(--text-muted)] text-xs mt-1">
                     {privacy === 'private' ? 'Members must request to join'
                       : privacy === 'secret' ? 'Hidden everywhere, invite only'
-                      : 'Anyone can join instantly'}
+                        : 'Anyone can join instantly'}
                   </p>
                 </div>
                 {updatingPrivacy && <BeatLoader color="#3b82f6" size={8} />}
               </div>
               <div className="flex gap-2">
                 <button onClick={() => handlePrivacyToggle('public')} disabled={updatingPrivacy}
-                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${
-                    privacy === 'public' ? 'bg-[#3b82f6]/10 border-[#3b82f6] text-[#3b82f6]'
+                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${privacy === 'public' ? 'bg-[#3b82f6]/10 border-[#3b82f6] text-[#3b82f6]'
                     : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-hover)]'
-                  }`}>
+                    }`}>
                   <MdPublic size={20} />
                   <span className="text-xs font-medium">Public</span>
                 </button>
                 <button onClick={() => handlePrivacyToggle('private')} disabled={updatingPrivacy}
-                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${
-                    privacy === 'private' ? 'bg-[#6366f1]/10 border-[#6366f1] text-[#6366f1]'
+                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${privacy === 'private' ? 'bg-[#6366f1]/10 border-[#6366f1] text-[#6366f1]'
                     : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-hover)]'
-                  }`}>
+                    }`}>
                   <MdLock size={20} />
                   <span className="text-xs font-medium">Private</span>
                 </button>
                 <button onClick={() => handlePrivacyToggle('secret')} disabled={updatingPrivacy}
-                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${
-                    privacy === 'secret' ? 'bg-[var(--bg-card-hover)] border-[var(--text-secondary)] text-[var(--text-primary)]'
+                  className={`flex-1 p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${privacy === 'secret' ? 'bg-[var(--bg-card-hover)] border-[var(--text-secondary)] text-[var(--text-primary)]'
                     : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-hover)]'
-                  }`}>
+                    }`}>
                   <MdVisibilityOff size={20} />
                   <span className="text-xs font-medium">Secret</span>
                 </button>

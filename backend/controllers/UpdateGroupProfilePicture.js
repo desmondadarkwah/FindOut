@@ -2,8 +2,8 @@ const GroupModel = require("../models/GroupModel");
 
 const UpdateGroupProfilePicture = async (req, res) => {
   try {
-    const {groupId} = req.body;
-    const groupProfile = req.file ? `/uploads/${req.file.filename}` : null;
+    const { groupId } = req.body;
+    const groupProfile = req.file ? req.file.path : null;
 
     if (!groupProfile) {
       return res.status(400).json({ message: "No profile picture uploaded." });
@@ -12,7 +12,7 @@ const UpdateGroupProfilePicture = async (req, res) => {
     const updatedUser = await GroupModel.findByIdAndUpdate(
       groupId,
       { groupProfile },
-      { new: true } 
+      { new: true }
     );
 
     if (!updatedUser) {

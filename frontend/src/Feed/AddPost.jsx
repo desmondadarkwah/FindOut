@@ -17,15 +17,6 @@ const AddPost = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // FIX: each entry already carried a real icon component and a `color`,
-  // but neither was ever used in the render. The label instead embedded
-  // an emoji as its first "word" (e.g. '📚 Study Resource') and the JSX
-  // split that string apart at render time to fake an icon — a fragile
-  // hack standing in for data that was already there. Now the real Icon
-  // renders, and the unused `color` field (also never referenced
-  // anywhere) is dropped — every type gets one consistent selected-state
-  // treatment instead of a different hue each, matching the neutral
-  // post-type badge style already used in AllPost.jsx.
   const postTypes = [
     { value: 'resource', label: 'Study Resource', icon: BookOpen },
     { value: 'help', label: 'Help Request', icon: HelpCircle },

@@ -222,15 +222,15 @@ const ChatSidebar = ({ showChatSidebar }) => {
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
                     <div className={`flex items-center justify-center w-12 h-12 text-[var(--text-primary)] rounded-2xl shadow-lg transition-all duration-300 ${isBlocked
-                        ? 'bg-[#ef4444]/10'
-                        : 'bg-[var(--bg-card-hover)]'
+                      ? 'bg-[#ef4444]/10'
+                      : 'bg-[var(--bg-card-hover)]'
                       }`}>
                       {chat.isGroup ? (
                         chat.groupProfile ? (
                           <img
                             src={
-                              chat.groupProfile.startsWith('/uploads/')
-                                ? `${import.meta.env.VITE_BACKEND_URL}${chat.groupProfile}`
+                              chat.groupProfile?.startsWith('http')
+                                ? chat.groupProfile
                                 : `${import.meta.env.VITE_BACKEND_URL}/uploads/${chat.groupProfile}`
                             }
                             alt={chat.groupName || 'Group'}

@@ -25,15 +25,15 @@ const PostComment = ({ postId, isOpen, onClose }) => {
     clearAllReplies
   } = useContext(CommentContext);
 
-  const [newComment, setNewComment]         = useState('');
+  const [newComment, setNewComment] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [isSubmitting, setIsSubmitting]     = useState(false);
-  const [replyingTo, setReplyingTo]         = useState(null);
-  const [replyText, setReplyText]           = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyText, setReplyText] = useState('');
   const [expandedReplies, setExpandedReplies] = useState(new Set());
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
-  const quickEmojis = ['😀','😂','😍','😭','👍','❤️','🔥','💯','🙌','👏'];
+  const quickEmojis = ['😀', '😂', '😍', '😭', '👍', '❤️', '🔥', '💯', '🙌', '👏'];
 
   useEffect(() => {
     if (isOpen && postId) fetchComments(postId);
@@ -89,9 +89,9 @@ const PostComment = ({ postId, isOpen, onClose }) => {
   const formatTimeAgo = useCallback((date) => {
     const diff = Math.floor((new Date() - new Date(date)) / 1000);
     if (diff < 60) return 'Just now';
-    if (diff < 3600) return `${Math.floor(diff/60)}m`;
-    if (diff < 86400) return `${Math.floor(diff/3600)}h`;
-    if (diff < 604800) return `${Math.floor(diff/86400)}d`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)}d`;
     return new Date(date).toLocaleDateString();
   }, []);
 
@@ -132,10 +132,6 @@ const PostComment = ({ postId, isOpen, onClose }) => {
     transition: 'border-color 0.2s, box-shadow 0.2s',
   };
 
-  /* avatar helper — one neutral treatment, matching the fallback style
-     already used everywhere else in the app (ChatSidebar, Suggestions,
-     GlobalSearch), instead of two different decorative gradients for
-     top-level comments vs. replies */
   const Avatar = ({ src, name, size = 34 }) => (
     <div style={{
       width: size, height: size, borderRadius: '50%',
@@ -145,7 +141,15 @@ const PostComment = ({ postId, isOpen, onClose }) => {
       flexShrink: 0, overflow: 'hidden',
     }}>
       {src
-        ? <img src={`${import.meta.env.VITE_BACKEND_URL}${src}`} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+        ? <img
+          src={
+            src?.startsWith('http')
+              ? src
+              : `${import.meta.env.VITE_BACKEND_URL}${src}`
+          }
+          alt={name}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
         : <User size={size * 0.45} color="var(--text-secondary)" />
       }
     </div>
@@ -168,7 +172,7 @@ const PostComment = ({ postId, isOpen, onClose }) => {
       }}
     >
       {spin
-        ? <div style={{ width:14, height:14, border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%', animation:'pc-spin 0.7s linear infinite' }} />
+        ? <div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'pc-spin 0.7s linear infinite' }} />
         : <Send size={size} />
       }
     </button>
@@ -243,11 +247,11 @@ const PostComment = ({ postId, isOpen, onClose }) => {
                 rendered near the top of the viewport instead of at the
                 top of the panel. Added position:relative to the header
                 itself so it anchors where it visually should. */}
-            <div style={{ position:'absolute', top:10, left:'50%', transform:'translateX(-50%)', width:36, height:4, background:'rgba(255,255,255,0.12)', borderRadius:99 }} />
+            <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 36, height: 4, background: 'rgba(255,255,255,0.12)', borderRadius: 99 }} />
 
             <div>
-              <h3 style={{ color:'var(--text-primary)', fontWeight:700, fontSize:15, margin:0, letterSpacing:'-0.01em' }}>Comments</h3>
-              <p style={{ color:'var(--text-muted)', fontSize:11, margin:0, marginTop:2 }}>{comments.length} total</p>
+              <h3 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 15, margin: 0, letterSpacing: '-0.01em' }}>Comments</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: 11, margin: 0, marginTop: 2 }}>{comments.length} total</p>
             </div>
 
             <button
@@ -258,8 +262,8 @@ const PostComment = ({ postId, isOpen, onClose }) => {
                 color: 'var(--text-secondary)', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', transition: 'all 0.2s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.background='var(--bg-card-hover)'; e.currentTarget.style.color='var(--text-primary)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background='var(--bg-card)'; e.currentTarget.style.color='var(--text-secondary)'; }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
             >
               <X size={16} />
             </button>
@@ -272,48 +276,48 @@ const PostComment = ({ postId, isOpen, onClose }) => {
               background: 'rgba(239,68,68,0.08)',
               borderBottom: '1px solid rgba(239,68,68,0.15)',
             }}>
-              <p style={{ color:'#f87171', fontSize:12, margin:0 }}>{error || repliesError}</p>
+              <p style={{ color: '#f87171', fontSize: 12, margin: 0 }}>{error || repliesError}</p>
             </div>
           )}
 
           {/* COMMENTS LIST */}
-          <div className="pc-scroll" style={{ flex:1, overflowY:'auto', padding:'16px 20px', minHeight:0 }}>
+          <div className="pc-scroll" style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', minHeight: 0 }}>
 
             {loading ? (
-              <div style={{ textAlign:'center', padding:'40px 0' }}>
-                <div style={{ width:32, height:32, border:'2px solid rgba(99,102,241,0.3)', borderTopColor:'#818cf8', borderRadius:'50%', animation:'pc-spin 0.7s linear infinite', margin:'0 auto 12px' }} />
-                <p style={{ color:'var(--text-muted)', fontSize:13 }}>Loading comments…</p>
+              <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                <div style={{ width: 32, height: 32, border: '2px solid rgba(99,102,241,0.3)', borderTopColor: '#818cf8', borderRadius: '50%', animation: 'pc-spin 0.7s linear infinite', margin: '0 auto 12px' }} />
+                <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading comments…</p>
               </div>
             ) : comments.length > 0 ? (
-              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {comments.map((comment) => (
                   <div key={comment._id}>
 
                     {/* COMMENT */}
-                    <div style={{ display:'flex', gap:10 }}>
+                    <div style={{ display: 'flex', gap: 10 }}>
                       <Avatar src={comment.user?.profilePicture} name={comment.user?.name} size={34} />
 
-                      <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{
                           background: 'var(--bg-card)',
                           border: '1px solid var(--border)',
                           borderRadius: '4px 14px 14px 14px',
                           padding: '10px 14px',
                         }}>
-                          <p style={{ color:'var(--text-primary)', fontWeight:700, fontSize:12, margin:'0 0 4px', letterSpacing:'0.01em' }}>
+                          <p style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 12, margin: '0 0 4px', letterSpacing: '0.01em' }}>
                             {comment.user?.name || 'Anonymous'}
                           </p>
-                          <p style={{ color:'var(--text-secondary)', fontSize:13, margin:0, lineHeight:1.6 }}>
+                          <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0, lineHeight: 1.6 }}>
                             {comment.text}
                           </p>
                         </div>
 
                         {/* actions row */}
-                        <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:6, paddingLeft:4 }}>
-                          <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'var(--text-muted)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6, paddingLeft: 4 }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-muted)' }}>
                             <Clock size={10} />{formatTimeAgo(comment.createdAt)}
                           </span>
-                          <span style={{ color:'var(--text-muted)', fontSize:11 }}>·</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>·</span>
 
                           <button
                             className="pc-action-btn"
@@ -337,7 +341,7 @@ const PostComment = ({ postId, isOpen, onClose }) => {
                               className="pc-action-btn"
                               onClick={() => handleToggleReplies(comment._id)}
                               disabled={isLoadingReplies(comment._id)}
-                              style={{ color:'#818cf8', marginLeft:'auto' }}
+                              style={{ color: '#818cf8', marginLeft: 'auto' }}
                             >
                               {expandedReplies.has(comment._id) ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                               {isLoadingReplies(comment._id) ? 'Loading…' : `${comment.replyCount} ${comment.replyCount === 1 ? 'reply' : 'replies'}`}
@@ -349,12 +353,12 @@ const PostComment = ({ postId, isOpen, onClose }) => {
 
                     {/* REPLY INPUT */}
                     {replyingTo === comment._id && (
-                      <div style={{ marginLeft:44, marginTop:10, display:'flex', gap:8, alignItems:'flex-end' }}>
+                      <div style={{ marginLeft: 44, marginTop: 10, display: 'flex', gap: 8, alignItems: 'flex-end' }}>
                         <Avatar size={26} />
-                        <div style={{ flex:1, position:'relative' }}>
+                        <div style={{ flex: 1, position: 'relative' }}>
                           <textarea
                             className="pc-input"
-                            style={{ ...inputStyle, paddingRight:44 }}
+                            style={{ ...inputStyle, paddingRight: 44 }}
                             value={replyText}
                             onChange={e => setReplyText(e.target.value)}
                             onKeyPress={handleKeyPress}
@@ -373,43 +377,43 @@ const PostComment = ({ postId, isOpen, onClose }) => {
 
                     {/* REPLIES */}
                     {expandedReplies.has(comment._id) && (
-                      <div style={{ marginLeft:44, marginTop:10, display:'flex', flexDirection:'column', gap:12 }}>
+                      <div style={{ marginLeft: 44, marginTop: 10, display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {isLoadingReplies(comment._id) ? (
-                          <div style={{ textAlign:'center', padding:'12px 0' }}>
-                            <div style={{ width:20, height:20, border:'2px solid rgba(99,102,241,0.3)', borderTopColor:'#818cf8', borderRadius:'50%', animation:'pc-spin 0.7s linear infinite', margin:'0 auto 6px' }} />
-                            <p style={{ color:'var(--text-muted)', fontSize:11 }}>Loading replies…</p>
+                          <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                            <div style={{ width: 20, height: 20, border: '2px solid rgba(99,102,241,0.3)', borderTopColor: '#818cf8', borderRadius: '50%', animation: 'pc-spin 0.7s linear infinite', margin: '0 auto 6px' }} />
+                            <p style={{ color: 'var(--text-muted)', fontSize: 11 }}>Loading replies…</p>
                           </div>
                         ) : getRepliesForComment(comment._id).length === 0 ? (
-                          <p style={{ color:'var(--text-muted)', fontSize:11, textAlign:'center', padding:'8px 0' }}>No replies yet</p>
+                          <p style={{ color: 'var(--text-muted)', fontSize: 11, textAlign: 'center', padding: '8px 0' }}>No replies yet</p>
                         ) : (
                           getRepliesForComment(comment._id).map(reply => (
-                            <div key={reply._id} style={{ display:'flex', gap:8 }}>
+                            <div key={reply._id} style={{ display: 'flex', gap: 8 }}>
                               <Avatar
                                 src={reply.user?.profilePicture}
                                 name={reply.user?.name}
                                 size={26}
                               />
-                              <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{
                                   background: 'var(--bg-card)',
                                   border: '1px solid var(--border)',
                                   borderRadius: '4px 12px 12px 12px',
                                   padding: '8px 12px',
                                 }}>
-                                  <p style={{ color:'var(--text-primary)', fontWeight:700, fontSize:11, margin:'0 0 3px' }}>
+                                  <p style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 11, margin: '0 0 3px' }}>
                                     {reply.user?.name || 'Anonymous'}
                                   </p>
-                                  <p style={{ color:'var(--text-secondary)', fontSize:12, margin:0, lineHeight:1.55 }}>
+                                  <p style={{ color: 'var(--text-secondary)', fontSize: 12, margin: 0, lineHeight: 1.55 }}>
                                     {reply.text}
                                   </p>
                                 </div>
-                                <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:4, paddingLeft:2 }}>
-                                  <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, color:'var(--text-muted)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, paddingLeft: 2 }}>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--text-muted)' }}>
                                     <Clock size={9} />{formatTimeAgo(reply.createdAt)}
                                   </span>
                                   <button
                                     className="pc-action-btn"
-                                    style={{ color:'var(--text-muted)', fontSize:10 }}
+                                    style={{ color: 'var(--text-muted)', fontSize: 10 }}
                                   >
                                     <Heart size={9} />{reply.likeCount || 0}
                                   </button>
@@ -424,10 +428,10 @@ const PostComment = ({ postId, isOpen, onClose }) => {
                 ))}
               </div>
             ) : (
-              <div style={{ textAlign:'center', padding:'48px 0' }}>
-                <MessageCircle size={32} color="var(--text-muted)" style={{ marginBottom:12 }} />
-                <p style={{ color:'var(--text-secondary)', fontSize:14, fontWeight:600, margin:'0 0 4px' }}>No comments yet</p>
-                <p style={{ color:'var(--text-muted)', fontSize:12, margin:0 }}>Be the first to comment!</p>
+              <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                <MessageCircle size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
+                <p style={{ color: 'var(--text-secondary)', fontSize: 14, fontWeight: 600, margin: '0 0 4px' }}>No comments yet</p>
+                <p style={{ color: 'var(--text-muted)', fontSize: 12, margin: 0 }}>Be the first to comment!</p>
               </div>
             )}
           </div>
@@ -453,23 +457,23 @@ const PostComment = ({ postId, isOpen, onClose }) => {
                     key={i}
                     onClick={() => addEmoji(emoji)}
                     style={{
-                      fontSize:20, background:'none', border:'none', cursor:'pointer',
-                      padding:'4px 6px', borderRadius:8, transition:'background 0.15s',
+                      fontSize: 20, background: 'none', border: 'none', cursor: 'pointer',
+                      padding: '4px 6px', borderRadius: 8, transition: 'background 0.15s',
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background='var(--bg-card-hover)'}
-                    onMouseLeave={e => e.currentTarget.style.background='none'}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
                   >{emoji}</button>
                 ))}
               </div>
             )}
 
-            <div style={{ display:'flex', gap:10, alignItems:'flex-end' }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
               <Avatar size={32} />
 
-              <div style={{ flex:1, position:'relative' }}>
+              <div style={{ flex: 1, position: 'relative' }}>
                 <textarea
                   className="pc-input"
-                  style={{ ...inputStyle, paddingRight:40 }}
+                  style={{ ...inputStyle, paddingRight: 40 }}
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
                   onKeyPress={handleKeyPress}
@@ -481,11 +485,11 @@ const PostComment = ({ postId, isOpen, onClose }) => {
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   disabled={isSubmitting}
                   style={{
-                    position:'absolute', right:10, top:10,
-                    background:'none', border:'none', cursor:'pointer',
+                    position: 'absolute', right: 10, top: 10,
+                    background: 'none', border: 'none', cursor: 'pointer',
                     color: showEmojiPicker ? '#eab308' : 'var(--text-muted)',
-                    transition:'color 0.2s', padding:0,
-                    display:'flex', alignItems:'center',
+                    transition: 'color 0.2s', padding: 0,
+                    display: 'flex', alignItems: 'center',
                   }}
                 >
                   <Smile size={16} />
