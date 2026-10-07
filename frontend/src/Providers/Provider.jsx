@@ -3,7 +3,7 @@ import SettingsProvider from '../Context/SettingsContext';
 import ProfileProvider from '../Context/ProfileContext';
 import EditUserProvider from '../Context/EditUserContext';
 import SuggestionsProvider from '../Context/SuggestionsContext';
-import FetchAllGroupsProvider from '../Context/fetchAllGroupsContext';
+import FetchAllGroupsProvider from '../Context/FetchAllGroupsContext';
 import DeleteGroupProvider from '../Context/DeleteGroupContext';
 import ChatContextProvider from '../Context/ChatContext';
 import GroupProfileProvider from '../Context/groupProfileContext';
