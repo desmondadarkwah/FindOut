@@ -29,6 +29,7 @@ const Dashboard = () => {
   const { myGroups, fetchAllGroups } = useContext(FetchAllGroupsContext);
   const { handleDeleteGroup } = useDelete();
   const { chats, setChats, setSelectedChat, userId } = useContext(ChatContext);
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false);
 
   // Fetch groups
   useEffect(() => {
@@ -52,6 +53,15 @@ const Dashboard = () => {
   const groupsCreated = myGroups.filter(
     (group) => group.groupAdmin === userData._id
   ).length;
+
+  useEffect(() => {
+  document.documentElement.classList.add('no-scrollbar');
+  document.body.classList.add('no-scrollbar');
+  return () => {
+    document.documentElement.classList.remove('no-scrollbar');
+    document.body.classList.remove('no-scrollbar');
+  };
+}, []);
 
   // ─────────────────────────────────────────
   // OPEN GROUP CHAT
@@ -216,7 +226,7 @@ const Dashboard = () => {
             </div>
 
             <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-6">
-              <div className="max-h-80 overflow-y-auto">
+              <div className="max-h-80 overflow-y-auto no-scrollbar">
                 {myGroups.length > 0 ? (
                   <div className="space-y-3">
                     {myGroups.map((group) => (
@@ -419,13 +429,19 @@ const Dashboard = () => {
 
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-medium text-[var(--text-secondary)]">Suggested for you</span>
-              <button className=" text-sm hover:opacity-80 transition-opacity">
+              <button
+                onClick={() => setShowAllSuggestions(true)}
+                className="text-sm hover:opacity-80 transition-opacity">
                 See All
               </button>
             </div>
 
             <div className="bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)]">
-              <Suggestions />
+<Suggestions
+  compact
+  showAll={showAllSuggestions}
+  onCloseAll={() => setShowAllSuggestions(false)}
+/>
             </div>
 
             <div className="mt-6 p-4 bg-[#eab308]/10 border border-[#eab308]/20 rounded-lg">

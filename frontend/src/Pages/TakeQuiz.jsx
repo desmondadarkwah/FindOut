@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useVerification } from '../Context/VerificationContext';
 import { Clock, CheckCircle, XCircle, ArrowLeft, ArrowRight } from 'lucide-react';
@@ -19,32 +19,51 @@ const TakeQuiz = () => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Always holds the LATEST answers. The timer's auto-submit used to read an
+  // old copy of `answers` (from when the quiz first loaded - all empty), so a
+  // quiz that ran out of time was submitted with every answer blank.
+  const answersRef = useRef([]);
+  // Stops the quiz from ever being submitted twice (timer + button, etc.)
+  const submittingRef = useRef(false);
+  // Stops the quiz from being started twice (React dev double-run), which
+  // could use up two of the user's 3 attempts.
+  const startedForRef = useRef(null);
+
   useEffect(() => {
+    if (startedForRef.current === subject) return;
+    startedForRef.current = subject;
     loadQuiz();
   }, [subject]);
 
+  // Countdown. This only ticks the number down - nothing else happens inside it.
   useEffect(() => {
     if (!quizData || result) return;
 
     const timer = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          handleAutoSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setTimeRemaining(prev => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
     return () => clearInterval(timer);
   }, [quizData, result]);
 
+  // FIX: auto-submit now lives in its own effect that reacts to the clock
+  // hitting 0. Before, it was triggered from INSIDE the state-update function
+  // of the countdown, which is not allowed (React can run that function more
+  // than once, and it could submit twice).
+  useEffect(() => {
+    if (quizData && !result && timeRemaining === 0) {
+      submitNow();
+    }
+  }, [timeRemaining, quizData, result]);
+
   const loadQuiz = async () => {
     try {
       setLoading(true);
       const data = await startQuiz(subject);
+      const blank = new Array(data.questions.length).fill(null);
+      answersRef.current = blank;
       setQuizData(data);
-      setAnswers(new Array(data.questions.length).fill(null));
+      setAnswers(blank);
       setTimeRemaining(data.timeLimit || 600);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to load quiz');
@@ -57,6 +76,7 @@ const TakeQuiz = () => {
   const handleAnswerSelect = (questionIndex, optionIndex) => {
     const newAnswers = [...answers];
     newAnswers[questionIndex] = optionIndex;
+    answersRef.current = newAnswers; // keep the ref in step immediately
     setAnswers(newAnswers);
   };
 
@@ -72,34 +92,26 @@ const TakeQuiz = () => {
     }
   };
 
-  // FIX: this is the actual submission call, split out from handleSubmit
-  // so the timeout path can call it directly. Previously handleAutoSubmit
-  // called handleSubmit(), which starts by checking for unanswered
-  // questions and popping a "submit anyway?" confirmation — but if the
-  // timer has already hit zero, there's no more time to answer anything,
-  // so asking "are you sure" at that exact moment is nonsensical and just
-  // leaves the quiz hanging on a dialog with the clock already frozen at
-  // 0:00.
+  // The actual submission. Used by both the Submit button and the timeout.
+  // Reads answers from the ref so it always sends what the user really picked.
   const submitNow = async () => {
+    if (submittingRef.current || !quizData) return;
+    submittingRef.current = true;
     try {
       setIsSubmitting(true);
-      const response = await submitQuiz(quizData.quizSessionId, answers);
+      const response = await submitQuiz(quizData.quizSessionId, answersRef.current);
       setResult(response.result);
     } catch (error) {
       toast.error('Failed to submit quiz. Please try again.');
+      submittingRef.current = false; // allow another try
       setIsSubmitting(false);
     }
   };
 
-  const handleAutoSubmit = () => {
-    if (isSubmitting) return;
-    submitNow();
-  };
-
   const handleSubmit = async () => {
-    if (isSubmitting) return;
+    if (submittingRef.current) return;
 
-    const unanswered = answers.filter(a => a === null).length;
+    const unanswered = answersRef.current.filter(a => a === null).length;
     if (unanswered > 0) {
       const confirmed = await confirm({
         title: 'Unanswered Questions',
@@ -122,6 +134,13 @@ const TakeQuiz = () => {
 
   if (loading) {
     return <FindOutLoader />;
+  }
+
+  // FIX: if the quiz failed to load there is no quiz data yet; the lines
+  // below would crash on `quizData.questions` for a moment before the page
+  // navigates away.
+  if (!quizData && !result) {
+    return null;
   }
 
   // Results screen
@@ -345,6 +364,11 @@ const TakeQuiz = () => {
   // Quiz interface
   const question = quizData.questions[currentQuestion];
   const progress = ((currentQuestion + 1) / quizData.questions.length) * 100;
+  const isLastQuestion = currentQuestion === quizData.questions.length - 1;
+  // FIX: if time ran out and the automatic submit failed (e.g. network), the
+  // Submit button used to appear only on the last question, so the user could
+  // be stuck. Once the clock is at 0 it is always shown so they can retry.
+  const showSubmit = isLastQuestion || timeRemaining === 0;
 
   return (
     <div style={{
@@ -489,7 +513,7 @@ const TakeQuiz = () => {
             Previous
           </button>
 
-          {currentQuestion === quizData.questions.length - 1 ? (
+          {showSubmit ? (
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}

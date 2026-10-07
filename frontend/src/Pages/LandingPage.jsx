@@ -16,20 +16,45 @@ import Flogo from '../assets/Flogo.png'
 // so there's no jarring switch the moment someone signs up and lands in
 // the actual product.
 
+// Turns a real count into a friendly, honest label. Large numbers are rounded
+// DOWN so we never claim more than we have (e.g. 128 -> "100+", 1,260 -> "1.2k+").
+const formatCount = (n) => {
+  if (n < 10) return String(n);
+  if (n < 100) return `${Math.floor(n / 10) * 10}+`;
+  if (n < 1000) return `${Math.floor(n / 100) * 100}+`;
+  return `${Math.floor(n / 100) / 10}k+`;
+};
+
 const LandingPage = () => {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
+  // Real numbers from the database (null until loaded, stays null on failure)
+  const [liveStats, setLiveStats] = useState(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // correct state if the page loads already scrolled
+    // passive: tells the browser this listener never blocks scrolling
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // FIX: dropped the "AI-powered" / "algorithm" / "intelligent" framing
-  // throughout this file — the app doesn't claim to be AI-driven anywhere
-  // else, so the landing page shouldn't either. Matching is still the
-  // real feature; it's just described honestly now.
+  // Fetch the public counts once. This is a plain request (not axiosInstance)
+  // because visitors aren't logged in, and a failure must never break the page:
+  // if it fails, the stats row is simply hidden.
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/public/stats`, { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Bad response'))))
+      .then((data) => { if (data?.success) setLiveStats(data.stats); })
+      .catch((err) => {
+        if (err.name !== 'AbortError') console.error('Could not load public stats:', err);
+      });
+
+    return () => controller.abort();
+  }, []);
+
   const features = [
     {
       icon: Search,
@@ -84,12 +109,18 @@ const LandingPage = () => {
     },
   ];
 
-  const stats = [
-    { value: '500+', label: 'Students Connected' },
-    { value: '50+', label: 'Study Groups' },
-    { value: '30+', label: 'Subjects Covered' },
-    { value: '95%', label: 'Match Satisfaction' },
-  ];
+  // Real counts only. A stat with a count of 0 is left out so the page never
+  // advertises "0 groups", and the whole row disappears if nothing loaded.
+  const stats = liveStats
+    ? [
+        { count: liveStats.users, label: 'Students Joined' },
+        { count: liveStats.groups, label: 'Study Groups' },
+        { count: liveStats.subjects, label: 'Subjects Covered' },
+        { count: liveStats.verifiedTeachers, label: 'Verified Teachers' },
+      ]
+        .filter((s) => s.count > 0)
+        .map((s) => ({ value: formatCount(s.count), label: s.label }))
+    : [];
 
   return (
     <div style={{
@@ -100,57 +131,68 @@ const LandingPage = () => {
       overflowX: 'hidden',
     }}>
 
-      {/* NAVBAR */}
+      {/* NAVBAR
+          FIX: the bar itself used to be capped at 1280px wide, so on large
+          screens the blurred background and bottom border stopped short of
+          the screen edges and looked like a floating box. The full-width bar
+          is now separate from the centered content inside it. */}
       <nav style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        padding: '0 24px',
         height: 68,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         background: scrolled ? 'rgba(10,10,15,0.95)' : 'transparent',
         backdropFilter: scrolled ? 'blur(20px)' : 'none',
-        borderBottom: scrolled ? '1px solid rgba(255,255,255,0.06)' : 'none',
+        WebkitBackdropFilter: scrolled ? 'blur(20px)' : 'none',
+        borderBottom: scrolled ? '1px solid rgba(255,255,255,0.06)' : '1px solid transparent',
         transition: 'all 0.3s ease',
-        maxWidth: 1280, margin: '0 auto',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', }}>
-          <img src={Flogo}
-            style={{ width: 36, height: 36, objectFit: 'contain' }}
-          />
-          <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: '#f1f5f9' }}>
-            FindOut
-          </span>
-        </div>
+        <div style={{
+          maxWidth: 1280, margin: '0 auto', height: '100%',
+          padding: '0 24px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          {/* FIX: added the missing gap between the logo and the name, and alt text */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <img
+              src={Flogo}
+              alt="FindOut logo"
+              style={{ width: 36, height: 36, objectFit: 'contain' }}
+            />
+            <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: '#f1f5f9' }}>
+              FindOut
+            </span>
+          </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            onClick={() => navigate('/login')}
-            style={{
-              padding: '9px 20px', borderRadius: 10,
-              background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.12)',
-              color: 'rgba(255,255,255,0.7)',
-              fontSize: 14, fontWeight: 600, cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.5)'; e.currentTarget.style.color = '#fff'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
-          >
-            Log In
-          </button>
-          <button
-            onClick={() => navigate('/register')}
-            style={{
-              padding: '9px 20px', borderRadius: 10,
-              background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
-              border: 'none', color: '#fff',
-              fontSize: 14, fontWeight: 600, cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
-          >
-            Get Started
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              onClick={() => navigate('/login')}
+              style={{
+                padding: '9px 20px', borderRadius: 10,
+                background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: 'rgba(255,255,255,0.7)',
+                fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.5)'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
+            >
+              Log In
+            </button>
+            <button
+              onClick={() => navigate('/register')}
+              style={{
+                padding: '9px 20px', borderRadius: 10,
+                background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
+                border: 'none', color: '#fff',
+                fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
+            >
+              Get Started
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -162,9 +204,6 @@ const LandingPage = () => {
         position: 'relative', overflow: 'hidden',
         textAlign: 'center',
       }}>
-        {/* One subtle background glow — the two extra "floating orb" blobs
-            that used to sit at opposite corners were dropped as
-            decorative excess. */}
         <div style={{
           position: 'absolute', top: '20%', left: '50%',
           transform: 'translateX(-50%)',
@@ -198,8 +237,7 @@ const LandingPage = () => {
             through real-time chat, study groups, and verified peer expertise.
           </p>
 
-          {/* CTAs — one deliberate gradient, reserved for the two
-              conversion actions on this page */}
+          {/* CTAs */}
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
               onClick={() => navigate('/register')}
@@ -233,7 +271,7 @@ const LandingPage = () => {
           </div>
 
           {/* Social proof */}
-          <div style={{ marginTop: 56, display: 'flex', justifyContent: 'center', gap: 40, flexWrap: 'wrap' }}>
+          <div style={{ marginTop: stats.length > 0 ? 56 : 0, display: 'flex', justifyContent: 'center', gap: 40, flexWrap: 'wrap' }}>
             {stats.map(stat => (
               <div key={stat.label} style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 26, fontWeight: 700, color: '#f1f5f9', lineHeight: 1 }}>
@@ -266,9 +304,12 @@ const LandingPage = () => {
           </p>
         </div>
 
+        {/* FIX: minmax(340px, 1fr) forced a 340px minimum column, wider than
+            the content area of a small phone, so the cards were cut off at the
+            edge. min(340px, 100%) lets a column shrink to fit. */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(min(340px, 100%), 1fr))',
           gap: 20,
         }}>
           {features.map((feature, i) => {
@@ -339,16 +380,9 @@ const LandingPage = () => {
             </p>
           </div>
 
-          {/* FIX: each step used to carry a "connector line" div that was
-              unconditionally `display: 'none'` with a comment claiming it
-              was "hidden on mobile, shown on desktop via media query
-              workaround" — no such media query existed anywhere, so the
-              line never rendered on any screen size. Removed the dead
-              element rather than keep a comment describing behavior that
-              didn't exist. */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
             gap: 32, alignItems: 'start',
           }}>
             {steps.map((step, i) => {
@@ -474,7 +508,9 @@ const LandingPage = () => {
         maxWidth: 1280, margin: '0 auto',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src={Flogo}
+          <img
+            src={Flogo}
+            alt="FindOut logo"
             style={{ width: 28, height: 28, objectFit: 'contain' }}
           />
           <span style={{ fontSize: 15, fontWeight: 600, color: '#f1f5f9' }}>FindOut</span>

@@ -2,9 +2,26 @@ import React, { useEffect } from 'react';
 import { IoClose } from 'react-icons/io5';
 import { MdCheckCircle, MdError, MdInfo, MdWarning } from 'react-icons/md';
 
+// Every toast uses the same theme-aware surface (so it follows the light/dark
+// toggle). The type is shown by the icon shape plus a small accent colour,
+// and the accents all come from the site's indigo/blue palette.
+const TYPE_STYLES = {
+  success: { Icon: MdCheckCircle, accent: '#6366f1' },
+  info:    { Icon: MdInfo,        accent: '#3b82f6' },
+  warning: { Icon: MdWarning,     accent: '#818cf8' },
+  error:   { Icon: MdError,       accent: 'var(--text-primary)' },
+};
+
 const Toast = ({ toasts, removeToast }) => {
   return (
-    <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm w-full">
+    // FIX: on phones `right-4` + `w-full` pushed the stack off the left edge of
+    // the screen. It now sits 16px from both edges on mobile and becomes a
+    // fixed-width stack in the top-right from the `sm` breakpoint up.
+    // pointer-events-none lets clicks pass through the gaps between toasts.
+    <div
+      aria-live="polite"
+      className="fixed top-4 left-4 right-4 sm:left-auto sm:w-full sm:max-w-sm z-[9999] flex flex-col gap-2 pointer-events-none"
+    >
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} removeToast={removeToast} />
       ))}
@@ -18,49 +35,31 @@ const ToastItem = ({ toast, removeToast }) => {
       removeToast(toast.id);
     }, toast.duration || 3000);
     return () => clearTimeout(timer);
-  }, [toast.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast.id, toast.duration]);
 
-  const styles = {
-    success: {
-      container: 'bg-gray-900 border border-green-700',
-      icon: <MdCheckCircle className="text-green-500 flex-shrink-0" size={20} />,
-      title: 'text-green-400',
-    },
-    error: {
-      container: 'bg-gray-900 border border-red-700',
-      icon: <MdError className="text-red-500 flex-shrink-0" size={20} />,
-      title: 'text-red-400',
-    },
-    info: {
-      container: 'bg-gray-900 border border-blue-700',
-      icon: <MdInfo className="text-blue-500 flex-shrink-0" size={20} />,
-      title: 'text-blue-400',
-    },
-    warning: {
-      container: 'bg-gray-900 border border-yellow-700',
-      icon: <MdWarning className="text-yellow-500 flex-shrink-0" size={20} />,
-      title: 'text-yellow-400',
-    },
-  };
-
-  const style = styles[toast.type] || styles.info;
+  const { Icon, accent } = TYPE_STYLES[toast.type] || TYPE_STYLES.info;
 
   return (
-    <div className={`
-      ${style.container}
-      rounded-lg shadow-2xl p-4 flex items-start gap-3
-      animate-slide-in w-full
-    `}>
-      {style.icon}
+    <div
+      role={toast.type === 'error' ? 'alert' : 'status'}
+      className="pointer-events-auto bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg shadow-2xl p-4 flex items-start gap-3 animate-slide-in w-full"
+      style={{ borderLeft: `3px solid ${accent}` }}
+    >
+      <Icon className="flex-shrink-0" size={20} style={{ color: accent }} />
+
       <div className="flex-1 min-w-0">
         {toast.title && (
-          <p className={`font-semibold text-sm ${style.title}`}>{toast.title}</p>
+          <p className="font-semibold text-sm text-[var(--text-primary)]">{toast.title}</p>
         )}
-        <p className="text-gray-300 text-sm mt-0.5">{toast.message}</p>
+        <p className="text-[var(--text-secondary)] text-sm mt-0.5 break-words">{toast.message}</p>
       </div>
+
       <button
         onClick={() => removeToast(toast.id)}
-        className="text-gray-500 hover:text-white transition flex-shrink-0">
+        aria-label="Dismiss notification"
+        className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors flex-shrink-0"
+      >
         <IoClose size={16} />
       </button>
     </div>

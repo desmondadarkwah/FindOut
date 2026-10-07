@@ -1,6 +1,7 @@
 const GroupModel = require('../models/GroupModel');
 const { MessageModel, ChatModel } = require('../models/MessageModel');
 const { createNotification } = require('../services/notificationService');
+const { sendJoinRequestApprovedEmail } = require('../services/emailService');
 
 const HandleJoinRequest = async (req, res) => {
   try {
@@ -114,7 +115,15 @@ const HandleJoinRequest = async (req, res) => {
       } catch (notifError) {
         console.warn('⚠️ Notification skipped:', notifError.message);
       }
-
+      // ✅ Send email notification
+      const approvedUser = await require('../models/UserModel').findById(userId).select('name email isOnline');
+      if (approvedUser && !approvedUser.isOnline) {
+        await sendJoinRequestApprovedEmail({
+          recipientEmail: approvedUser.email,
+          recipientName: approvedUser.name,
+          groupName: group.groupName,
+        });
+      }
       if (io) {
         io.to(groupId).emit('member-joined', {
           groupId: group._id,

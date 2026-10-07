@@ -21,7 +21,7 @@ import VerificationDashboard from './Pages/VerificationDashboard';
 import TakeQuiz from './Pages/TakeQuiz';
 import LandingPage from './Pages/LandingPage';
 import AdminReports from './Pages/AdminReports';
-
+import AdminLayout from './Pages/AdminLayout'
 
 function App() {
   return (
@@ -41,12 +41,22 @@ function App() {
         <Route path="/add-post" element={<AddPost />} />
         <Route path="/feed" element={<AllPost />} />
         <Route path="/join/:inviteCode" element={<JoinGroup />} />
-        <Route path="/admin-login" element={<AdminLogin />} />
+        {/* <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/admin-users" element={<AdminUsers />} />
         <Route path="/admin-posts" element={<AdminPosts />} />
         <Route path="/admin-analytics" element={<AdminAnalytics />} />
-        <Route path="/admin-reports" element={<AdminReports />} />
+        <Route path="/admin-reports" element={<AdminReports />} /> */}
+
+        <Route path="/admin-login" element={<AdminLogin />} />
+
+        <Route element={<AdminLayout />}>
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/admin-users" element={<AdminUsers />} />
+          <Route path="/admin-posts" element={<AdminPosts />} />
+          <Route path="/admin-analytics" element={<AdminAnalytics />} />
+          <Route path="/admin-reports" element={<AdminReports />} />
+        </Route>
 
         <Route path="/explore-groups" element={<ExploreGroups />} />
 

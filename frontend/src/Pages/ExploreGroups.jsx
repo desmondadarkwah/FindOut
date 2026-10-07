@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Filter, Users, Lock, Unlock, TrendingUp,
@@ -13,17 +13,37 @@ import FindOutLoader from '../Loader/FindOutLoader';
 import { useToast } from '../Context/ToastContext';
 
 /* ─────────────────────────────────────────────
+   Renders only the layout that matches the screen size.
+   FIX: the page used to render BOTH the mobile and desktop layouts at once
+   and hide one with CSS, so everything (cards, loader, filters) was in the
+   DOM twice. Now only one is mounted.
+───────────────────────────────────────────── */
+const useIsDesktop = () => {
+  const [isDesktop, setIsDesktop] = useState(
+    () => window.matchMedia('(min-width: 1024px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = (e) => setIsDesktop(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return isDesktop;
+};
+
+// Works whether the backend stores "/uploads/x.png", "x.png" or a full URL
+const resolveImage = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  if (path.startsWith('/')) return `${import.meta.env.VITE_BACKEND_URL}${path}`;
+  return `${import.meta.env.VITE_BACKEND_URL}/uploads/${path}`;
+};
+
+/* ─────────────────────────────────────────────
    MODULE-SCOPE PRESENTATIONAL PIECES
 
-   FIX: these (PrivacyBadge, JoinButton, GroupCard, SectionHead) used to be
-   declared *inside* the ExploreGroups component body, then passed down as
-   props to GroupContent. A component declared inside another component's
-   body gets a brand-new function identity every render, so React treats
-   it as a completely different component type each time — it tears down
-   and remounts the whole subtree instead of just updating it. Every filter
-   change, page change, or sidebar toggle was silently remounting every
-   group card on screen. Same root cause as the flashing bug fixed earlier
-   in AllPost.jsx. Declaring them here, once, at module scope fixes it.
+   These are declared once at module scope (not inside the page component)
+   so React doesn't remount every card on each render.
 ───────────────────────────────────────────── */
 
 const selectStyle = {
@@ -39,8 +59,26 @@ const labelStyle = {
   color: 'var(--text-muted)', marginBottom: 8,
 };
 
-// Private = primary (indigo), Public = secondary (blue) — matches the same
-// badge convention already used for group privacy in ManageGroup.jsx.
+// FIX: <option> backgrounds were hard-coded dark (#0a0a0f), which made the
+// text unreadable in the light theme. They now follow the theme.
+const optionStyle = { background: 'var(--bg-primary)', color: 'var(--text-primary)' };
+
+// Group picture with a fallback so a missing/broken file shows the default
+// icon instead of a broken-image symbol.
+const GroupAvatar = ({ src, alt }) => {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <Users size={22} color="var(--text-secondary)" />;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      onError={() => setFailed(true)}
+      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+    />
+  );
+};
+
+// Private = primary (indigo), Public = secondary (blue)
 const PrivacyBadge = ({ privacy }) => {
   if (privacy === 'private') return (
     <span style={{
@@ -67,18 +105,22 @@ const PrivacyBadge = ({ privacy }) => {
 };
 
 const JoinButton = ({ group, onJoin, onOpen }) => {
+  // FIX: "Already Joined" had no text color (default black text on a dark
+  // page), a hard-coded dark border and no real hover. It now uses theme colors.
   if (group.isMember) return (
     <button
       onClick={onOpen}
       style={{
         width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
         padding: '9px 0', borderRadius: 10, cursor: 'pointer',
-        border:'1px solid rgb(31, 41, 55)',
-         fontSize: 12, fontWeight: 600, letterSpacing: '0.02em',
-        transition: 'background 0.2s',
+        border: '1px solid var(--border)',
+        background: 'var(--bg-card-hover)',
+        color: 'var(--text-secondary)',
+        fontSize: 12, fontWeight: 600, letterSpacing: '0.02em',
+        transition: 'background 0.2s, color 0.2s',
       }}
-      onMouseEnter={e => e.currentTarget.style.background = ''}
-      onMouseLeave={e => e.currentTarget.style.background = ''}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-card-hover)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
     >
       <CheckCircle size={14} />Already Joined
     </button>
@@ -132,10 +174,10 @@ const GroupCard = ({ group, showBadge = false, onJoin, onOpen }) => (
         background: 'var(--bg-card-hover)', border: '1px solid var(--border)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        {group.groupPicture
-          ? <img src={`${import.meta.env.VITE_BACKEND_URL}${group.groupPicture}`} alt={group.groupName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <Users size={22} color="var(--text-secondary)" />
-        }
+        <GroupAvatar
+          src={resolveImage(group.groupPicture || group.groupProfile)}
+          alt={group.groupName}
+        />
       </div>
 
       {/* Info */}
@@ -190,9 +232,6 @@ const GroupCard = ({ group, showBadge = false, onJoin, onOpen }) => (
   </div>
 );
 
-// One consistent chip style for every section head instead of a different
-// color per section (amber / green / indigo) — the icon and label carry
-// the distinction, the color doesn't need to change with it.
 const SectionHead = ({ icon, label }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
     <div style={{
@@ -207,6 +246,15 @@ const SectionHead = ({ icon, label }) => (
   </div>
 );
 
+// FIX: minmax(340px, 1fr) forced a 340px minimum column, which is wider than
+// a small phone's content area and caused sideways scrolling. min(340px, 100%)
+// lets the column shrink to fit.
+const cardGrid = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(min(340px, 100%), 1fr))',
+  gap: 14,
+};
+
 /* ─────────────────────────────────────────────
    SHARED CONTENT
 ───────────────────────────────────────────── */
@@ -218,6 +266,23 @@ const GroupContent = ({
 }) => {
   const hasFiltersActive = subjectFilter !== 'all' || privacyFilter !== 'all' || sortBy !== 'newest';
 
+  // FIX: the subject box used to fire a server request on every single
+  // keystroke. It now keeps what you type locally and only applies the
+  // filter ~400ms after you stop typing.
+  const [subjectInput, setSubjectInput] = useState(subjectFilter === 'all' ? '' : subjectFilter);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const next = subjectInput.trim() || 'all';
+      if (next !== subjectFilter) {
+        setSubjectFilter(next);
+        setCurrentPage(1);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subjectInput]);
+
   return (
     <div>
       {/* FILTER PANEL */}
@@ -227,15 +292,21 @@ const GroupContent = ({
         border: '1px solid var(--border)',
         borderRadius: 12, overflow: 'hidden',
       }}>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          style={{
-            width: '100%', display: 'flex', alignItems: 'center',
-            justifyContent: 'space-between', padding: '14px 18px',
-            background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* FIX: the Reset button used to be nested INSIDE the toggle button
+            (a button inside a button is invalid HTML and React warns about
+            it). They are now siblings. */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 18px', gap: 8,
+        }}>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            style={{
+              flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text-primary)', padding: 0, textAlign: 'left',
+            }}
+          >
             <Filter size={15} style={{ color: 'var(--text-secondary)' }} />
             <span style={{ fontWeight: 600, fontSize: 14 }}>Filters</span>
             {hasFiltersActive && (
@@ -245,30 +316,32 @@ const GroupContent = ({
                 padding: '2px 8px', borderRadius: 99, letterSpacing: '0.04em',
               }}>ACTIVE</span>
             )}
-          </div>
+          </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={() => {
+              setSubjectInput('');
               setSubjectFilter('all'); setPrivacyFilter('all'); setSortBy('newest'); setCurrentPage(1);
             }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text-secondary)',
               fontSize: 11, fontWeight: 600,
               letterSpacing: '0.04em', textTransform: 'uppercase', padding: '4px 8px',
             }}
           >Reset</button>
-        </button>
+        </div>
 
         {showFilters && (
           <div style={{ padding: '0 18px 18px', borderTop: '1px solid var(--border)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 14 }}>
+            {/* FIX: three fixed columns were too cramped on phones; now wraps */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginTop: 14 }}>
               <div>
                 <label style={labelStyle}>Subject</label>
                 <input
                   type="text"
                   placeholder="Any subject…"
-                  value={subjectFilter === 'all' ? '' : subjectFilter}
-                  onChange={(e) => { setSubjectFilter(e.target.value || 'all'); setCurrentPage(1); }}
+                  value={subjectInput}
+                  onChange={(e) => setSubjectInput(e.target.value)}
                   style={{ ...selectStyle }}
                 />
               </div>
@@ -279,9 +352,9 @@ const GroupContent = ({
                   onChange={(e) => { setPrivacyFilter(e.target.value); setCurrentPage(1); }}
                   style={selectStyle}
                 >
-                  <option value="all"     style={{ background: '#0a0a0f' }}>All Groups</option>
-                  <option value="public"  style={{ background: '#0a0a0f' }}>Public Only</option>
-                  <option value="private" style={{ background: '#0a0a0f' }}>Private Only</option>
+                  <option value="all"     style={optionStyle}>All Groups</option>
+                  <option value="public"  style={optionStyle}>Public Only</option>
+                  <option value="private" style={optionStyle}>Private Only</option>
                 </select>
               </div>
               <div>
@@ -291,9 +364,9 @@ const GroupContent = ({
                   onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
                   style={selectStyle}
                 >
-                  <option value="newest"  style={{ background: '#0a0a0f' }}>Newest First</option>
-                  <option value="popular" style={{ background: '#0a0a0f' }}>Most Popular</option>
-                  <option value="active"  style={{ background: '#0a0a0f' }}>Recently Active</option>
+                  <option value="newest"  style={optionStyle}>Newest First</option>
+                  <option value="popular" style={optionStyle}>Most Popular</option>
+                  <option value="active"  style={optionStyle}>Recently Active</option>
                 </select>
               </div>
             </div>
@@ -310,7 +383,7 @@ const GroupContent = ({
           {suggested.length > 0 && (
             <div style={{ marginBottom: 32 }}>
               <SectionHead icon={<Sparkles size={16} color="var(--text-secondary)" />} label="Suggested for You" />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 14 }}>
+              <div style={cardGrid}>
                 {suggested.map(g => <GroupCard key={g._id} group={g} showBadge onJoin={onJoin} onOpen={onOpen} />)}
               </div>
             </div>
@@ -320,7 +393,7 @@ const GroupContent = ({
           {popular.length > 0 && (
             <div style={{ marginBottom: 32 }}>
               <SectionHead icon={<TrendingUp size={16} color="var(--text-secondary)" />} label="Popular Groups" />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 14 }}>
+              <div style={cardGrid}>
                 {popular.slice(0, 4).map(g => <GroupCard key={g._id} group={g} onJoin={onJoin} onOpen={onOpen} />)}
               </div>
             </div>
@@ -330,7 +403,7 @@ const GroupContent = ({
           {recentlyActive.length > 0 && (
             <div style={{ marginBottom: 32 }}>
               <SectionHead icon={<Clock size={16} color="var(--text-secondary)" />} label="Recently Active" />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 14 }}>
+              <div style={cardGrid}>
                 {recentlyActive.slice(0, 4).map(g => <GroupCard key={g._id} group={g} onJoin={onJoin} onOpen={onOpen} />)}
               </div>
             </div>
@@ -346,7 +419,7 @@ const GroupContent = ({
                 {allGroups.length} groups
               </span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 14 }}>
+            <div style={cardGrid}>
               {allGroups.map(g => <GroupCard key={g._id} group={g} onJoin={onJoin} onOpen={onOpen} />)}
             </div>
           </div>
@@ -414,6 +487,7 @@ const GroupContent = ({
 const ExploreGroups = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const isDesktop = useIsDesktop();
 
   const [suggested, setSuggested] = useState([]);
   const [popular, setPopular] = useState([]);
@@ -429,35 +503,48 @@ const ExploreGroups = () => {
 
   const [showFilters, setShowFilters] = useState(false);
 
+  // FIX: if you changed filters quickly, an older slower response could
+  // arrive AFTER a newer one and overwrite it with stale results. Each
+  // request now gets an id and only the latest one is allowed to update the page.
+  const requestIdRef = useRef(0);
+
   useEffect(() => { fetchGroups(); }, [subjectFilter, privacyFilter, sortBy, currentPage]);
 
+  // Jump back to the top when you change page, so you don't stay at the
+  // bottom of the list looking at the new page's last cards.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentPage]);
+
   const fetchGroups = async () => {
+    const requestId = ++requestIdRef.current;
     try {
       setLoading(true);
       const params = new URLSearchParams({ page: currentPage, limit: 20, sortBy });
       if (subjectFilter !== 'all') params.append('subject', subjectFilter);
       if (privacyFilter !== 'all') params.append('privacy', privacyFilter);
       const response = await axiosInstance.get(`/api/explore/groups?${params}`);
+      if (requestId !== requestIdRef.current) return; // a newer request replaced this one
       if (response.data.success) {
         setSuggested(response.data.suggested || []);
         setPopular(response.data.popular || []);
         setRecentlyActive(response.data.recentlyActive || []);
         setAllGroups(response.data.allGroups || []);
-        setTotalPages(response.data.pagination.pages);
+        setTotalPages(response.data.pagination?.pages || 1);
       }
     } catch (e) { console.error('Error fetching groups:', e); }
-    finally { setLoading(false); }
+    finally {
+      if (requestId === requestIdRef.current) setLoading(false);
+    }
   };
 
-  // FIX: replaced every alert() with toast, matching the rest of the app
-  // (Suggestions.jsx, ManageGroup.jsx, etc. all use useToast — this page
-  // was the odd one out still using native browser alerts).
   const handleJoinGroup = async (groupId) => {
     try {
       const response = await axiosInstance.post('/api/join-group', { groupId });
       if (response.data.success) {
         if (response.data.isPending) {
           toast.info('Wait for admin approval.', 'Join request sent');
+          fetchGroups();
         } else if (response.data.alreadyMember) {
           toast.info('You are already a member.', 'Already Joined');
           navigate('/inbox');
@@ -465,7 +552,6 @@ const ExploreGroups = () => {
           toast.success('You joined the group!', 'Successfully joined');
           navigate('/inbox');
         }
-        fetchGroups();
       }
     } catch (e) {
       console.error('Error joining group:', e);
@@ -492,68 +578,63 @@ const ExploreGroups = () => {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
 
-      {/* MOBILE */}
-      <div className="lg:hidden">
-        <MobileViewBar />
-        <div style={{ maxWidth: 520, margin: '0 auto', padding: '80px 16px 100px' }}>
-          <div style={{ marginBottom: 24 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-primary)' }}>
-              Explore Groups
-            </h1>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
-              Discover communities that match your interests
-            </p>
-          </div>
-          <GroupContent {...contentProps} />
-        </div>
-        <MobileViewIcons />
-      </div>
-
-      {/* DESKTOP */}
-      <div className="hidden lg:block">
-        {/*
-          FIX: this used to render its own sidebar-toggle button, its own
-          backdrop, and a fixed-position wrapper around <DashSidebar />.
-          DashSidebar now manages its own open/close state and toggle
-          button internally (see DashSidebar.jsx) — this duplicate
-          scaffolding would have rendered a second, conflicting toggle
-          button on top of DashSidebar's own one. It's now rendered plainly,
-          the same way Dashboard.jsx does.
-        */}
-        <DashSidebar />
-
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <div style={{ width: '100%', maxWidth: 900, padding: '32px 24px' }}>
-            <div style={{
-              marginBottom: 28,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 12, padding: '10px 16px',
-            }}>
-              <button
-                onClick={() => navigate('/dashboard')}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 7,
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, padding: 0,
-                  transition: 'color 0.2s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
-              >
-                <Home size={16} />Dashboard
-              </button>
-              <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-primary)' }}>
+      {/* MOBILE (only rendered below 1024px) */}
+      {!isDesktop && (
+        <div>
+          <MobileViewBar />
+          <div style={{ maxWidth: 520, margin: '0 auto', padding: '80px 16px 100px' }}>
+            <div style={{ marginBottom: 24 }}>
+              <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-primary)' }}>
                 Explore Groups
-              </span>
-              <div style={{ width: 80 }} />
+              </h1>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
+                Discover communities that match your interests
+              </p>
             </div>
-
             <GroupContent {...contentProps} />
           </div>
+          <MobileViewIcons />
         </div>
-      </div>
+      )}
+
+      {/* DESKTOP (only rendered at 1024px and up) */}
+      {isDesktop && (
+        <div>
+          <DashSidebar />
+
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ width: '100%', maxWidth: 900, padding: '32px 24px' }}>
+              <div style={{
+                marginBottom: 28,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 12, padding: '10px 16px',
+              }}>
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 7,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, padding: 0,
+                    transition: 'color 0.2s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                >
+                  <Home size={16} />Dashboard
+                </button>
+                <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-primary)' }}>
+                  Explore Groups
+                </span>
+                <div style={{ width: 80 }} />
+              </div>
+
+              <GroupContent {...contentProps} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

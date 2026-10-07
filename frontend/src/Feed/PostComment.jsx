@@ -3,6 +3,48 @@ import { Heart, Reply, Smile, Send, User, Clock, X, ChevronDown, ChevronUp } fro
 import { usePostContext } from '../Context/PostContext';
 import { CommentContext } from '../Context/CommentContext';
 
+/* ── avatar helper ──
+   FIX: moved OUTSIDE the component. When it was defined inside, React saw a
+   brand-new component on every keystroke and remounted every avatar
+   (images flickered). It uses nothing from the component, so this is safe. */
+const Avatar = ({ src, name, size = 34, gradient = 'linear-gradient(135deg,#3b82f6,#8b5cf6)' }) => (
+  <div style={{
+    width: size, height: size, borderRadius: '50%',
+    background: gradient,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, overflow: 'hidden',
+    boxShadow: '0 0 0 2px rgba(99,102,241,0.2)',
+  }}>
+    {src
+      ? <img src={`${import.meta.env.VITE_BACKEND_URL}${src}`} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+      : <User size={size * 0.45} color="#fff" />
+    }
+  </div>
+);
+
+/* ── send button (also moved outside the component) ── */
+const SendBtn = ({ onClick, disabled, loading: spin, size = 16 }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      width: 36, height: 36, borderRadius: 10, border: 'none',
+      background: disabled
+        ? 'rgba(255,255,255,0.05)'
+        : 'linear-gradient(135deg,#3b82f6,#6366f1)',
+      color: disabled ? 'rgba(255,255,255,0.2)' : '#fff',
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      flexShrink: 0, transition: 'opacity 0.2s',
+    }}
+  >
+    {spin
+      ? <div style={{ width:14, height:14, border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%', animation:'pc-spin 0.7s linear infinite' }} />
+      : <Send size={size} />
+    }
+  </button>
+);
+
 const PostComment = ({ postId, isOpen, onClose }) => {
   const {
     comments,
@@ -18,7 +60,6 @@ const PostComment = ({ postId, isOpen, onClose }) => {
     repliesError,
     addReply,
     fetchReplies,
-    deleteReply,
     getRepliesForComment,
     areRepliesLoaded,
     isLoadingReplies,
@@ -43,6 +84,17 @@ const PostComment = ({ postId, isOpen, onClose }) => {
       setReplyText(''); setNewComment(''); setShowEmojiPicker(false);
     }
   }, [isOpen, postId, fetchComments, clearComments, clearAllReplies]);
+
+  // FIX: this component is only mounted while open, so the "!isOpen" branch
+  // above never ran. Clear comments/replies when it unmounts so the next post
+  // never briefly shows the previous post's comments.
+  useEffect(() => {
+    return () => {
+      clearComments();
+      clearAllReplies();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (comments.length > 0) {
@@ -101,8 +153,10 @@ const PostComment = ({ postId, isOpen, onClose }) => {
     setShowEmojiPicker(false);
   }, [replyingTo]);
 
-  const handleKeyPress = useCallback((e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+  // FIX: onKeyPress is deprecated; onKeyDown is the supported event.
+  // Also ignores Enter while an IME (e.g. Chinese/Japanese keyboard) is composing.
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent?.isComposing) {
       e.preventDefault();
       if (replyingTo) handleAddReply(replyingTo);
       else handleAddComment();
@@ -132,45 +186,6 @@ const PostComment = ({ postId, isOpen, onClose }) => {
     transition: 'border-color 0.2s, box-shadow 0.2s',
   };
 
-  /* ── avatar helper ── */
-  const Avatar = ({ src, name, size = 34, gradient = 'linear-gradient(135deg,#3b82f6,#8b5cf6)' }) => (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      background: gradient,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0, overflow: 'hidden',
-      boxShadow: '0 0 0 2px rgba(99,102,241,0.2)',
-    }}>
-      {src
-        ? <img src={`${import.meta.env.VITE_BACKEND_URL}${src}`} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-        : <User size={size * 0.45} color="#fff" />
-      }
-    </div>
-  );
-
-  /* ── send button ── */
-  const SendBtn = ({ onClick, disabled, loading: spin, size = 16 }) => (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: 36, height: 36, borderRadius: 10, border: 'none',
-        background: disabled
-          ? 'rgba(255,255,255,0.05)'
-          : 'linear-gradient(135deg,#3b82f6,#6366f1)',
-        color: disabled ? 'rgba(255,255,255,0.2)' : '#fff',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        flexShrink: 0, transition: 'opacity 0.2s',
-      }}
-    >
-      {spin
-        ? <div style={{ width:14, height:14, border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%', animation:'pc-spin 0.7s linear infinite' }} />
-        : <Send size={size} />
-      }
-    </button>
-  );
-
   return (
     <>
       <style>{`
@@ -188,7 +203,10 @@ const PostComment = ({ postId, isOpen, onClose }) => {
           .pc-modal { align-items: center; padding: 16px; }
         }
 
+        /* FIX: position: relative so the little drag pill in the header
+           anchors to the panel instead of the full-screen overlay */
         .pc-panel {
+          position: relative;
           background: #0f0f1a;
           border: 1px solid rgba(255,255,255,0.07);
           border-radius: 24px 24px 0 0;
@@ -348,7 +366,7 @@ const PostComment = ({ postId, isOpen, onClose }) => {
                             style={{ ...inputStyle, paddingRight:44 }}
                             value={replyText}
                             onChange={e => setReplyText(e.target.value)}
-                            onKeyPress={handleKeyPress}
+                            onKeyDown={handleKeyDown}
                             placeholder={`Reply to ${comment.user?.name || 'Anonymous'}…`}
                             disabled={isSubmittingReply}
                             rows={2}
@@ -464,7 +482,7 @@ const PostComment = ({ postId, isOpen, onClose }) => {
                   style={{ ...inputStyle, paddingRight:40 }}
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={handleKeyDown}
                   placeholder="Add a comment…"
                   disabled={isSubmitting}
                   rows={2}

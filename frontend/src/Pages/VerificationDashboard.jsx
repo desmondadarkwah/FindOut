@@ -9,14 +9,57 @@ import DashSidebar from '../components/DashSidebar';
 import MobileViewBar from '../components/MobileViewBar';
 import MobileViewIcons from '../components/MobileViewIcons';
 import FindOutLoader from '../Loader/FindOutLoader';
+import { useEditUser } from '../Context/EditUserContext';
+import { useToast } from '../Context/ToastContext';
+
+// FIX: the page used to render BOTH the mobile and desktop layouts at once
+// and hide one with CSS, so the whole content was in the page twice. Now only
+// the layout that matches the screen size is rendered.
+const useIsDesktop = () => {
+  const [isDesktop, setIsDesktop] = useState(
+    () => window.matchMedia('(min-width: 1024px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = (e) => setIsDesktop(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return isDesktop;
+};
 
 const VerificationDashboard = () => {
   const navigate = useNavigate();
   const { verificationStatus, fetchVerificationStatus, loading } = useVerification();
+  const isDesktop = useIsDesktop();
+  const { toast } = useToast();
+  const editUser = useEditUser();
+  const [newSubject, setNewSubject] = useState('');
+  const [addingSubject, setAddingSubject] = useState(false);
 
   useEffect(() => {
     fetchVerificationStatus();
   }, []);
+
+  // Adds a subject right here (same call the Settings menu uses) instead of
+  // sending the user away to a separate profile page.
+  const handleAddSubject = async () => {
+    const value = newSubject.trim();
+    if (!value) { toast.error('Please enter a subject.'); return; }
+    if (!editUser?.editUserDetails) { toast.error('Could not update your subjects right now.'); return; }
+
+    try {
+      setAddingSubject(true);
+      await editUser.editUserDetails({ subjects: [value] });
+      setNewSubject('');
+      await fetchVerificationStatus(); // refresh so the new subject card appears
+      toast.success(`${value} added. You can now take its quiz.`, 'Subject Added');
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Failed to add subject');
+    } finally {
+      setAddingSubject(false);
+    }
+  };
 
   const handleStartQuiz = (subject) => {
     navigate(`/take-quiz/${encodeURIComponent(subject)}`);
@@ -33,8 +76,6 @@ const VerificationDashboard = () => {
           icon: CheckCircle
         };
       case 'in_progress':
-        // FIX: was #f59e0b, a slightly different amber than the warning
-        // color used everywhere else in the app (#eab308) — unified.
         return {
           label: 'In Progress',
           color: '#eab308',
@@ -65,15 +106,12 @@ const VerificationDashboard = () => {
     return <FindOutLoader />;
   }
 
-  // FIX: this was declared inside the component body as `const Content = () =>`
-  // and rendered as <Content /> — a component redefined inside its
-  // parent's render body gets a brand-new function identity every
-  // render, so React treats it as a completely different component type
-  // each time and remounts the whole subtree instead of updating it in
-  // place. Same root cause as the flashing bug originally found in
-  // AllPost.jsx. Calling it as a plain function, `{Content()}`, below
-  // avoids that — it's inlined as JSX rather than mounted as its own
-  // component instance.
+  // FIX: if the server ever sends the status without a `verifiedSubjects`
+  // list, `.length` / `.map` on it used to crash the whole page.
+  const verifiedSubjects = verificationStatus?.verifiedSubjects || [];
+
+  // Called as a plain function ({Content()}) so it is inlined instead of being
+  // mounted as its own component type (avoids remounting on every render).
   const Content = () => (
     <div>
       {/* Header */}
@@ -113,7 +151,8 @@ const VerificationDashboard = () => {
               background: verificationStatus.isVerified ? '#22c55e' : 'var(--bg-card-hover)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              flexShrink: 0
             }}>
               {verificationStatus.isVerified ? (
                 <Award size={26} color="#fff" />
@@ -127,19 +166,19 @@ const VerificationDashboard = () => {
               </h2>
               <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
                 {verificationStatus.isVerified
-                  ? `Verified in ${verificationStatus.verifiedSubjects.length} subject(s)`
+                  ? `Verified in ${verifiedSubjects.length} subject(s)`
                   : 'Complete quizzes to get verified'}
               </p>
             </div>
           </div>
 
-          {verificationStatus.verifiedSubjects.length > 0 && (
+          {verifiedSubjects.length > 0 && (
             <div>
               <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>
                 Verified Subjects:
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {verificationStatus.verifiedSubjects.map((vs, index) => (
+                {verifiedSubjects.map((vs, index) => (
                   <span
                     key={index}
                     style={{
@@ -195,9 +234,11 @@ const VerificationDashboard = () => {
         </h3>
 
         {verificationStatus?.subjectStatus?.length > 0 ? (
+          // FIX: min(300px, 100%) so a column can shrink on very small phones
+          // instead of forcing sideways scrolling.
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))',
             gap: 16
           }}>
             {verificationStatus.subjectStatus.map((subject, index) => {
@@ -279,7 +320,10 @@ const VerificationDashboard = () => {
                       color: '#4ade80'
                     }}>
                       <CheckCircle size={14} />
-                      Verified on {new Date(subject.verifiedAt).toLocaleDateString()}
+                      {/* FIX: no more "Verified on Invalid Date" if the date is missing */}
+                      {subject.verifiedAt
+                        ? `Verified on ${new Date(subject.verifiedAt).toLocaleDateString()}`
+                        : 'Verified'}
                     </div>
                   ) : subject.canTakeQuiz ? (
                     <button
@@ -341,25 +385,43 @@ const VerificationDashboard = () => {
             textAlign: 'center'
           }}>
             <BookOpen size={40} color="var(--text-muted)" style={{ margin: '0 auto 16px' }} />
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-              No subjects found. Add subjects to your profile to get started.
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>
+              No subjects yet. Add your first subject to start verification.
             </p>
-            <button
-              onClick={() => navigate('/profile')}
-              style={{
-                marginTop: 16,
-                padding: '10px 24px',
-                background: 'var(--bg-card-hover)',
-                border: '1px solid var(--border)',
-                borderRadius: 10,
-                color: 'var(--text-primary)',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Edit Profile
-            </button>
+            <div style={{
+              display: 'flex', gap: 8, flexWrap: 'wrap',
+              maxWidth: 380, margin: '16px auto 0',
+            }}>
+              <input
+                type="text"
+                value={newSubject}
+                onChange={(e) => setNewSubject(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAddSubject(); }}
+                placeholder="e.g. Mathematics"
+                disabled={addingSubject}
+                style={{
+                  flex: 1, minWidth: 160, padding: '10px 12px',
+                  background: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 10, color: 'var(--text-primary)',
+                  fontSize: 13, outline: 'none',
+                }}
+              />
+              <button
+                onClick={handleAddSubject}
+                disabled={addingSubject || !newSubject.trim()}
+                style={{
+                  padding: '10px 20px',
+                  background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+                  border: 'none', borderRadius: 10,
+                  color: '#fff', fontSize: 13, fontWeight: 600,
+                  cursor: (addingSubject || !newSubject.trim()) ? 'not-allowed' : 'pointer',
+                  opacity: (addingSubject || !newSubject.trim()) ? 0.6 : 1,
+                }}
+              >
+                {addingSubject ? 'Adding...' : 'Add Subject'}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -368,68 +430,63 @@ const VerificationDashboard = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
-      {/* MOBILE */}
-      <div className="lg:hidden">
-        <MobileViewBar />
-        <div style={{ maxWidth: 520, margin: '0 auto', padding: '80px 16px 100px' }}>
-          {Content()}
-        </div>
-        <MobileViewIcons />
-      </div>
-
-      {/* DESKTOP */}
-      <div className="hidden lg:block">
-        {/*
-          FIX: this used to render its own sidebar-toggle button, its own
-          backdrop, and a fixed-position wrapper around <DashSidebar />
-          (identical to a bug already fixed in ExploreGroups.jsx).
-          DashSidebar manages its own open/close state and toggle button
-          internally now — this duplicate scaffolding would render a
-          second, conflicting toggle button stacked on top of it. Rendered
-          plainly instead, same as Dashboard.jsx and ExploreGroups.jsx.
-        */}
-        <DashSidebar />
-
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <div style={{ width: '100%', maxWidth: 1000, padding: '32px 20px' }}>
-            {/* Top nav bar */}
-            <div style={{
-              marginBottom: 28,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 12,
-              padding: '10px 16px'
-            }}>
-              <button
-                onClick={() => navigate('/dashboard')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 7,
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-secondary)',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  padding: 0,
-                  transition: 'color 0.2s'
-                }}
-                onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; }}
-                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; }}
-              >
-                <Home size={16} />
-                Dashboard
-              </button>
-            </div>
-
+      {/* MOBILE (only rendered below 1024px) */}
+      {!isDesktop && (
+        <div>
+          <MobileViewBar />
+          <div style={{ maxWidth: 520, margin: '0 auto', padding: '80px 16px 100px' }}>
             {Content()}
           </div>
+          <MobileViewIcons />
         </div>
-      </div>
+      )}
+
+      {/* DESKTOP (only rendered at 1024px and up) */}
+      {isDesktop && (
+        <div>
+          <DashSidebar />
+
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ width: '100%', maxWidth: 1000, padding: '32px 20px' }}>
+              {/* Top nav bar */}
+              <div style={{
+                marginBottom: 28,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                padding: '10px 16px'
+              }}>
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 7,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary)',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    padding: 0,
+                    transition: 'color 0.2s'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                >
+                  <Home size={16} />
+                  Dashboard
+                </button>
+              </div>
+
+              {Content()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

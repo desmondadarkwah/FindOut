@@ -12,16 +12,6 @@ import { ChatContext } from "../Context/ChatContext";
 import axiosInstance from "../utils/axiosInstance";
 import ReportModal from "./ReportModal";
 
-// ✅ Shared modal shell, defined OUTSIDE the component so it keeps a stable
-// identity across renders (a component redefined inside the parent's body
-// gets a new reference every render, which forces React to unmount/remount
-// it — that's what caused the earlier "flashing" bug in AllPost.jsx).
-//
-// Renders via a portal into document.body so it's never trapped by an
-// ancestor's `backdrop-filter`/`transform` (which creates a new containing
-// block for `position: fixed` descendants), and stops mousedown from
-// bubbling so a parent's outside-click/dropdown-close listener doesn't
-// mistake a click inside the modal for a click outside it.
 const ModalPortal = ({ children, onBackdropClick }) => {
   if (typeof document === "undefined") return null;
   return createPortal(

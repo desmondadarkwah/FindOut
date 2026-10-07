@@ -1,48 +1,43 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Users, FileText, Activity, TrendingUp, LogOut, Menu, X, Shield, Flag, Search, CheckCircle, XCircle, Trash2, ChevronLeft, ChevronRight
-} from 'lucide-react';
+import { Search, CheckCircle, XCircle, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAdminContext } from '../Context/AdminContext';
 import axiosInstance from '../utils/axiosInstance';
 import FindOutLoader from '../Loader/FindOutLoader';
+import { useAdminUI, useDebouncedValue, resolveImage } from './AdminLayout';
 
-const ACTIVE_KEY = 'users';
-
-const NAV_ITEMS = [
-  { key: 'dashboard', label: 'Dashboard', icon: Activity, to: '/admin-dashboard' },
-  { key: 'users', label: 'Users', icon: Users, to: '/admin-users' },
-  { key: 'posts', label: 'Posts', icon: FileText, to: '/admin-posts' },
-  { key: 'reports', label: 'Reports', icon: Flag, to: '/admin-reports' },
-  { key: 'analytics', label: 'Analytics', icon: TrendingUp, to: '/admin-analytics' },
-];
+const STATUS_LABELS = {
+  'Ready To Teach': 'Teacher',
+  'Ready To Learn': 'Learner',
+};
 
 const AdminUsers = () => {
-  const { admin, logout } = useAdminContext();
+  const { admin } = useAdminContext();
   const navigate = useNavigate();
-  const [showSidebar, setShowSidebar] = useState(false);
-  const [toastState, setToastState] = useState(null);
-  const toastTimer = useRef(null);
-  const showToast = (message, type = 'success', persistent = false) => {
-    clearTimeout(toastTimer.current);
-    setToastState({ message, type, persistent });
-    if (!persistent) toastTimer.current = setTimeout(() => setToastState(null), 3000);
-  };
-  const toast = showToast;
-  const confirm = (message) => Promise.resolve(window.confirm(message));
+  const { toast, confirm } = useAdminUI();
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  // FIX: the full-page loader must only show for the FIRST load. It used to
+  // replace the whole page whenever a search had no results yet, which removed
+  // the search box from the screen and made it lose focus while you typed.
+  const [initialLoad, setInitialLoad] = useState(true);
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // FIX: waits until you stop typing before asking the server (was one request
+  // per keystroke), and ignores slow older responses (see requestIdRef).
+  const searchQuery = useDebouncedValue(searchInput, 400);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     if (admin) fetchUsers();
   }, [admin, searchQuery, statusFilter, currentPage]);
 
   const fetchUsers = async () => {
+    const requestId = ++requestIdRef.current;
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
@@ -53,9 +48,10 @@ const AdminUsers = () => {
       const response = await axiosInstance.get(`/api/admin/users?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (requestId !== requestIdRef.current) return; // a newer request replaced this one
       if (response.data.success) {
         setUsers(response.data.users);
-        setTotalPages(response.data.pagination.pages);
+        setTotalPages(response.data.pagination?.pages || 1);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -64,8 +60,17 @@ const AdminUsers = () => {
         navigate('/admin-login');
       }
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        setInitialLoad(false);
+      }
     }
+  };
+
+  // After removing someone, go back a page if that was the last row on it
+  const refreshAfterRemoval = () => {
+    if (users.length === 1 && currentPage > 1) setCurrentPage(p => p - 1);
+    else fetchUsers();
   };
 
   const handleVerifyUser = async (userId) => {
@@ -93,21 +98,27 @@ const AdminUsers = () => {
   };
 
   const handleDeleteUser = async (userId) => {
-    const ok = await confirm('Delete this user? This will also delete all their posts and remove them from groups.');
+    const ok = await confirm('Delete this user? This will also delete all their posts and remove them from groups.', {
+      title: 'Delete User',
+      confirmText: 'Delete',
+    });
     if (!ok) return;
     try {
       const token = localStorage.getItem('adminToken');
       const response = await axiosInstance.delete(`/api/admin/users/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (response.data.success) { fetchUsers(); toast('User deleted successfully'); }
+      if (response.data.success) { refreshAfterRemoval(); toast('User deleted successfully'); }
     } catch (error) {
       toast('Failed to delete user', 'error');
     }
   };
 
   const handlePromoteToAdmin = async (userId) => {
-    const ok = await confirm('Promote this user to admin? They will receive admin access.');
+    const ok = await confirm('Promote this user to admin? They will receive admin access.', {
+      title: 'Promote to Admin',
+      confirmText: 'Promote',
+    });
     if (!ok) return;
     try {
       const token = localStorage.getItem('adminToken');
@@ -123,105 +134,11 @@ const AdminUsers = () => {
     }
   };
 
-  if (loading && users.length === 0) {
+  if (initialLoad && loading) {
     return <FindOutLoader />;
   }
 
-
-  const handleLogout = async () => {
-    const confirmed = window.confirm('Are you sure you want to logout?');
-    if (confirmed) {
-      await logout();
-      navigate('/admin-login');
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setShowSidebar(!showSidebar)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2.5 bg-[#0f0f1a] border border-[rgba(255,255,255,0.07)] rounded-lg text-[rgba(255,255,255,0.4)]"
-      >
-        {showSidebar ? <X size={18} /> : <Menu size={18} />}
-      </button>
-
-      {/* Sidebar */}
-      <div className={`
-        fixed top-0 left-0 h-full w-64 bg-[#0f0f1a] border-r border-[rgba(255,255,255,0.07)] z-40
-        transform transition-transform duration-200 lg:translate-x-0
-        ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <div className="p-5 flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center gap-2.5 mb-8 px-1">
-            <div className="w-8 h-8 bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.07)] rounded-lg flex items-center justify-center">
-              <Shield size={16} className="text-[rgba(255,255,255,0.4)]" />
-            </div>
-            <div>
-              <h2 className="text-[#f1f5f9] font-semibold text-sm leading-tight">FindOut</h2>
-              <p className="text-[rgba(255,255,255,0.2)] text-xs leading-tight">Admin</p>
-            </div>
-          </div>
-
-          {/* Admin Info */}
-          <div className="bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.07)] rounded-xl p-3.5 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.07)] rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-[#f1f5f9] font-semibold text-xs">
-                  {admin?.name?.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[#f1f5f9] font-medium text-sm truncate">{admin?.name}</p>
-                <p className="text-[rgba(255,255,255,0.2)] text-xs truncate">{admin?.email}</p>
-              </div>
-            </div>
-            {admin?.isSuperAdmin && (
-              <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.07)]">
-                <span className="inline-flex items-center gap-1.5 text-xs text-[rgba(251,191,36,0.9)]">
-                  <Shield size={12} />
-                  Super Admin
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Navigation */}
-          <nav className="space-y-0.5 flex-1">
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const active = item.key === ACTIVE_KEY;
-              return (
-                <button
-                  key={item.key}
-                  onClick={() => navigate(item.to)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border-l-2 ${
-                    active
-                      ? 'text-[#f1f5f9] bg-[rgba(255,255,255,0.05)] border-[#6366f1]'
-                      : 'text-[rgba(255,255,255,0.4)] hover:text-[#f1f5f9] hover:bg-[rgba(255,255,255,0.03)] border-transparent'
-                  }`}
-                >
-                  <Icon size={17} />
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 text-[rgba(255,255,255,0.2)] hover:text-[#ef4444] hover:bg-[rgba(239,68,68,0.1)] rounded-lg transition-colors text-sm font-medium"
-          >
-            <LogOut size={17} />
-            Logout
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="lg:ml-64 px-4 py-6 lg:px-10 lg:py-10">
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-semibold mb-1" style={{ color: '#f1f5f9' }}>User Management</h1>
@@ -236,8 +153,8 @@ const AdminUsers = () => {
             <input
               type="text"
               placeholder="Search by name or email..."
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              value={searchInput}
+              onChange={(e) => { setSearchInput(e.target.value); setCurrentPage(1); }}
               className="w-full pl-10 pr-4 py-2.5 rounded-lg outline-none text-sm"
               style={{ background: '#0a0a0f', border: '1px solid rgba(255,255,255,0.08)', color: '#f1f5f9' }}
             />
@@ -255,8 +172,11 @@ const AdminUsers = () => {
         </div>
       </div>
 
-      {/* Users Table */}
-      <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      {/* Users Table (dims slightly while new results load) */}
+      <div
+        className="rounded-xl overflow-hidden transition-opacity"
+        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', opacity: loading ? 0.6 : 1 }}
+      >
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
@@ -276,7 +196,7 @@ const AdminUsers = () => {
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
                         {user.profilePicture ? (
-                          <img src={`${import.meta.env.VITE_BACKEND_URL}${user.profilePicture}`} alt={user.name} className="w-full h-full object-cover" />
+                          <img src={resolveImage(user.profilePicture)} alt={user.name} className="w-full h-full object-cover" />
                         ) : (
                           <span className="font-semibold text-xs" style={{ color: '#f1f5f9' }}>{user.name?.charAt(0).toUpperCase()}</span>
                         )}
@@ -295,7 +215,8 @@ const AdminUsers = () => {
                         color: user.status === 'Ready To Teach' ? '#60a5fa' : '#818cf8',
                       }}
                     >
-                      {user.status === 'Ready To Teach' ? 'Teacher' : 'Learner'}
+                      {/* FIX: users whose status is "Later" used to be labelled "Learner" */}
+                      {STATUS_LABELS[user.status] || user.status || 'Unknown'}
                     </span>
                   </td>
                   <td className="p-4">
@@ -330,7 +251,12 @@ const AdminUsers = () => {
                           Promote
                         </button>
                       )}
-                      <button onClick={() => handleDeleteUser(user._id)} className="p-1.5 rounded-lg" style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}>
+                      <button
+                        onClick={() => handleDeleteUser(user._id)}
+                        aria-label={`Delete ${user.name}`}
+                        className="p-1.5 rounded-lg"
+                        style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}
+                      >
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -341,12 +267,21 @@ const AdminUsers = () => {
           </table>
         </div>
 
+        {/* FIX: the table used to just be empty when nothing matched */}
+        {users.length === 0 && !loading && (
+          <div className="text-center py-14">
+            <p className="font-semibold mb-1" style={{ color: '#f1f5f9' }}>No users found</p>
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>Try a different search or filter</p>
+          </div>
+        )}
+
         <div className="flex items-center justify-between p-4" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           <p className="text-sm" style={{ color: 'rgba(255,255,255,0.2)' }}>Page {currentPage} of {totalPages}</p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
+              aria-label="Previous page"
               className="p-2 rounded-lg disabled:opacity-40"
               style={{ background: '#0a0a0f', color: 'rgba(255,255,255,0.3)' }}
             >
@@ -355,6 +290,7 @@ const AdminUsers = () => {
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
+              aria-label="Next page"
               className="p-2 rounded-lg disabled:opacity-40"
               style={{ background: '#0a0a0f', color: 'rgba(255,255,255,0.3)' }}
             >
@@ -363,26 +299,6 @@ const AdminUsers = () => {
           </div>
         </div>
       </div>
-    </div>
-      </div>
-      {toastState && (
-        <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3 px-5 py-3 rounded-xl text-sm font-medium"
-          style={{
-            background: toastState.type === 'error' ? '#dc2626' : '#0f0f1a',
-            border: toastState.type === 'error' ? 'none' : '1px solid rgba(99,102,241,0.3)',
-            color: '#fff',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-          }}
-        >
-          <span>{toastState.message}</span>
-          {toastState.persistent && (
-            <button onClick={() => setToastState(null)} className="text-xs underline" style={{ color: 'rgba(255,255,255,0.7)' }}>
-              Dismiss
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 };

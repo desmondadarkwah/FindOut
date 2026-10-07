@@ -17,7 +17,8 @@ const AdminLogin = () => {
     e.preventDefault();
     setErrorMessage('');
 
-    if (!email || !password) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
       setErrorMessage('Please enter both email and password');
       return;
     }
@@ -25,7 +26,7 @@ const AdminLogin = () => {
     setIsLoading(true);
 
     try {
-      const result = await login(email, password);
+      const result = await login(cleanEmail, password);
       if (result.success) {
         navigate('/admin-dashboard');
       } else {
@@ -56,21 +57,25 @@ const AdminLogin = () => {
         <div className="rounded-2xl shadow-2xl p-8" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
           <form onSubmit={handleSubmit} className="space-y-6">
             {errorMessage && (
-              <div className="rounded-xl p-4" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)' }}>
+              <div role="alert" className="rounded-xl p-4" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)' }}>
                 <p className="text-sm text-center" style={{ color: '#f87171' }}>{errorMessage}</p>
               </div>
             )}
 
             <div className="space-y-2">
-              <label className="flex items-center gap-2 font-medium text-sm" style={{ color: '#f1f5f9' }}>
+              {/* FIX: label is now linked to its input (htmlFor / id) so clicking
+                  the label focuses the field and screen readers announce it */}
+              <label htmlFor="admin-email" className="flex items-center gap-2 font-medium text-sm" style={{ color: '#f1f5f9' }}>
                 <Mail size={16} color="rgba(255,255,255,0.4)" />
                 Email Address
               </label>
               <input
+                id="admin-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@findout.com"
+                autoComplete="username"
                 disabled={isLoading}
                 className="w-full p-3 rounded-xl outline-none transition-colors disabled:opacity-50"
                 style={{ background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.08)', color: '#f1f5f9' }}
@@ -80,16 +85,18 @@ const AdminLogin = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="flex items-center gap-2 font-medium text-sm" style={{ color: '#f1f5f9' }}>
+              <label htmlFor="admin-password" className="flex items-center gap-2 font-medium text-sm" style={{ color: '#f1f5f9' }}>
                 <Lock size={16} color="rgba(255,255,255,0.4)" />
                 Password
               </label>
               <div className="relative">
                 <input
+                  id="admin-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
+                  autoComplete="current-password"
                   disabled={isLoading}
                   className="w-full p-3 pr-12 rounded-xl outline-none transition-colors disabled:opacity-50"
                   style={{ background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.08)', color: '#f1f5f9' }}
@@ -99,6 +106,7 @@ const AdminLogin = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
                   style={{ color: 'rgba(255,255,255,0.4)' }}
                   disabled={isLoading}

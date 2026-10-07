@@ -1,21 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../utils/axiosInstance';
 import { FiAlertTriangle, FiTrash2, FiCheckCircle, FiUser, FiFileText, FiUsers } from 'react-icons/fi';
-import { IoArrowBack } from 'react-icons/io5';
 import moment from 'moment';
+import { useAdminUI, resolveImage } from './AdminLayout';
+
+// Short preview of a post caption - adds "..." only when it was really cut
+const previewCaption = (caption) => {
+  if (!caption) return 'No caption';
+  return caption.length > 80 ? `${caption.substring(0, 80)}...` : caption;
+};
 
 const AdminReports = () => {
   const navigate = useNavigate();
-  const [toastState, setToastState] = useState(null);
-  const toastTimer = useRef(null);
-  const showToast = (message, type = 'success', persistent = false) => {
-    clearTimeout(toastTimer.current);
-    setToastState({ message, type, persistent });
-    if (!persistent) toastTimer.current = setTimeout(() => setToastState(null), 3000);
-  };
-  const toast = showToast;
-  const confirm = (message) => Promise.resolve(window.confirm(message));
+  const { toast, confirm } = useAdminUI();
 
   const [reports, setReports] = useState({ users: [], posts: [], groups: [] });
   const [loading, setLoading] = useState(true);
@@ -32,9 +30,20 @@ const AdminReports = () => {
       const response = await axiosInstance.get('/api/reports/all', {
         headers: { Authorization: `Bearer ${adminToken}` }
       });
-      if (response.data.success) setReports(response.data.reports);
+      if (response.data.success) {
+        // FIX: tolerate a missing list so one empty section can't crash the page
+        const r = response.data.reports || {};
+        setReports({ users: r.users || [], posts: r.posts || [], groups: r.groups || [] });
+      }
     } catch (error) {
       console.error('Fetch reports error:', error);
+      // FIX: an expired admin login now sends you back to the login page
+      // (the other admin pages already did this; this one didn't)
+      if (error.response?.status === 401) {
+        localStorage.removeItem('adminToken');
+        navigate('/admin-login');
+        return;
+      }
       toast('Failed to fetch reports', 'error');
     } finally {
       setLoading(false);
@@ -42,7 +51,7 @@ const AdminReports = () => {
   };
 
   const handleDeleteUser = async (userId) => {
-    const ok = await confirm('Delete this user permanently?');
+    const ok = await confirm('Delete this user permanently?', { title: 'Delete User', confirmText: 'Delete' });
     if (!ok) return;
     try {
       const adminToken = localStorage.getItem('adminToken');
@@ -55,7 +64,7 @@ const AdminReports = () => {
   };
 
   const handleDeletePost = async (postId) => {
-    const ok = await confirm('Delete this post permanently?');
+    const ok = await confirm('Delete this post permanently?', { title: 'Delete Post', confirmText: 'Delete' });
     if (!ok) return;
     try {
       const adminToken = localStorage.getItem('adminToken');
@@ -68,7 +77,7 @@ const AdminReports = () => {
   };
 
   const handleDeleteGroup = async (groupId) => {
-    const ok = await confirm('Delete this group permanently?');
+    const ok = await confirm('Delete this group permanently?', { title: 'Delete Group', confirmText: 'Delete' });
     if (!ok) return;
     try {
       const adminToken = localStorage.getItem('adminToken');
@@ -95,31 +104,24 @@ const AdminReports = () => {
     </div>
   );
 
+  // One report line, shared by all three tabs
+  const renderReportLine = (report, i, color, bg) => (
+    <div key={i} style={{ padding: '10px 14px', borderRadius: 10, background: bg }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color }}>{report.reason}</span>
+      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', margin: '3px 0 0' }}>
+        Reported by {report.reportedBy?.name || 'Unknown'} · {moment(report.reportedAt).fromNow()}
+      </p>
+    </div>
+  );
+
+  const deleteButtonStyle = {
+    display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8,
+    background: 'rgba(239,68,68,0.12)', border: 'none', color: '#f87171',
+    fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+  };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#0a0a0f',
-      color: '#f1f5f9',
-      fontFamily: "'Inter', sans-serif",
-      padding: '32px 24px',
-    }}>
-      <div style={{ maxWidth: 900, margin: '0 auto' }}>
-        <button
-          onClick={() => navigate('/admin-dashboard')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'rgba(255,255,255,0.4)', fontSize: 14, fontWeight: 500,
-            padding: '8px 0', marginBottom: 16, transition: 'color 0.2s',
-          }}
-          onMouseEnter={e => e.currentTarget.style.color = '#f1f5f9'}
-          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
-        >
-          <IoArrowBack size={18} /> Back to Dashboard
-        </button>
-
-    <div>
+    <div style={{ maxWidth: 900, margin: '0 auto', color: '#f1f5f9', fontFamily: "'Inter', sans-serif" }}>
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
@@ -138,8 +140,8 @@ const AdminReports = () => {
         </div>
       </div>
 
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 24 }}>
+      {/* Stats (FIX: wraps on narrow screens instead of squeezing 3 fixed columns) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 14, marginBottom: 24 }}>
         {[
           { label: 'User Reports', value: reports.users.length, color: '#f87171', bg: 'rgba(239,68,68,0.08)' },
           { label: 'Post Reports', value: reports.posts.length, color: '#eab308', bg: 'rgba(234,179,8,0.08)' },
@@ -153,13 +155,13 @@ const AdminReports = () => {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 5 }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 5, flexWrap: 'wrap' }}>
         {tabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             style={{
-              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+              flex: '1 1 120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
               padding: '9px 8px', borderRadius: 8, cursor: 'pointer', border: 'none',
               background: activeTab === tab.key ? '#6366f1' : 'transparent',
               color: activeTab === tab.key ? '#fff' : 'rgba(255,255,255,0.4)',
@@ -188,31 +190,24 @@ const AdminReports = () => {
           {activeTab === 'users' && (
             reports.users.length === 0 ? renderEmpty('No user reports') : reports.users.map(user => (
               <div key={user._id} style={card}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
                       {user.profilePicture ? (
-                        <img src={`${import.meta.env.VITE_BACKEND_URL}${user.profilePicture}`} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={resolveImage(user.profilePicture)} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : <FiUser size={16} color="rgba(255,255,255,0.5)" />}
                     </div>
-                    <div>
+                    <div style={{ minWidth: 0 }}>
                       <p style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', margin: 0 }}>{user.name}</p>
-                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', margin: 0 }}>{user.email}</p>
+                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</p>
                     </div>
                   </div>
-                  <button onClick={() => handleDeleteUser(user._id)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: 'none', color: '#f87171', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  <button onClick={() => handleDeleteUser(user._id)} style={deleteButtonStyle}>
                     <FiTrash2 size={13} /> Delete User
                   </button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {user.reports.map((report, i) => (
-                    <div key={i} style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.05)' }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#f87171' }}>{report.reason}</span>
-                      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', margin: '3px 0 0' }}>
-                        Reported by {report.reportedBy?.name || 'Unknown'} · {moment(report.reportedAt).fromNow()}
-                      </p>
-                    </div>
-                  ))}
+                  {(user.reports || []).map((report, i) => renderReportLine(report, i, '#f87171', 'rgba(239,68,68,0.05)'))}
                 </div>
               </div>
             ))
@@ -221,28 +216,21 @@ const AdminReports = () => {
           {activeTab === 'posts' && (
             reports.posts.length === 0 ? renderEmpty('No post reports') : reports.posts.map(post => (
               <div key={post._id} style={card}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+                  <div style={{ minWidth: 0 }}>
                     <p style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', margin: '0 0 4px' }}>
-                      {post.caption?.substring(0, 80) || 'No caption'}...
+                      {previewCaption(post.caption)}
                     </p>
                     <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', margin: 0 }}>
                       By {post.author?.name || 'Unknown'} · {post.postType}
                     </p>
                   </div>
-                  <button onClick={() => handleDeletePost(post._id)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: 'none', color: '#f87171', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, marginLeft: 12 }}>
+                  <button onClick={() => handleDeletePost(post._id)} style={deleteButtonStyle}>
                     <FiTrash2 size={13} /> Delete Post
                   </button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {post.reports.map((report, i) => (
-                    <div key={i} style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(234,179,8,0.05)' }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#eab308' }}>{report.reason}</span>
-                      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', margin: '3px 0 0' }}>
-                        Reported by {report.reportedBy?.name || 'Unknown'} · {moment(report.reportedAt).fromNow()}
-                      </p>
-                    </div>
-                  ))}
+                  {(post.reports || []).map((report, i) => renderReportLine(report, i, '#eab308', 'rgba(234,179,8,0.05)'))}
                 </div>
               </div>
             ))
@@ -251,51 +239,24 @@ const AdminReports = () => {
           {activeTab === 'groups' && (
             reports.groups.length === 0 ? renderEmpty('No group reports') : reports.groups.map(group => (
               <div key={group._id} style={card}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+                  <div style={{ minWidth: 0 }}>
                     <p style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', margin: '0 0 4px' }}>{group.groupName}</p>
                     <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', margin: 0 }}>
                       Admin: {group.groupAdmin?.name || 'Unknown'} · {group.privacy}
                     </p>
                   </div>
-                  <button onClick={() => handleDeleteGroup(group._id)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: 'none', color: '#f87171', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, marginLeft: 12 }}>
+                  <button onClick={() => handleDeleteGroup(group._id)} style={deleteButtonStyle}>
                     <FiTrash2 size={13} /> Delete Group
                   </button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {group.reports.map((report, i) => (
-                    <div key={i} style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(99,102,241,0.05)' }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#818cf8' }}>{report.reason}</span>
-                      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', margin: '3px 0 0' }}>
-                        Reported by {report.reportedBy?.name || 'Unknown'} · {moment(report.reportedAt).fromNow()}
-                      </p>
-                    </div>
-                  ))}
+                  {(group.reports || []).map((report, i) => renderReportLine(report, i, '#818cf8', 'rgba(99,102,241,0.05)'))}
                 </div>
               </div>
             ))
           )}
         </>
-      )}
-    </div>
-      </div>
-      {toastState && (
-        <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3 px-5 py-3 rounded-xl text-sm font-medium"
-          style={{
-            background: toastState.type === 'error' ? '#dc2626' : '#0f0f1a',
-            border: toastState.type === 'error' ? 'none' : '1px solid rgba(99,102,241,0.3)',
-            color: '#fff',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-          }}
-        >
-          <span>{toastState.message}</span>
-          {toastState.persistent && (
-            <button onClick={() => setToastState(null)} className="text-xs underline" style={{ color: 'rgba(255,255,255,0.7)' }}>
-              Dismiss
-            </button>
-          )}
-        </div>
       )}
     </div>
   );

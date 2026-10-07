@@ -3,51 +3,54 @@ import { Flag, Link, Trash2, X } from 'lucide-react';
 import { PostContext } from '../Context/PostContext';
 import { ChatContext } from '../Context/ChatContext';
 import ReportModal from '../components/ReportModal';
+import { useToast } from '../Context/ToastContext';
 
 const PostSettings = ({ postId, authorId, onClose }) => {
   const { deletePost } = useContext(PostContext);
   const { userId } = useContext(ChatContext);
+  const { toast, confirm } = useToast();
   const [showReport, setShowReport] = useState(false);
 
-  // ✅ FIX: Convert both to strings for comparison
-  const isOwnPost = userId?.toString() === authorId?.toString();
+  // Both ids must exist, so an unloaded userId and a missing authorId
+  // (undefined === undefined) can never count as "your own post".
+  const isOwnPost = !!userId && !!authorId && userId.toString() === authorId.toString();
 
   const handleCopyLink = () => {
     const postUrl = `${window.location.origin}/post/${postId}`;
     navigator.clipboard.writeText(postUrl).then(() => {
-      alert('Link copied to clipboard!');
+      toast.success('Link copied to clipboard!', 'Copied');
       onClose();
     }).catch(err => {
       console.error('Failed to copy link:', err);
-      alert('Failed to copy link');
+      toast.error('Failed to copy link');
     });
   };
 
   const handleDeletePost = async () => {
     try {
-      const confirmation = window.confirm('Are you sure you want to delete this post? This action cannot be undone.');
+      const confirmed = await confirm({
+        title: 'Delete Post',
+        message: 'Are you sure you want to delete this post? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        confirmStyle: 'danger'
+      });
 
-      if (confirmation) {
-        await deletePost(postId);
-        alert('Post deleted successfully');
-        onClose();
-      }
+      if (!confirmed) return;
+
+      await deletePost(postId);
+      toast.success('Post deleted successfully', 'Post Deleted');
+      onClose();
     } catch (error) {
       console.error('Failed to delete post:', error);
-      alert(error.message || 'Failed to delete post. Please try again.');
+      toast.error(error.message || 'Failed to delete post. Please try again.');
     }
   };
 
   return (
-    // ✅ Design system: dropdown menus use bg-[var(--bg-secondary)] (solid panel) rather
-    // than bg-surface (translucent card) — this sits on top of page content,
-    // not directly on the page background, so it needs to read as opaque.
     <div className="w-56 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg shadow-2xl overflow-hidden">
       <div className="py-2">
         {!isOwnPost && (
-          // ✅ Report → warning (amber), not error — per the color system,
-          // warning covers "pending, report"; error is reserved for
-          // destructive actions (delete, block).
           <button
             onClick={() => setShowReport(true)}
             className="w-full px-4 py-3 text-left text-[#eab308] hover:bg-[var(--bg-card-hover)] transition-colors flex items-center space-x-3"
@@ -90,7 +93,9 @@ const PostSettings = ({ postId, authorId, onClose }) => {
         <ReportModal
           type="post"
           id={postId}
-          onClose={() => setShowReport(false)}
+          // Also close the dropdown once the report modal is closed,
+          // so the menu doesn't stay open behind it.
+          onClose={() => { setShowReport(false); onClose(); }}
         />
       )}
     </div>

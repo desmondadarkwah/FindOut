@@ -2,6 +2,15 @@ const GroupModel = require('../models/GroupModel');
 const { MessageModel } = require('../models/MessageModel');
 const UserModel = require('../models/UserModel');
 
+// ✅ Safe import: if the path/function is wrong, the controller still works (emails are just skipped)
+let sendAddedToGroupEmail = null;
+try {
+  // 👇 CHANGE this path to wherever your email function lives
+  ({ sendAddedToGroupEmail } = require('../utils/emailService'));
+} catch (err) {
+  console.log('⚠️ sendAddedToGroupEmail not loaded, emails disabled:', err.message);
+}
+
 const AddGroupMembers = async (req, res) => {
   try {
     const { groupId, members, memberIds } = req.body;
@@ -43,6 +52,9 @@ const AddGroupMembers = async (req, res) => {
     group.members = [...new Set([...group.members, ...newMembers])];
 
     // ✅ Initialize unread count for new members
+    if (!Array.isArray(group.unreadCount)) {
+      group.unreadCount = [];
+    }
     newMembers.forEach(memberId => {
       const existingUnread = group.unreadCount.find(
         u => u.userId.toString() === memberId
@@ -62,14 +74,22 @@ const AddGroupMembers = async (req, res) => {
     // ✅ Get socket safely
     const io = global.socketIo || null;
 
-    // ✅ Create system message for EACH new member added
-    for (const memberId of newMembers) {
-      try {
-        const addedUser = await UserModel.findById(memberId).select('name');
+    // ✅ Look up the admin once (used for emails)
+    let adminName = 'Admin';
+    try {
+      const admin = await UserModel.findById(adminId).select('name');
+      if (admin?.name) adminName = admin.name;
+    } catch (adminError) {
+      console.log('⚠️ Admin lookup skipped:', adminError.message);
+    }
 
+    // ✅ Handle EACH new member (system message + email)
+    for (const memberId of newMembers) {
+      // --- System message ---
+      try {
         const systemMessage = new MessageModel({
           chatId: group._id,
-          senderId: memberId, // ✅ Use added member's ID not admin's
+          senderId: memberId,
           content: 'was added to the group',
           type: 'system',
           createdAt: new Date()
@@ -80,13 +100,30 @@ const AddGroupMembers = async (req, res) => {
           .populate('senderId', 'name profilePicture');
 
         if (io) {
-          // ✅ Send system message to group room
           io.to(groupId).emit('system-message', {
             message: populatedMessage
           });
         }
       } catch (msgError) {
         console.log('⚠️ System message skipped:', msgError.message);
+      }
+
+      // --- Email notification (only if user is offline) ---
+      try {
+        if (typeof sendAddedToGroupEmail === 'function') {
+          const addedUser = await UserModel.findById(memberId).select('name email isOnline');
+
+          if (addedUser && addedUser.email && !addedUser.isOnline) {
+            await sendAddedToGroupEmail({
+              recipientEmail: addedUser.email,
+              recipientName: addedUser.name,
+              groupName: group.groupName,
+              addedByName: adminName,
+            });
+          }
+        }
+      } catch (emailError) {
+        console.log('⚠️ Email skipped:', emailError.message);
       }
     }
 

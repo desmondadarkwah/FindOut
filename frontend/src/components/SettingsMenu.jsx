@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { FaRegEdit } from "react-icons/fa";
 import { MdReportGmailerrorred } from "react-icons/md";
 import { MdOutlineLightMode, MdOutlineDarkMode } from "react-icons/md";
@@ -6,7 +6,6 @@ import { BsDoorOpen } from "react-icons/bs";
 import { SettingsContext } from "../Context/SettingsContext";
 import { useEditUser } from "../Context/EditUserContext";
 import { IoClose } from "react-icons/io5";
-import { useNavigate } from "react-router-dom";
 import { useTheme } from "../Context/ThemeContext";
 import { useToast } from "../Context/ToastContext";
 
@@ -15,52 +14,60 @@ const SettingsMenu = () => {
   const { editUserDetails } = useEditUser();
   const [showInput, setShowInput] = useState(false);
   const [subject, setSubject] = useState("");
+  const [savingSubject, setSavingSubject] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { toast, confirm } = useToast();
 
-  const navigate = useNavigate();
+  const closeSettings = () => setOpenSettings(false);
+
+  // Escape closes the panel
+  useEffect(() => {
+    if (!openSettings) return;
+    const onKeyDown = (e) => { if (e.key === 'Escape') setOpenSettings(false); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [openSettings, setOpenSettings]);
 
   const toggleInput = () => setShowInput(!showInput);
   const handleInputChange = (e) => setSubject(e.target.value);
 
-  // FIX: was using native alert() for feedback — every other part of the
-  // app (ManageGroup, ExploreGroups, Suggestions, etc.) uses toast. This
-  // was the one holdout still popping browser alerts.
-  const handleSubmit = () => {
-    if (subject.trim()) {
-      editUserDetails({ subjects: [subject] });
+  // FIX: the success toast used to appear immediately, even if saving then
+  // failed. It now waits for the save to finish and shows an error if it fails.
+  const handleSubmit = async () => {
+    const value = subject.trim();
+    if (!value) {
+      toast.error("Please enter a valid subject.");
+      return;
+    }
+
+    try {
+      setSavingSubject(true);
+      await editUserDetails({ subjects: [value] });
       setSubject("");
       toast.success("Subject updated successfully!");
-    } else {
-      toast.error("Please enter a valid subject.");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to update subject");
+    } finally {
+      setSavingSubject(false);
     }
   };
 
-  // FIX: this called closeSettings() itself, and the button's own onClick
-  // called it again right after — same redundant double-close pattern
-  // fixed earlier in DashSidebar.jsx's handleEditClick.
   const handleEditClick = () => {
     setOpenManageUser(!openManageUser);
     closeSettings();
   };
 
-  const closeSettings = () => setOpenSettings(false);
-
-  // FIX: "Report a Problem" previously just closed the panel — it looked
-  // like it submitted something but silently did nothing. There's no
-  // generic app-level report endpoint yet (ReportModal only handles
-  // user/post/group reports), so rather than fake a submission, this is
-  // honest about not being wired up yet.
+  // There's no generic app-level report endpoint yet (ReportModal only
+  // handles user/post/group reports), so this is honest about it.
   const handleReportProblem = () => {
     toast.info("Problem reporting is coming soon.");
     closeSettings();
   };
 
-  // FIX: replaced a ~60-line hand-rolled logout confirm modal (its own
-  // local state, its own backdrop, its own portal-less positioning) with
-  // the same confirm() flow already used everywhere else in the app
-  // (GroupOptions, ManageGroup, IndividualChatOptions, IconsSidebar) —
-  // one consistent confirmation pattern instead of two different ones.
+  // FIX: logging out used to only delete the tokens and move to the login page
+  // inside the running app, so the previous person's chats, selected chat and
+  // other data stayed in memory (and could flash up for the next person who
+  // logs in on the same tab). A full page load to /login clears all of it.
   const handleLogoutClick = async () => {
     const confirmed = await confirm({
       title: 'Log Out',
@@ -73,7 +80,8 @@ const SettingsMenu = () => {
 
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    navigate('/login');
+    localStorage.removeItem('userId');
+    window.location.href = '/login';
   };
 
   const menuItem = {
@@ -109,7 +117,10 @@ const SettingsMenu = () => {
         />
       )}
 
-      {/* Settings Panel */}
+      {/* Settings Panel
+          FIX: when closed the panel is now also `visibility: hidden`, so
+          keyboard users can no longer Tab into buttons they can't see. The
+          transition includes visibility so the slide still animates both ways. */}
       <div style={{
         position: 'fixed', left: 0, top: 0,
         height: '100%', width: 240,
@@ -119,7 +130,8 @@ const SettingsMenu = () => {
         padding: '20px 12px',
         zIndex: 50,
         transform: openSettings ? 'translateX(0)' : 'translateX(-100%)',
-        transition: 'transform 0.3s ease',
+        visibility: openSettings ? 'visible' : 'hidden',
+        transition: 'transform 0.3s ease, visibility 0.3s',
         boxShadow: '4px 0 24px rgba(0,0,0,0.4)',
       }}>
 
@@ -135,6 +147,7 @@ const SettingsMenu = () => {
           }}>Settings</span>
           <button
             onClick={closeSettings}
+            aria-label="Close settings"
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
@@ -212,6 +225,8 @@ const SettingsMenu = () => {
                 type="text"
                 value={subject}
                 onChange={handleInputChange}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+                disabled={savingSubject}
                 style={{
                   width: '100%', padding: '10px 12px',
                   background: 'var(--bg-card)',
@@ -224,15 +239,17 @@ const SettingsMenu = () => {
               />
               <button
                 onClick={handleSubmit}
+                disabled={savingSubject}
                 style={{
                   marginTop: 8, width: '100%', padding: '10px',
                   background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
                   border: 'none', borderRadius: 10,
                   color: '#fff', fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: savingSubject ? 'not-allowed' : 'pointer',
+                  opacity: savingSubject ? 0.6 : 1,
                 }}
               >
-                Save Subject
+                {savingSubject ? 'Saving...' : 'Save Subject'}
               </button>
             </div>
           )}

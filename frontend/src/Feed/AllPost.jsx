@@ -9,11 +9,31 @@ import PostSettings from './PostSettings';
 import { usePostContext } from '../Context/PostContext';
 import { ChatContext } from '../Context/ChatContext';
 import FindOutLoader from '../Loader/FindOutLoader';
+import { useToast } from '../Context/ToastContext';
+
+// FIX: the feed used to be rendered twice (mobile + desktop) and hidden with
+// CSS, so both copies shared the same dropdown refs and the mobile dropdown
+// could close before "Copy link" / "Report" ran. Now only the layout that
+// matches the screen size is rendered.
+const useIsDesktop = () => {
+  const [isDesktop, setIsDesktop] = useState(
+    () => window.matchMedia('(min-width: 1024px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = (e) => setIsDesktop(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return isDesktop;
+};
 
 const AllPost = () => {
   const { posts, postsLoading, postsError, fetchPosts, markHelpful, formatTimeAgo } = usePostContext();
   const { setSelectedChat, setChats, userId } = useContext(ChatContext);
   const navigate = useNavigate();
+  const isDesktop = useIsDesktop();
+  const { toast } = useToast();
 
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [activeCommentModal, setActiveCommentModal] = useState(null);
@@ -21,9 +41,7 @@ const AllPost = () => {
   const [postTypeFilter, setPostTypeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
   const [showFilters, setShowFilters] = useState(false);
-  // FIX: was a single shared useRef reused for every post in the map loop,
-  // so only the last-mounted post's dropdown was ever tracked correctly.
-  // Now keyed per post id.
+  // Keyed per post id so each post's dropdown is tracked correctly.
   const dropdownRefs = useRef({});
 
   const uniqueSubjects = ['all', ...new Set(posts.map(p => p.subject).filter(Boolean))];
@@ -45,12 +63,7 @@ const AllPost = () => {
 
   useEffect(() => { fetchPosts(); }, []);
 
-  // FIX: previously used `mousedown` with an empty dependency array, so
-  // (a) it always compared against the single shared ref's stale/wrong node,
-  // and (b) it fired before the button's own `click` event, closing the
-  // dropdown (and unmounting PostSettings/ReportModal) before the click
-  // handler on "Report" ever ran. Now it looks up the correct per-post node
-  // and re-subscribes whenever activeDropdown changes.
+  // Closes the open dropdown when clicking outside of that post's menu.
   useEffect(() => {
     if (!activeDropdown) return;
 
@@ -68,7 +81,7 @@ const AllPost = () => {
   };
 
   const handleAuthorClick = async (authorId) => {
-    if (authorId === userId) { alert("That's you!"); return; }
+    if (authorId === userId) { toast.info("That's you!", 'Your profile'); return; }
     try {
       const response = await axiosInstance.post("/api/start-new-chat", { userIdToChat: authorId });
       const newChatId = response.data.chat._id;
@@ -83,9 +96,20 @@ const AllPost = () => {
         navigate("/inbox");
       }
     } catch (e) {
-      if (e.response?.data?.isBlocked) { alert(e.response.data.message); return; }
+      if (e.response?.data?.isBlocked) { toast.error(e.response.data.message, 'Cannot start chat'); return; }
       console.error("Error starting chat:", e);
-      alert('Failed to start chat');
+      toast.error('Failed to start chat');
+    }
+  };
+
+  // Share button: copies the post link (same link "Copy link" in the menu uses)
+  const handleSharePost = async (postId) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/post/${postId}`);
+      toast.success('Link copied to clipboard!', 'Copied');
+    } catch (e) {
+      console.error('Failed to copy link:', e);
+      toast.error('Failed to copy link');
     }
   };
 
@@ -128,10 +152,6 @@ const AllPost = () => {
     subjects: new Set(posts.map(p => p.subject).filter(Boolean)).size,
   };
 
-  // Post-type badges no longer carry five different hues + emoji - a
-  // single neutral treatment with just the label reads calmer and avoids
-  // the "mixed colors everywhere" look. The label itself still carries the
-  // information.
   const getPostTypeLabel = (type) => {
     const labels = {
       resource: 'Resource',
@@ -161,8 +181,6 @@ const AllPost = () => {
     </div>
   );
 
-  // Flat card: border + faint fill, no blur, no heavy shadow - a real
-  // panel rather than a glass effect.
   const card = {
     background: 'var(--bg-card)',
     border: '1px solid var(--border)',
@@ -189,8 +207,6 @@ const AllPost = () => {
         </p>
       </div>
 
-      {/* The one deliberate gradient on this page - reserved for the single
-          primary action, not spread across every accent. */}
       <button
         onClick={() => navigate('/add-post')}
         style={{
@@ -337,7 +353,7 @@ const AllPost = () => {
                   background: 'none', border: 'none', cursor: 'pointer',
                   width: '100%', textAlign: 'left', padding: '6px 6px',
                   borderRadius: 8, transition: 'background 0.15s',
-                  color: '#fff',
+                  color: 'var(--text-primary)',
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'none'}
@@ -465,13 +481,13 @@ const AllPost = () => {
                 onChange={e => setSubjectFilter(e.target.value)}
                 style={{
                   width: '100%', padding: '9px 12px',
-                  background: 'rgba(0,0,0,0.25)',
+                  background: 'var(--input-bg)',
                   border: '1px solid var(--border)',
-                  color: '#fff', borderRadius: 8, fontSize: 13, outline: 'none', cursor: 'pointer',
+                  color: 'var(--text-primary)', borderRadius: 8, fontSize: 13, outline: 'none', cursor: 'pointer',
                 }}
               >
                 {uniqueSubjects.map(s => (
-                  <option key={s} value={s} style={{ background: '#0a0a0f' }}>
+                  <option key={s} value={s} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
                     {s === 'all' ? 'All Subjects' : s}
                   </option>
                 ))}
@@ -512,12 +528,14 @@ const AllPost = () => {
       {sortedPosts.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {sortedPosts.map(post => (
+              // FIX: removed `overflow: 'hidden'` here - it clipped the
+              // dropdown menu on short posts. Nothing relied on the clipping.
               <article
                 key={post._id}
                 style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
-                  borderRadius: 14, overflow: 'hidden',
+                  borderRadius: 14,
                   transition: 'border-color 0.2s',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; }}
@@ -581,8 +599,6 @@ const AllPost = () => {
                     </div>
                   </div>
 
-                  {/* FIX: ref is now keyed per post id via a callback ref
-                      instead of the single shared `dropdownRef` */}
                   <div style={{ position: 'relative' }} ref={(el) => { dropdownRefs.current[post._id] = el; }}>
                     <button
                       onClick={() => toggleDropdown(post._id)}
@@ -607,7 +623,7 @@ const AllPost = () => {
                   </div>
                 </div>
 
-                {/* Badges - one neutral style, no per-type colors */}
+                {/* Badges */}
                 <div style={{ padding: '0 16px 10px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   <span style={{
                     fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99,
@@ -710,6 +726,8 @@ const AllPost = () => {
 
                   {/* Share */}
                   <button
+                    onClick={() => handleSharePost(post._id)}
+                    title="Copy link"
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       width: 30, height: 30, borderRadius: '50%', cursor: 'pointer',
@@ -762,34 +780,38 @@ const AllPost = () => {
 
   return (
     <div className="relative bg-[var(--bg-primary)] min-h-screen">
-      {/* Mobile */}
-      <div className="lg:hidden">
-        <MobileViewBar />
-        <div style={{ maxWidth: 520, margin: '0 auto', padding: '80px 16px 100px' }}>
-          <div style={{ marginBottom: 20 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-primary)' }}>FindOut</h1>
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, fontWeight: 500 }}>
-              Share knowledge · Ask questions · Help others learn
-            </p>
+      {/* Mobile (only rendered on screens below 1024px) */}
+      {!isDesktop && (
+        <div>
+          <MobileViewBar />
+          <div style={{ maxWidth: 520, margin: '0 auto', padding: '80px 16px 100px' }}>
+            <div style={{ marginBottom: 20 }}>
+              <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-primary)' }}>FindOut</h1>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, fontWeight: 500 }}>
+                Share knowledge · Ask questions · Help others learn
+              </p>
+            </div>
+            {PostsList()}
           </div>
-          {PostsList()}
+          <MobileViewIcons />
         </div>
-        <MobileViewIcons />
-      </div>
+      )}
 
-      {/* Desktop - 3 column */}
-      <div className="hidden lg:block">
-        <div style={{
-          maxWidth: 1280, margin: '0 auto', padding: '28px 24px 60px',
-          display: 'grid',
-          gridTemplateColumns: '240px minmax(0,1fr) 300px',
-          gap: 24, alignItems: 'start',
-        }}>
-          {LeftRail()}
-          <main>{PostsList()}</main>
-          {RightRail()}
+      {/* Desktop - 3 column (only rendered on screens 1024px and up) */}
+      {isDesktop && (
+        <div>
+          <div style={{
+            maxWidth: 1280, margin: '0 auto', padding: '28px 24px 60px',
+            display: 'grid',
+            gridTemplateColumns: '240px minmax(0,1fr) 300px',
+            gap: 24, alignItems: 'start',
+          }}>
+            {LeftRail()}
+            <main>{PostsList()}</main>
+            {RightRail()}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Comment Modal */}
       {activeCommentModal && (

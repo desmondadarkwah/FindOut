@@ -221,11 +221,10 @@ const ChatSidebar = ({ showChatSidebar }) => {
                 >
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
-                    <div className={`flex items-center justify-center w-12 h-12 text-[var(--text-primary)] rounded-2xl shadow-lg transition-all duration-300 ${
-                      isBlocked
+                    <div className={`flex items-center justify-center w-12 h-12 text-[var(--text-primary)] rounded-2xl shadow-lg transition-all duration-300 ${isBlocked
                         ? 'bg-[#ef4444]/10'
                         : 'bg-[var(--bg-card-hover)]'
-                    }`}>
+                      }`}>
                       {chat.isGroup ? (
                         chat.groupProfile ? (
                           <img
@@ -241,17 +240,16 @@ const ChatSidebar = ({ showChatSidebar }) => {
                           <RxAvatar className="text-[var(--text-secondary)] text-xl" />
                         )
                       ) : (
-                        chat.participants.length > 0 && chat.participants[0].profilePicture ? (
+                        otherUser?.profilePicture ? (
                           <img
                             src={
-                              chat.participants[0].profilePicture.startsWith('/uploads/')
-                                ? `${import.meta.env.VITE_BACKEND_URL}${chat.participants[0].profilePicture}`
-                                : `${import.meta.env.VITE_BACKEND_URL}/uploads/${chat.participants[0].profilePicture}`
+                              otherUser.profilePicture.startsWith('/uploads/')
+                                ? `${import.meta.env.VITE_BACKEND_URL}${otherUser.profilePicture}`
+                                : `${import.meta.env.VITE_BACKEND_URL}/uploads/${otherUser.profilePicture}`
                             }
-                            alt={chat.participants[0]?.name || 'User'}
-                            className={`w-12 h-12 rounded-2xl object-cover ring-2 transition-all duration-300 ${
-                              isBlocked ? 'ring-[#ef4444]/40 opacity-60' : 'ring-[var(--border)] group-hover:ring-[#6366f1]/30'
-                            }`}
+                            alt={otherUser?.name || 'User'}
+                            className={`w-12 h-12 rounded-2xl object-cover ring-2 transition-all duration-300 ${isBlocked ? 'ring-[#ef4444]/40 opacity-60' : 'ring-[var(--border)] group-hover:ring-[#6366f1]/30'
+                              }`}
                           />
                         ) : (
                           <RxAvatar className="w-6 h-6 text-[var(--text-secondary)]" />
@@ -275,9 +273,8 @@ const ChatSidebar = ({ showChatSidebar }) => {
                   {/* Info */}
                   <div className="flex-1 ml-4 min-w-0">
                     <div className="flex justify-between items-center mb-1">
-                      <span className={`text-sm font-semibold truncate transition-colors ${
-                        isBlocked ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)] group-hover:text-[#818cf8]'
-                      }`}>
+                      <span className={`text-sm font-semibold truncate transition-colors ${isBlocked ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)] group-hover:text-[#818cf8]'
+                        }`}>
                         {chat.isGroup
                           ? chat.groupName
                           : chat.participants.find(p => p._id !== userId)?.name || "Unknown User"}

@@ -3,6 +3,7 @@ const UserModel = require('../models/UserModel');
 const quizGenerator = require('../services/quizGenerator');
 const { createNotification } = require('../services/notificationService');
 const { getIo } = require('../socket/socket');
+const { sendQuizVerifiedEmail } = require('../services/emailService');
 
 // ═══════════════════════════════════════════════════════════════
 // GET VERIFICATION STATUS
@@ -211,6 +212,14 @@ const SubmitQuiz = async (req, res) => {
         });
       } catch (notifError) {
         console.warn('⚠️ Notification skipped:', notifError.message);
+      }
+      const verifiedUser = await UserModel.findById(userId).select('name email');
+      if (verifiedUser) {
+        await sendQuizVerifiedEmail({
+          recipientEmail: verifiedUser.email,
+          recipientName: verifiedUser.name,
+          subject: session.subject,
+        });
       }
     }
 

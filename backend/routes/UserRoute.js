@@ -38,7 +38,7 @@ const { GetNotifications, MarkAsRead, MarkAllAsRead, DeleteNotification } = requ
 const { ReportUser, ReportPost, ReportGroup, GetAllReports } = require('../controllers/ReportController');
 const RemoveProfilePicture = require('../controllers/RemoveProfilePicture');
 const GetPublicProfile = require('../controllers/GetPublicProfile');
-
+const GetPublicStats = require('../controllers/GetPublicStats');
 
 router.post('/register', upload.single('profilePicture'), RegisterUser);
 router.post('/login', LoginUser);
@@ -97,8 +97,6 @@ router.post('/delete-chat', authMiddleware, DeleteChat);
 // router.post('/report-user', authMiddleware, ReportUser);
 router.post('/unblock-user', authMiddleware, UnblockUser); // ✅ NEW
 
-// router.post('/report-user', authMiddleware, ReportUser);
-
 // Notification routes
 router.get('/notifications', authMiddleware, GetNotifications);
 router.put('/notifications/:notificationId/read', authMiddleware, MarkAsRead);
@@ -112,4 +110,7 @@ router.post('/report-group', authMiddleware, ReportGroup);
 router.get('/reports/all', authMiddleware, GetAllReports); // Admin use
 
 router.get('/user/:userId/profile', authMiddleware, GetPublicProfile);
+
+router.get('/public/stats', GetPublicStats);   // final URL: /api/public/stats
+
 module.exports = router;
