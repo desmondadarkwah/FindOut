@@ -3,7 +3,8 @@ const UserModel = require("../models/UserModel");
 const UpdateProfilePicture = async (req, res) => {
   try {
     const userId = req.authenticatedUser.id;
-    const profilePicture = req.file ? `/uploads/${req.file.filename}` : null;
+    console.log("CLOUDINARY FILE:", req.file);
+    const profilePicture = req.file ? req.file.path : null;
 
     if (!profilePicture) {
       return res.status(400).json({ message: "No profile picture uploaded." });
@@ -12,7 +13,7 @@ const UpdateProfilePicture = async (req, res) => {
     const updatedUser = await UserModel.findByIdAndUpdate(
       userId,
       { profilePicture },
-      { new: true } 
+      { new: true }
     );
 
     if (!updatedUser) {

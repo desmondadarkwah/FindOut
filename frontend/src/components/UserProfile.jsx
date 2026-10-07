@@ -17,7 +17,7 @@ const UserProfile = ({ allowUpload = false, width = 'w-8', height = 'h-8' }) => 
       <div className="">
         {userData.profilePicture ? (
           <img
-            src={`${import.meta.env.VITE_BACKEND_URL}${userData.profilePicture}`}
+            src={userData.profilePicture}
             alt="Profile"
             className={`rounded-full ${width} ${height} object-cover cursor-pointer`}
             onClick={allowUpload ? () => document.getElementById("file-input").click() : undefined}

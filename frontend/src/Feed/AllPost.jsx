@@ -11,10 +11,7 @@ import { ChatContext } from '../Context/ChatContext';
 import FindOutLoader from '../Loader/FindOutLoader';
 import { useToast } from '../Context/ToastContext';
 
-// FIX: the feed used to be rendered twice (mobile + desktop) and hidden with
-// CSS, so both copies shared the same dropdown refs and the mobile dropdown
-// could close before "Copy link" / "Report" ran. Now only the layout that
-// matches the screen size is rendered.
+
 const useIsDesktop = () => {
   const [isDesktop, setIsDesktop] = useState(
     () => window.matchMedia('(min-width: 1024px)').matches
@@ -528,239 +525,239 @@ const AllPost = () => {
       {sortedPosts.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {sortedPosts.map(post => (
-              // FIX: removed `overflow: 'hidden'` here - it clipped the
-              // dropdown menu on short posts. Nothing relied on the clipping.
-              <article
-                key={post._id}
-                style={{
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 14,
-                  transition: 'border-color 0.2s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
-              >
-                {/* Post Header */}
-                <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      width: 38, height: 38, borderRadius: '50%',
-                      background: 'var(--border)',
-                      border: '1px solid var(--border)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0, overflow: 'hidden',
-                    }}>
-                      {post.author?.profilePicture
-                        ? <img src={`${import.meta.env.VITE_BACKEND_URL}${post.author.profilePicture}`} alt={post.author.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        : <User size={16} color="var(--text-secondary)" />}
-                    </div>
-
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <button
-                          onClick={() => handleAuthorClick(post.author?._id)}
-                          style={{
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            color: 'var(--text-primary)', fontWeight: 600, fontSize: 14,
-                            padding: 0, transition: 'color 0.2s',
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.color = '#818cf8'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-primary)'}
-                        >
-                          {post.author?.name || 'Anonymous'}
-                        </button>
-
-                        {post.author?.isVerified && (
-                          <span style={{
-                            fontSize: 10, fontWeight: 700,
-                            background: 'rgba(59,130,246,0.1)',
-                            color: '#3b82f6',
-                            border: '1px solid rgba(59,130,246,0.2)',
-                            padding: '1px 6px', borderRadius: 99,
-                          }}>Verified</span>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                        <Clock size={10} color="var(--text-muted)" />
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
-                          {formatTimeAgo(post.createdAt)}
-                        </span>
-                        {post.author?.reputation > 0 && (
-                          <>
-                            <span style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
-                            <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>
-                              {post.author.reputation} rep
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ position: 'relative' }} ref={(el) => { dropdownRefs.current[post._id] = el; }}>
-                    <button
-                      onClick={() => toggleDropdown(post._id)}
-                      style={{
-                        background: 'none',
-                        border: '1px solid var(--border)',
-                        borderRadius: 8, cursor: 'pointer', padding: '5px 7px',
-                        color: 'var(--text-secondary)', transition: 'all 0.2s',
-                        display: 'flex', alignItems: 'center',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.35)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
-                    >
-                      <MoreVertical size={15} />
-                    </button>
-
-                    {activeDropdown === post._id && (
-                      <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50 }}>
-                        <PostSettings postId={post._id} authorId={post.author?._id} onClose={handleCloseDropdown} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Badges */}
-                <div style={{ padding: '0 16px 10px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <span style={{
-                    fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99,
-                    background: 'var(--bg-card-hover)',
+            // FIX: removed `overflow: 'hidden'` here - it clipped the
+            // dropdown menu on short posts. Nothing relied on the clipping.
+            <article
+              key={post._id}
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 14,
+                transition: 'border-color 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+            >
+              {/* Post Header */}
+              <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: '50%',
+                    background: 'var(--border)',
                     border: '1px solid var(--border)',
-                    color: 'var(--text-secondary)',
-                  }}>{getPostTypeLabel(post.postType)}</span>
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0, overflow: 'hidden',
+                  }}>
+                    {post.author?.profilePicture
+                      ? <img src={`${import.meta.env.VITE_BACKEND_URL}${post.author.profilePicture}`} alt={post.author.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <User size={16} color="var(--text-secondary)" />}
+                  </div>
 
-                  {post.subject && (
-                    <span style={{
-                      fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 99,
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-secondary)',
-                      display: 'flex', alignItems: 'center', gap: 4,
-                    }}>
-                      <BookOpen size={10} />{post.subject}
-                    </span>
-                  )}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button
+                        onClick={() => handleAuthorClick(post.author?._id)}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: 'var(--text-primary)', fontWeight: 600, fontSize: 14,
+                          padding: 0, transition: 'color 0.2s',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#818cf8'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                      >
+                        {post.author?.name || 'Anonymous'}
+                      </button>
+
+                      {post.author?.isVerified && (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700,
+                          background: 'rgba(59,130,246,0.1)',
+                          color: '#3b82f6',
+                          border: '1px solid rgba(59,130,246,0.2)',
+                          padding: '1px 6px', borderRadius: 99,
+                        }}>Verified</span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                      <Clock size={10} color="var(--text-muted)" />
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
+                        {formatTimeAgo(post.createdAt)}
+                      </span>
+                      {post.author?.reputation > 0 && (
+                        <>
+                          <span style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                            {post.author.reputation} rep
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Image */}
-                {post.image && (
-                  <div style={{ position: 'relative', overflow: 'hidden' }}>
-                    <img
-                      src={`${import.meta.env.VITE_BACKEND_URL}/${post.image}`}
-                      alt="Post"
-                      style={{ width: '100%', maxHeight: 320, objectFit: 'cover', display: 'block' }}
-                      onError={e => { e.target.style.display = 'none'; }}
-                    />
-                  </div>
-                )}
-
-                {/* Caption */}
-                {post.caption && (
-                  <div style={{ padding: '12px 16px 4px' }}>
-                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', marginRight: 6 }}>{post.author?.name}</span>
-                      {post.caption}
-                    </p>
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div style={{ padding: '10px 16px 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {/* Helpful */}
+                <div style={{ position: 'relative' }} ref={(el) => { dropdownRefs.current[post._id] = el; }}>
                   <button
-                    onClick={() => handleMarkHelpful(post._id)}
+                    onClick={() => toggleDropdown(post._id)}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '6px 12px', borderRadius: 99, cursor: 'pointer',
-                      border: post.isHelpful ? '1px solid rgba(99,102,241,0.4)' : '1px solid var(--border)',
-                      background: post.isHelpful ? 'rgba(99,102,241,0.12)' : 'var(--bg-card)',
-                      color: post.isHelpful ? '#818cf8' : 'var(--text-secondary)',
-                      fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
+                      background: 'none',
+                      border: '1px solid var(--border)',
+                      borderRadius: 8, cursor: 'pointer', padding: '5px 7px',
+                      color: 'var(--text-secondary)', transition: 'all 0.2s',
+                      display: 'flex', alignItems: 'center',
                     }}
-                    onMouseEnter={e => {
-                      if (!post.isHelpful) {
-                        e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)';
-                        e.currentTarget.style.color = '#818cf8';
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      if (!post.isHelpful) {
-                        e.currentTarget.style.borderColor = 'var(--border)';
-                        e.currentTarget.style.color = 'var(--text-secondary)';
-                      }
-                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.35)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
                   >
-                    <Heart size={13} style={{ fill: post.isHelpful ? '#818cf8' : 'none' }} />
-                    {post.helpfulCount || 0} helpful
+                    <MoreVertical size={15} />
                   </button>
 
-                  {/* Comments */}
+                  {activeDropdown === post._id && (
+                    <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50 }}>
+                      <PostSettings postId={post._id} authorId={post.author?._id} onClose={handleCloseDropdown} />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Badges */}
+              <div style={{ padding: '0 16px 10px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99,
+                  background: 'var(--bg-card-hover)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                }}>{getPostTypeLabel(post.postType)}</span>
+
+                {post.subject && (
+                  <span style={{
+                    fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 99,
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-secondary)',
+                    display: 'flex', alignItems: 'center', gap: 4,
+                  }}>
+                    <BookOpen size={10} />{post.subject}
+                  </span>
+                )}
+              </div>
+
+              {/* Image */}
+              {post.image && (
+                <div style={{ position: 'relative', overflow: 'hidden' }}>
+                  <img
+                    src={post.image}
+                    alt="Post"
+                    style={{ width: '100%', maxHeight: 320, objectFit: 'cover', display: 'block' }}
+                    onError={e => { e.target.style.display = 'none'; }}
+                  />
+                </div>
+              )}
+
+              {/* Caption */}
+              {post.caption && (
+                <div style={{ padding: '12px 16px 4px' }}>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', marginRight: 6 }}>{post.author?.name}</span>
+                    {post.caption}
+                  </p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div style={{ padding: '10px 16px 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                {/* Helpful */}
+                <button
+                  onClick={() => handleMarkHelpful(post._id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '6px 12px', borderRadius: 99, cursor: 'pointer',
+                    border: post.isHelpful ? '1px solid rgba(99,102,241,0.4)' : '1px solid var(--border)',
+                    background: post.isHelpful ? 'rgba(99,102,241,0.12)' : 'var(--bg-card)',
+                    color: post.isHelpful ? '#818cf8' : 'var(--text-secondary)',
+                    fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={e => {
+                    if (!post.isHelpful) {
+                      e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)';
+                      e.currentTarget.style.color = '#818cf8';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!post.isHelpful) {
+                      e.currentTarget.style.borderColor = 'var(--border)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                    }
+                  }}
+                >
+                  <Heart size={13} style={{ fill: post.isHelpful ? '#818cf8' : 'none' }} />
+                  {post.helpfulCount || 0} helpful
+                </button>
+
+                {/* Comments */}
+                <button
+                  onClick={() => handleOpenComments(post._id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '6px 12px', borderRadius: 99, cursor: 'pointer',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-secondary)',
+                    fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; e.currentTarget.style.color = '#818cf8'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                >
+                  <MessageCircle size={13} />
+                  {post.commentCount || 0}
+                </button>
+
+                {/* Views */}
+                <span style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  color: 'var(--text-muted)', fontSize: 12, fontWeight: 500,
+                  padding: '6px 8px',
+                }}>
+                  <Eye size={13} />{post.viewCount || 0}
+                </span>
+
+                {/* Share */}
+                <button
+                  onClick={() => handleSharePost(post._id)}
+                  title="Copy link"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 30, height: 30, borderRadius: '50%', cursor: 'pointer',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-secondary)', transition: 'all 0.2s',
+                    marginLeft: 'auto',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; e.currentTarget.style.color = '#818cf8'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                >
+                  <Share2 size={13} />
+                </button>
+              </div>
+
+              {/* View comments */}
+              {post.commentCount > 0 && (
+                <div style={{ padding: '0 16px 12px' }}>
                   <button
                     onClick={() => handleOpenComments(post._id)}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '6px 12px', borderRadius: 99, cursor: 'pointer',
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-card)',
-                      color: 'var(--text-secondary)',
-                      fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 12, color: 'var(--text-muted)', padding: 0, transition: 'color 0.2s',
+                      fontWeight: 500,
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; e.currentTarget.style.color = '#818cf8'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                   >
-                    <MessageCircle size={13} />
-                    {post.commentCount || 0}
-                  </button>
-
-                  {/* Views */}
-                  <span style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    color: 'var(--text-muted)', fontSize: 12, fontWeight: 500,
-                    padding: '6px 8px',
-                  }}>
-                    <Eye size={13} />{post.viewCount || 0}
-                  </span>
-
-                  {/* Share */}
-                  <button
-                    onClick={() => handleSharePost(post._id)}
-                    title="Copy link"
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      width: 30, height: 30, borderRadius: '50%', cursor: 'pointer',
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-card)',
-                      color: 'var(--text-secondary)', transition: 'all 0.2s',
-                      marginLeft: 'auto',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; e.currentTarget.style.color = '#818cf8'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                  >
-                    <Share2 size={13} />
+                    View all {post.commentCount} comments
                   </button>
                 </div>
-
-                {/* View comments */}
-                {post.commentCount > 0 && (
-                  <div style={{ padding: '0 16px 12px' }}>
-                    <button
-                      onClick={() => handleOpenComments(post._id)}
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        fontSize: 12, color: 'var(--text-muted)', padding: 0, transition: 'color 0.2s',
-                        fontWeight: 500,
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
-                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-                    >
-                      View all {post.commentCount} comments
-                    </button>
-                  </div>
-                )}
-              </article>
+              )}
+            </article>
           ))}
         </div>
       ) : (
