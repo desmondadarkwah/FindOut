@@ -34,8 +34,8 @@ const Toast = ({ toast }) => {
     <div
       className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] px-4 py-2.5 rounded-xl text-sm font-medium shadow-2xl max-w-[90vw] text-center ${
         toast.type === "error"
-          ? "bg-red-600 text-white"
-          : "bg-gray-800 text-white border border-gray-700"
+          ? "bg-[#ef4444] text-white"
+          : "bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border)]"
       }`}
     >
       {toast.message}
@@ -68,14 +68,14 @@ const IndividualChatOptions = ({ otherUser, chatId, isBlockedChat }) => {
     setShowMediaModal(false);
   };
 
-  // ── MUTE ──
+  // MUTE
   const handleMute = () => {
     setIsMuted(!isMuted);
     setShowChatOptions(false);
     showToast(isMuted ? 'Chat unmuted' : 'Chat muted');
   };
 
-  // ── DELETE CHAT ──
+  // DELETE CHAT
   const handleDeleteChat = async () => {
     setLoading(true);
     try {
@@ -92,12 +92,11 @@ const IndividualChatOptions = ({ otherUser, chatId, isBlockedChat }) => {
     }
   };
 
-  // ── BLOCK USER ──
+  // BLOCK USER
   const handleBlockUser = async () => {
     setLoading(true);
     try {
       await axiosInstance.post('/api/block-user', { userIdToBlock: otherUser?._id });
-      // ✅ Don't remove from list - flag as blocked instead
       setChats(prev => prev.map(c =>
         c._id === chatId ? { ...c, isBlockedChat: true } : c
       ));
@@ -112,12 +111,11 @@ const IndividualChatOptions = ({ otherUser, chatId, isBlockedChat }) => {
     }
   };
 
-  // ── UNBLOCK USER ──
+  // UNBLOCK USER
   const handleUnblockUser = async () => {
     setLoading(true);
     try {
       await axiosInstance.post('/api/unblock-user', { userIdToUnblock: otherUser?._id });
-      // ✅ Remove blocked flag
       setChats(prev => prev.map(c =>
         c._id === chatId ? { ...c, isBlockedChat: false } : c
       ));
@@ -132,31 +130,31 @@ const IndividualChatOptions = ({ otherUser, chatId, isBlockedChat }) => {
     }
   };
 
-  // ✅ BLOCKED MENU - only Unblock and Delete
+  // BLOCKED MENU - only Unblock and Delete
   if (isBlockedChat) {
     return (
       <>
-        <div className="absolute w-52 flex flex-col gap-1 right-0 top-10 bg-gray-900 p-3 shadow-2xl rounded-xl border border-gray-700/50 z-50">
-          <h3 className="text-sm font-semibold text-gray-400 mb-2 px-1 uppercase tracking-wider">
+        <div className="absolute w-52 flex flex-col gap-1 right-0 top-10 bg-[var(--bg-secondary)] p-3 shadow-2xl rounded-xl border border-[var(--border)] z-50">
+          <h3 className="text-sm font-semibold text-[var(--text-muted)] mb-2 px-1 uppercase tracking-wider">
             Blocked User
           </h3>
 
-          {/* Unblock */}
+          {/* Unblock → success */}
           <button
             onClick={handleUnblockUser}
             disabled={loading}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-green-900/20 transition text-green-400 text-sm font-medium w-full text-left disabled:opacity-50"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#22c55e]/10 transition text-[#4ade80] text-sm font-medium w-full text-left disabled:opacity-50"
           >
             <FiUnlock size={16} />
             {loading ? 'Unblocking...' : 'Unblock User'}
           </button>
 
-          <div className="border-t border-gray-700/50 my-1" />
+          <div className="border-t border-[var(--border)] my-1" />
 
-          {/* Delete Chat */}
+          {/* Delete Chat → error */}
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-red-900/20 transition text-red-400 text-sm font-medium w-full text-left"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#ef4444]/10 transition text-[#f87171] text-sm font-medium w-full text-left"
           >
             <FiTrash2 size={16} />
             Delete Chat
@@ -166,25 +164,25 @@ const IndividualChatOptions = ({ otherUser, chatId, isBlockedChat }) => {
         {/* Delete Confirm Modal */}
         {showDeleteConfirm && (
           <ModalPortal onBackdropClick={() => setShowDeleteConfirm(false)}>
-            <div className="bg-gray-900 border border-gray-700 rounded-2xl p-5 sm:p-6 w-[90%] max-w-xs sm:max-w-sm shadow-2xl">
-              <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FiTrash2 size={22} className="text-red-400" />
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 w-[90%] max-w-xs sm:max-w-sm shadow-2xl">
+              <div className="w-12 h-12 bg-[#ef4444]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FiTrash2 size={22} className="text-[#f87171]" />
               </div>
-              <h3 className="text-white text-lg font-semibold mb-2 text-center">Delete Chat?</h3>
-              <p className="text-gray-400 text-sm mb-6 text-center leading-relaxed">
+              <h3 className="text-[var(--text-primary)] text-lg font-semibold mb-2 text-center">Delete Chat?</h3>
+              <p className="text-[var(--text-secondary)] text-sm mb-6 text-center leading-relaxed">
                 This will permanently delete this conversation for you.
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-xl hover:bg-gray-700 transition border border-gray-600 text-sm font-medium"
+                  className="flex-1 px-4 py-2.5 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-xl hover:bg-[var(--bg-card-hover)] transition border border-[var(--border)] text-sm font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteChat}
                   disabled={loading}
-                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition text-sm font-medium disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 bg-[#ef4444] text-white rounded-xl hover:bg-[#ef4444]/90 transition text-sm font-medium disabled:opacity-50"
                 >
                   {loading ? 'Deleting...' : 'Delete'}
                 </button>
@@ -198,22 +196,22 @@ const IndividualChatOptions = ({ otherUser, chatId, isBlockedChat }) => {
     );
   }
 
-  // ✅ NORMAL MENU
+  // NORMAL MENU
   return (
     <>
-      <div className="absolute w-56 flex flex-col gap-1 right-0 top-10 bg-gray-900 p-3 shadow-2xl rounded-xl border border-gray-700/50 z-50">
-        <h3 className="text-sm font-semibold text-gray-400 mb-2 px-1 uppercase tracking-wider">
+      <div className="absolute w-56 flex flex-col gap-1 right-0 top-10 bg-[var(--bg-secondary)] p-3 shadow-2xl rounded-xl border border-[var(--border)] z-50">
+        <h3 className="text-sm font-semibold text-[var(--text-muted)] mb-2 px-1 uppercase tracking-wider">
           Chat Options
         </h3>
 
         {/* Mute */}
         <button
           onClick={handleMute}
-          className="flex items-center gap-3 cursor-pointer px-3 py-2.5 rounded-lg hover:bg-gray-800 transition text-gray-200 text-sm font-medium w-full text-left"
+          className="flex items-center gap-3 cursor-pointer px-3 py-2.5 rounded-lg hover:bg-[var(--bg-card-hover)] transition text-[var(--text-secondary)] text-sm font-medium w-full text-left"
         >
           {isMuted
-            ? <FiBell size={16} className="text-indigo-400" />
-            : <FiBellOff size={16} className="text-indigo-400" />
+            ? <FiBell size={16} className="text-[#6366f1]" />
+            : <FiBellOff size={16} className="text-[#6366f1]" />
           }
           {isMuted ? 'Unmute Notifications' : 'Mute Notifications'}
         </button>
@@ -221,66 +219,66 @@ const IndividualChatOptions = ({ otherUser, chatId, isBlockedChat }) => {
         {/* Media & Files */}
         <button
           onClick={() => setShowMediaModal(true)}
-          className="flex items-center gap-3 cursor-pointer px-3 py-2.5 rounded-lg hover:bg-gray-800 transition text-gray-200 text-sm font-medium w-full text-left"
+          className="flex items-center gap-3 cursor-pointer px-3 py-2.5 rounded-lg hover:bg-[var(--bg-card-hover)] transition text-[var(--text-secondary)] text-sm font-medium w-full text-left"
         >
-          <FiImage size={16} className="text-indigo-400" />
+          <FiImage size={16} className="text-[#6366f1]" />
           Media & Files
         </button>
 
-        <div className="border-t border-gray-700/50 my-1" />
+        <div className="border-t border-[var(--border)] my-1" />
 
-        {/* Report User */}
+        {/* Report User → warning (pending review, not destructive) */}
         <button
           onClick={() => setShowReportModal(true)}
-          className="flex items-center gap-3 cursor-pointer px-3 py-2.5 rounded-lg hover:bg-red-900/10 transition text-red-400 text-sm font-medium w-full text-left"
+          className="flex items-center gap-3 cursor-pointer px-3 py-2.5 rounded-lg hover:bg-[#eab308]/10 transition text-[#eab308] text-sm font-medium w-full text-left"
         >
           <FiAlertTriangle size={16} />
           Report User
         </button>
 
-        {/* Block User */}
+        {/* Block User → error */}
         <button
           onClick={() => setShowBlockConfirm(true)}
-          className="flex items-center gap-3 cursor-pointer px-3 py-2.5 rounded-lg hover:bg-red-900/10 transition text-red-400 text-sm font-medium w-full text-left"
+          className="flex items-center gap-3 cursor-pointer px-3 py-2.5 rounded-lg hover:bg-[#ef4444]/10 transition text-[#f87171] text-sm font-medium w-full text-left"
         >
           <FiUserX size={16} />
           Block User
         </button>
 
-        {/* Delete Chat */}
+        {/* Delete Chat → error */}
         <button
           onClick={() => setShowDeleteConfirm(true)}
-          className="flex items-center gap-3 cursor-pointer px-3 py-2.5 rounded-lg hover:bg-red-900/10 transition text-red-400 text-sm font-medium w-full text-left"
+          className="flex items-center gap-3 cursor-pointer px-3 py-2.5 rounded-lg hover:bg-[#ef4444]/10 transition text-[#f87171] text-sm font-medium w-full text-left"
         >
           <FiTrash2 size={16} />
           Delete Chat
         </button>
       </div>
 
-      {/* ── BLOCK CONFIRM MODAL ── */}
+      {/* BLOCK CONFIRM MODAL */}
       {showBlockConfirm && (
         <ModalPortal onBackdropClick={() => setShowBlockConfirm(false)}>
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-5 sm:p-6 w-[90%] max-w-xs sm:max-w-sm shadow-2xl">
-            <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FiUserX size={22} className="text-red-400" />
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 w-[90%] max-w-xs sm:max-w-sm shadow-2xl">
+            <div className="w-12 h-12 bg-[#ef4444]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FiUserX size={22} className="text-[#f87171]" />
             </div>
-            <h3 className="text-white text-lg font-semibold mb-2 text-center">
+            <h3 className="text-[var(--text-primary)] text-lg font-semibold mb-2 text-center">
               Block {otherUser?.name || 'User'}?
             </h3>
-            <p className="text-gray-400 text-sm mb-6 text-center leading-relaxed">
+            <p className="text-[var(--text-secondary)] text-sm mb-6 text-center leading-relaxed">
               They won't be able to message you. The chat stays visible so you can unblock later.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowBlockConfirm(false)}
-                className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-xl hover:bg-gray-700 transition border border-gray-600 text-sm font-medium"
+                className="flex-1 px-4 py-2.5 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-xl hover:bg-[var(--bg-card-hover)] transition border border-[var(--border)] text-sm font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={handleBlockUser}
                 disabled={loading}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition text-sm font-medium disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 bg-[#ef4444] text-white rounded-xl hover:bg-[#ef4444]/90 transition text-sm font-medium disabled:opacity-50"
               >
                 {loading ? 'Blocking...' : 'Block'}
               </button>
@@ -289,28 +287,28 @@ const IndividualChatOptions = ({ otherUser, chatId, isBlockedChat }) => {
         </ModalPortal>
       )}
 
-      {/* ── DELETE CONFIRM MODAL ── */}
+      {/* DELETE CONFIRM MODAL */}
       {showDeleteConfirm && (
         <ModalPortal onBackdropClick={() => setShowDeleteConfirm(false)}>
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-5 sm:p-6 w-[90%] max-w-xs sm:max-w-sm shadow-2xl">
-            <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FiTrash2 size={22} className="text-red-400" />
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 w-[90%] max-w-xs sm:max-w-sm shadow-2xl">
+            <div className="w-12 h-12 bg-[#ef4444]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FiTrash2 size={22} className="text-[#f87171]" />
             </div>
-            <h3 className="text-white text-lg font-semibold mb-2 text-center">Delete Chat?</h3>
-            <p className="text-gray-400 text-sm mb-6 text-center leading-relaxed">
+            <h3 className="text-[var(--text-primary)] text-lg font-semibold mb-2 text-center">Delete Chat?</h3>
+            <p className="text-[var(--text-secondary)] text-sm mb-6 text-center leading-relaxed">
               This will permanently delete all messages for you. This cannot be undone.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-xl hover:bg-gray-700 transition border border-gray-600 text-sm font-medium"
+                className="flex-1 px-4 py-2.5 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-xl hover:bg-[var(--bg-card-hover)] transition border border-[var(--border)] text-sm font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteChat}
                 disabled={loading}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition text-sm font-medium disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 bg-[#ef4444] text-white rounded-xl hover:bg-[#ef4444]/90 transition text-sm font-medium disabled:opacity-50"
               >
                 {loading ? 'Deleting...' : 'Delete'}
               </button>
@@ -319,7 +317,7 @@ const IndividualChatOptions = ({ otherUser, chatId, isBlockedChat }) => {
         </ModalPortal>
       )}
 
-      {/* ── REPORT MODAL ── */}
+      {/* REPORT MODAL */}
       {showReportModal && (
         <ReportModal
           type="user"
@@ -329,21 +327,21 @@ const IndividualChatOptions = ({ otherUser, chatId, isBlockedChat }) => {
         />
       )}
 
-      {/* ── MEDIA & FILES MODAL ── */}
+      {/* MEDIA & FILES MODAL */}
       {showMediaModal && (
         <ModalPortal onBackdropClick={() => { setShowMediaModal(false); setShowChatOptions(false); }}>
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-5 sm:p-6 w-[92%] max-w-sm sm:max-w-md shadow-2xl max-h-[80vh] overflow-y-auto">
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 w-[92%] max-w-sm sm:max-w-md shadow-2xl max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white text-lg font-semibold">Media & Files</h3>
+              <h3 className="text-[var(--text-primary)] text-lg font-semibold">Media & Files</h3>
               <button
                 onClick={() => { setShowMediaModal(false); setShowChatOptions(false); }}
-                className="text-gray-400 hover:text-white transition text-lg"
+                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition text-lg"
               >✕</button>
             </div>
-            <div className="text-center py-12 text-gray-500">
-              <FiImage size={40} className="mx-auto mb-3 opacity-30" />
+            <div className="text-center py-12 text-[var(--text-muted)]">
+              <FiImage size={40} className="mx-auto mb-3 opacity-40" />
               <p className="text-sm">No media shared yet</p>
-              <p className="text-xs mt-1 text-gray-600">
+              <p className="text-xs mt-1">
                 Images and files shared in this chat will appear here
               </p>
             </div>

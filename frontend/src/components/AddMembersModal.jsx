@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { IoClose } from 'react-icons/io5';
 import { RxAvatar } from 'react-icons/rx';
+import { Check } from 'lucide-react';
 import axiosInstance from '../utils/axiosInstance';
 import { BeatLoader } from 'react-spinners';
-import { useToast } from '../Context/ToastContext'; // ✅ NEW
+import { useToast } from '../Context/ToastContext';
 
 const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -11,7 +12,7 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [searching, setSearching] = useState(false);
   const [adding, setAdding] = useState(false);
-  const { toast } = useToast(); // ✅ NEW
+  const { toast } = useToast();
 
   const handleSearch = async (query) => {
     setSearchQuery(query);
@@ -27,7 +28,7 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
       );
       setSearchResults(availableUsers);
     } catch (error) {
-      console.error('❌ Error searching users:', error);
+      console.error('Error searching users:', error);
     } finally {
       setSearching(false);
     }
@@ -51,7 +52,6 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
       });
 
       if (response.data.success) {
-        // ✅ Toast instead of alert
         toast.success(
           `${selectedUsers.length} member${selectedUsers.length > 1 ? 's' : ''} added successfully`,
           'Members Added'
@@ -62,8 +62,7 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
         onClose();
       }
     } catch (error) {
-      console.error('❌ Error adding members:', error);
-      // ✅ Toast instead of alert
+      console.error('Error adding members:', error);
       toast.error(error.response?.data?.message || 'Failed to add members');
     } finally {
       setAdding(false);
@@ -73,12 +72,12 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-lg w-full max-w-md max-h-[80vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-[var(--bg-secondary)] rounded-lg w-full max-w-md max-h-[80vh] flex flex-col border border-[var(--border)]">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <h2 className="text-xl font-semibold text-white">Add Members</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Add Members</h2>
+          <button onClick={onClose} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
             <IoClose size={24} />
           </button>
         </div>
@@ -90,10 +89,10 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
             placeholder="Search by name or email..."
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-lg outline-none focus:ring-2 focus:ring-[#6366f1]/50 border border-[var(--border)]"
             autoFocus
           />
-          <p className="text-gray-400 text-xs mt-2">
+          <p className="text-[var(--text-muted)] text-xs mt-2">
             Type at least 2 characters to search
           </p>
         </div>
@@ -102,11 +101,11 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
         {selectedUsers.length > 0 && (
           <div className="px-4 pb-2 flex flex-wrap gap-2">
             {selectedUsers.map(user => (
-              <div key={user._id} className="flex items-center gap-2 bg-blue-900 px-3 py-1 rounded-full">
-                <span className="text-white text-sm">{user.name}</span>
+              <div key={user._id} className="flex items-center gap-2 bg-[#6366f1]/20 border border-[#6366f1]/30 px-3 py-1 rounded-full">
+                <span className="text-[var(--text-primary)] text-sm">{user.name}</span>
                 <button
                   onClick={() => toggleUserSelection(user)}
-                  className="text-white hover:text-red-400">
+                  className="text-[var(--text-secondary)] hover:text-[#f87171] transition-colors">
                   ×
                 </button>
               </div>
@@ -118,19 +117,19 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
         <div className="flex-1 overflow-y-auto p-4">
           {searching ? (
             <div className="flex justify-center items-center py-8">
-              <BeatLoader color="white" size={10} />
-              <p className="text-white ml-2 text-sm">Searching...</p>
+              <BeatLoader color="var(--text-secondary)" size={10} />
+              <p className="text-[var(--text-primary)] ml-2 text-sm">Searching...</p>
             </div>
           ) : searchQuery.trim().length < 2 ? (
             <div className="text-center py-8">
-              <p className="text-gray-400 text-sm">
+              <p className="text-[var(--text-secondary)] text-sm">
                 Search for users by name or email to add them to the group
               </p>
             </div>
           ) : searchResults.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-400">No users found</p>
-              <p className="text-gray-500 text-xs mt-2">
+              <p className="text-[var(--text-secondary)]">No users found</p>
+              <p className="text-[var(--text-muted)] text-xs mt-2">
                 They might already be in the group
               </p>
             </div>
@@ -141,10 +140,10 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
                 <div
                   key={user._id}
                   onClick={() => toggleUserSelection(user)}
-                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition mb-2 ${
+                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition mb-2 border ${
                     isSelected
-                      ? 'bg-blue-900 border border-blue-500'
-                      : 'hover:bg-gray-800 border border-gray-700'
+                      ? 'bg-[#6366f1]/15 border-[#6366f1]/40'
+                      : 'hover:bg-[var(--bg-card-hover)] border-[var(--border)]'
                   }`}>
                   {user.profilePicture ? (
                     <img
@@ -153,17 +152,17 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
                       className="w-12 h-12 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center">
-                      <RxAvatar size={24} />
+                    <div className="w-12 h-12 bg-[var(--bg-card-hover)] rounded-full flex items-center justify-center">
+                      <RxAvatar size={24} className="text-[var(--text-secondary)]" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-medium truncate">{user.name}</p>
-                    <p className="text-gray-400 text-sm truncate">{user.email}</p>
+                    <p className="text-[var(--text-primary)] font-medium truncate">{user.name}</p>
+                    <p className="text-[var(--text-secondary)] text-sm truncate">{user.email}</p>
                   </div>
                   {isSelected && (
-                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-white text-xs">✓</span>
+                    <div className="w-5 h-5 bg-[#6366f1] rounded-full flex items-center justify-center flex-shrink-0">
+                      <Check size={12} color="#fff" />
                     </div>
                   )}
                 </div>
@@ -173,11 +172,11 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-700">
+        <div className="p-4 border-t border-[var(--border)]">
           <button
             onClick={handleAddMembers}
             disabled={selectedUsers.length === 0 || adding}
-            className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+            className="w-full py-3 bg-gradient-to-r from-[#3b82f6] to-[#6366f1] text-white rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed">
             {adding ? 'Adding...' : selectedUsers.length === 0
               ? 'Select members to add'
               : `Add ${selectedUsers.length} Member(s)`}
