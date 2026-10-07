@@ -80,7 +80,7 @@ const GlobalSearch = ({ isOpen, onClose }) => {
   // FIX: replaced alert() with toast — matches the rest of the app.
   const handleStartDM = async (userId) => {
     try {
-      const response = await axiosInstance.post('/api/start-new-chat', { userId });
+      const response = await axiosInstance.post('/api/start-new-chat', { userIdToChat: userId });
       if (response.data.success) {
         navigate('/inbox');
         onClose();
