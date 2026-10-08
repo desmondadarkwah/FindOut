@@ -11,16 +11,6 @@ import { useNavigate } from 'react-router-dom';
 import { NotificationContext } from '../Context/NotificationContext';
 import moment from 'moment';
 
-// FIX: this used to be an anchored dropdown, positioned by measuring the
-// bell button's on-screen coordinates with getBoundingClientRect() and
-// placing the panel just to its right. That works fine when the bell
-// sits alone in open space, but it now lives inside DashSidebar's 240px
-// nav drawer — "to the right of the bell" lands the panel right on top
-// of the drawer's own "Notifications" label and everything below it,
-// which is the misalignment being reported. Rather than special-case the
-// math for every place this bell might render, it's now a centered
-// modal (same shell as ReportModal) — it always lands in the same
-// predictable spot no matter what's rendering the bell.
 const NOTIFICATION_ICONS = {
   new_message: IoChatbubbleOutline,
   join_request: IoDocumentTextOutline,
@@ -218,7 +208,11 @@ const NotificationBell = ({ iconSize = 25, iconColor = 'currentColor' }) => {
                       }}>
                         {notification.sender?.profilePicture ? (
                           <img
-                            src={`${import.meta.env.VITE_BACKEND_URL}${notification.sender.profilePicture}`}
+                            src={
+                              notification.sender.profilePicture?.startsWith('http')
+                                ? notification.sender.profilePicture
+                                : `${import.meta.env.VITE_BACKEND_URL}${notification.sender.profilePicture}`
+                            }
                             alt={notification.sender.name}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           />

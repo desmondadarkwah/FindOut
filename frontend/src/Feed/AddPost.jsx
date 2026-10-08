@@ -55,11 +55,6 @@ const AddPost = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!selectedImage) {
-      toast.error('Please select an image to post');
-      return;
-    }
-
     if (!subject.trim()) {
       toast.error('Please enter a subject');
       return;
@@ -69,7 +64,11 @@ const AddPost = () => {
 
     try {
       const formData = new FormData();
-      formData.append('image', selectedImage);
+
+      if (selectedImage) {
+        formData.append('image', selectedImage);
+      }
+
       formData.append('caption', caption);
       formData.append('postType', postType);
       formData.append('subject', subject.trim());
@@ -124,11 +123,10 @@ const AddPost = () => {
                     key={type.value}
                     type="button"
                     onClick={() => setPostType(type.value)}
-                    className={`p-3 rounded-xl border transition-colors ${
-                      active
+                    className={`p-3 rounded-xl border transition-colors ${active
                         ? 'border-[#6366f1]/50 bg-[#6366f1]/15 text-[var(--text-primary)]'
                         : 'border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-[var(--border-hover)]'
-                    }`}
+                      }`}
                   >
                     <div className="flex flex-col items-center gap-1.5">
                       <Icon size={20} className={active ? 'text-[#818cf8]' : 'text-[var(--text-muted)]'} />
@@ -222,7 +220,7 @@ const AddPost = () => {
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!selectedImage || !subject.trim() || isUploading}
+              disabled={!subject.trim() || isUploading}
               className="flex-1 bg-gradient-to-r from-[#3b82f6] to-[#6366f1] text-white py-3 px-4 rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity font-medium flex items-center justify-center gap-2"
             >
               {isUploading ? (

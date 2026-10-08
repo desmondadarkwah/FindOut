@@ -140,14 +140,17 @@ const AddMembersModal = ({ isOpen, onClose, groupId, existingMembers }) => {
                 <div
                   key={user._id}
                   onClick={() => toggleUserSelection(user)}
-                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition mb-2 border ${
-                    isSelected
+                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition mb-2 border ${isSelected
                       ? 'bg-[#6366f1]/15 border-[#6366f1]/40'
                       : 'hover:bg-[var(--bg-card-hover)] border-[var(--border)]'
-                  }`}>
+                    }`}>
                   {user.profilePicture ? (
                     <img
-                      src={`${import.meta.env.VITE_BACKEND_URL}${user.profilePicture}`}
+                      src={
+                        user.profilePicture?.startsWith('http')
+                          ? user.profilePicture
+                          : `${import.meta.env.VITE_BACKEND_URL}${user.profilePicture}`
+                      }
                       alt={user.name}
                       className="w-12 h-12 rounded-full object-cover"
                     />
