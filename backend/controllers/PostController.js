@@ -18,15 +18,7 @@ const AddPost = async (req, res) => {
         });
       }
 
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          message: 'Please select an image to upload'
-        });
-      }
-
       const userId = req.authenticatedUser?.id || req.user?.id;
-
       if (!userId) {
         if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         return res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -36,7 +28,7 @@ const AddPost = async (req, res) => {
 
       const newPost = new PostModel({
         author: userId,
-        image: req.file.path.replace(/\\/g, '/'),
+        image: req.file ? req.file.path.replace(/\\/g, '/') : null,
         caption: caption?.trim() || '',
         postType: postType || 'general',
         subject: subject || 'General',
