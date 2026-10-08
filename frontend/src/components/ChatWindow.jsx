@@ -655,9 +655,9 @@ const ChatWindow = () => {
                       {otherParticipant?.profilePicture ? (
                         <img
                           src={
-                            otherParticipant.profilePicture.startsWith('/uploads/')
-                              ? `${import.meta.env.VITE_BACKEND_URL}${otherParticipant.profilePicture}`
-                              : `${import.meta.env.VITE_BACKEND_URL}/uploads/${otherParticipant.profilePicture}`
+                            otherParticipant.profilePicture?.startsWith('http')
+                              ? otherParticipant.profilePicture
+                              : `${import.meta.env.VITE_BACKEND_URL}${otherParticipant.profilePicture}`
                           }
                           alt={otherParticipant.name}
                           className={`w-12 h-12 rounded-full object-cover border ${isBlockedChat ? 'border-[#ef4444]/40 opacity-60' : 'border-[var(--border)]'}`}
@@ -778,9 +778,9 @@ const ChatWindow = () => {
                   {msg.senderId.profilePicture ? (
                     <img
                       src={
-                        msg.senderId.profilePicture.startsWith('/uploads/')
-                          ? `${import.meta.env.VITE_BACKEND_URL}${msg.senderId.profilePicture}`
-                          : `${import.meta.env.VITE_BACKEND_URL}/uploads/${msg.senderId.profilePicture}`
+                        msg.senderId.profilePicture?.startsWith('http')
+                          ? msg.senderId.profilePicture
+                          : `${import.meta.env.VITE_BACKEND_URL}${msg.senderId.profilePicture}`
                       }
                       className="w-8 h-8 rounded-full object-cover border border-[var(--border)]"
                       alt={msg.senderId.name}
@@ -863,9 +863,9 @@ const ChatWindow = () => {
                   {msg.senderId.profilePicture && msg.senderId._id !== userId ? (
                     <img
                       src={
-                        msg.senderId.profilePicture.startsWith('/uploads/')
-                          ? `${import.meta.env.VITE_BACKEND_URL}${msg.senderId.profilePicture}`
-                          : `${import.meta.env.VITE_BACKEND_URL}/uploads/${msg.senderId.profilePicture}`
+                        msg.senderId.profilePicture?.startsWith('http')
+                          ? msg.senderId.profilePicture
+                          : `${import.meta.env.VITE_BACKEND_URL}${msg.senderId.profilePicture}`
                       }
                       className="w-8 h-8 rounded-full object-cover border border-[var(--border)]"
                       alt={msg.senderId.name}

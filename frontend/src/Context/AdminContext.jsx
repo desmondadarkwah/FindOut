@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import axiosInstance from '../utils/axiosInstance';
 
 export const AdminContext = createContext();
@@ -13,7 +13,7 @@ export const useAdminContext = () => {
 
 const AdminContextProvider = ({ children }) => {
   const [admin, setAdmin] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // ✅ MANUAL check - only called when needed
@@ -51,7 +51,9 @@ const AdminContextProvider = ({ children }) => {
       setLoading(false);
     }
   };
-
+useEffect(() => {
+  checkAuth();
+}, []);
   const login = async (email, password) => {
     try {
       setError(null);

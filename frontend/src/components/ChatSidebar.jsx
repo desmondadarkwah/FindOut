@@ -243,9 +243,9 @@ const ChatSidebar = ({ showChatSidebar }) => {
                         otherUser?.profilePicture ? (
                           <img
                             src={
-                              otherUser.profilePicture.startsWith('/uploads/')
-                                ? `${import.meta.env.VITE_BACKEND_URL}${otherUser.profilePicture}`
-                                : `${import.meta.env.VITE_BACKEND_URL}/uploads/${otherUser.profilePicture}`
+                              otherUser.profilePicture?.startsWith('http')
+                                ? otherUser.profilePicture
+                                : `${import.meta.env.VITE_BACKEND_URL}${otherUser.profilePicture}`
                             }
                             alt={otherUser?.name || 'User'}
                             className={`w-12 h-12 rounded-2xl object-cover ring-2 transition-all duration-300 ${isBlocked ? 'ring-[#ef4444]/40 opacity-60' : 'ring-[var(--border)] group-hover:ring-[#6366f1]/30'

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, X, Users, MessageCircle, FileText, Sparkles,
@@ -7,11 +7,18 @@ import {
 } from 'lucide-react';
 import axiosInstance from '../utils/axiosInstance';
 import { useToast } from '../Context/ToastContext';
+import { ChatContext } from '../Context/ChatContext';
 
 const GlobalSearch = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const searchInputRef = useRef(null);
   const { toast } = useToast();
+
+  const {
+    setSelectedChat,
+    setChats,
+    userId: currentUserId
+  } = useContext(ChatContext);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -78,15 +85,51 @@ const GlobalSearch = ({ isOpen, onClose }) => {
   };
 
   // FIX: replaced alert() with toast — matches the rest of the app.
-  const handleStartDM = async (userId) => {
+  const handleStartDM = async (otherUserId) => {
+    if (otherUserId === currentUserId) {
+      toast.info("That's you!");
+      return;
+    }
+
     try {
-      const response = await axiosInstance.post('/api/start-new-chat', { userIdToChat: userId });
-      // if (response.data.success) {
-      if (response.status === 200 && response.data.chat) {
+      const response = await axiosInstance.post(
+        '/api/start-new-chat',
+        { userIdToChat: otherUserId }
+      );
+
+      const newChatId = response.data.chat?._id;
+
+      if (!newChatId) {
+        toast.error('Failed to start conversation');
+        return;
+      }
+
+      // Get the populated chat that the Inbox expects
+      const allChatsResponse = await axiosInstance.get('/api/chats');
+      const fullChat = allChatsResponse.data.chats.find(
+        c => c._id === newChatId
+      );
+
+      if (fullChat) {
+        setSelectedChat(fullChat);
+
+        setChats(prev =>
+          prev.some(c => c._id === fullChat._id)
+            ? prev
+            : [...prev, fullChat]
+        );
+
         navigate('/inbox');
         onClose();
+      } else {
+        toast.error('Could not open the conversation');
       }
     } catch (error) {
+      if (error.response?.data?.isBlocked) {
+        toast.error(error.response.data.message);
+        return;
+      }
+
       console.error('Error starting DM:', error);
       toast.error('Failed to start conversation');
     }

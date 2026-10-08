@@ -7,18 +7,6 @@ import {
 } from 'lucide-react';
 import { useAdminContext } from '../Context/AdminContext';
 
-/* ─────────────────────────────────────────────
-   AdminLayout
-
-   One shared shell for every admin page: sidebar, mobile menu, login guard,
-   toast and confirm dialog. Each admin page is rendered inside <Outlet />,
-   so the sidebar stays on screen and only the content swaps - while every
-   page still has its own real URL (/admin-users, /admin-reports ...), which
-   keeps the browser Back button, refresh, bookmarks and links working.
-
-   This replaces ~100 lines of identical sidebar code that used to be
-   copy-pasted into four different pages (and was missing from Reports).
-───────────────────────────────────────────── */
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: Activity, to: '/admin-dashboard' },
@@ -28,8 +16,6 @@ const NAV_ITEMS = [
   { key: 'analytics', label: 'Analytics', icon: TrendingUp, to: '/admin-analytics' },
 ];
 
-/* Shared helpers used by the admin pages */
-
 // Works whether the backend stores "/uploads/x.png", "x.png" or a full URL
 export const resolveImage = (path) => {
   if (!path) return null;
@@ -38,7 +24,6 @@ export const resolveImage = (path) => {
   return `${import.meta.env.VITE_BACKEND_URL}/uploads/${path}`;
 };
 
-// Returns `value` only after it has stopped changing for `delay` ms.
 // Used so typing in a search box doesn't hit the server on every keystroke.
 export const useDebouncedValue = (value, delay = 400) => {
   const [debounced, setDebounced] = useState(value);
@@ -49,9 +34,7 @@ export const useDebouncedValue = (value, delay = 400) => {
   return debounced;
 };
 
-/* toast() and confirm() for admin pages.
-   If a page is ever rendered outside the layout, these safe fallbacks keep it
-   from crashing. */
+
 const AdminUIContext = createContext({
   toast: (message) => console.log(message),
   confirm: (message) => Promise.resolve(window.confirm(message)),
@@ -60,7 +43,7 @@ const AdminUIContext = createContext({
 export const useAdminUI = () => useContext(AdminUIContext);
 
 const AdminLayout = () => {
-  const { admin, logout } = useAdminContext();
+  const { admin, loading, logout } = useAdminContext();
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -72,10 +55,12 @@ const AdminLayout = () => {
 
   // Only redirect if there is no admin AND no token
   useEffect(() => {
-    if (admin) return;
-    const token = localStorage.getItem('adminToken');
-    if (!token) navigate('/admin-login');
-  }, [admin, navigate]);
+    if (loading) return;
+
+    if (!admin) {
+      navigate('/admin-login', { replace: true });
+    }
+  }, [admin, loading, navigate]);
 
   // Close the mobile menu whenever you move to another page
   useEffect(() => { setShowSidebar(false); }, [pathname]);
@@ -206,11 +191,10 @@ const AdminLayout = () => {
                   <button
                     key={item.key}
                     onClick={() => navigate(item.to)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border-l-2 ${
-                      active
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border-l-2 ${active
                         ? 'text-[#f1f5f9] bg-[rgba(255,255,255,0.05)] border-[#6366f1]'
                         : 'text-[rgba(255,255,255,0.4)] hover:text-[#f1f5f9] hover:bg-[rgba(255,255,255,0.03)] border-transparent'
-                    }`}
+                      }`}
                   >
                     <Icon size={17} />
                     {item.label}
